@@ -42,6 +42,7 @@ export default function Sidebar() {
 
   const tenantNavigation = [
     { name: "Dashboard", href: "/tenant-dashboard", icon: Home },
+    { name: "Messages", href: "/inbox", icon: Inbox },
     { name: "Requests & Calendar", href: "/maintenance", icon: Wrench },
     { name: "Reminders", href: "/reminders", icon: Bell },
   ];

@@ -24,6 +24,8 @@ export default function Messages() {
   const [newMessage, setNewMessage] = useState('');
   const [newThreadRecipient, setNewThreadRecipient] = useState('');
   const [newThreadMessage, setNewThreadMessage] = useState('');
+  
+  const isTenant = user?.primaryRole === 'tenant';
 
   const { data: threads = [] } = useQuery<MessageThread[]>({
     queryKey: ['/api/messages/threads'],
@@ -34,8 +36,9 @@ export default function Messages() {
     enabled: !!selectedThread,
   });
 
+  // For tenants, fetch landlord contacts; for others, fetch org users
   const { data: orgUsers = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
+    queryKey: isTenant ? ['/api/tenant/contacts'] : ['/api/users'],
   });
 
   const sendMessageMutation = useMutation({

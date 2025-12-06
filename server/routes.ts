@@ -17,7 +17,7 @@ import propertyOwnerRouter from "./routes/property-owner";
 import propertyOwnerAuthRouter from "./routes/property-owner-auth";
 import tenantRouter from "./routes/tenant";
 import tenantAuthRouter from "./routes/tenant-auth";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import { 
   insertOrganizationSchema,
   insertOwnershipEntitySchema,
@@ -2087,6 +2087,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching tenant cases:", error);
       res.status(500).json({ message: "Failed to fetch tenant cases" });
+    }
+  });
+
+  // Tenant-specific contacts endpoint - returns landlord/property manager contacts for messaging
+  app.get('/api/tenant/contacts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.primaryRole !== 'tenant') {
+        return res.status(403).json({ message: "Access denied - tenant role required" });
+      }
+      
+      // Find the tenant record for this user to get their org
+      const tenantRecord = await db
+        .select()
+        .from(tenants)
+        .where(eq(tenants.userId, userId))
+        .limit(1);
+      
+      if (!tenantRecord.length || !tenantRecord[0].orgId) {
+        return res.status(404).json({ message: "Tenant not linked to an organization" });
+      }
+      
+      const orgId = tenantRecord[0].orgId;
+      
+      // Get all org admins and property owners from this organization
+      const contacts = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profilePicture: users.profilePicture,
+          primaryRole: users.primaryRole,
+        })
+        .from(organizationMembers)
+        .innerJoin(users, eq(organizationMembers.userId, users.id))
+        .where(
+          and(
+            eq(organizationMembers.orgId, orgId),
+            or(
+              eq(users.primaryRole, 'org_admin'),
+              eq(users.primaryRole, 'property_owner')
+            )
+          )
+        );
+      
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching tenant contacts:", error);
+      res.status(500).json({ message: "Failed to fetch tenant contacts" });
     }
   });
 

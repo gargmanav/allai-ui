@@ -250,18 +250,22 @@ export default function Inbox() {
   const { user } = useAuth();
   const currentRole = user?.primaryRole;
   
-  // Check if user is admin (can see Internal/External tabs)
-  const isAdmin = currentRole === 'admin';
+  // Check if user is admin/org_admin (can see Internal/External tabs)
+  const isAdmin = currentRole === 'admin' || currentRole === 'org_admin';
+  // Tenants get a simplified messages-only view
+  const isTenant = currentRole === 'tenant';
   
   return (
     <div className="flex h-screen bg-background" data-testid="page-inbox">
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Inbox" />
+        <Header title={isTenant ? "Messages" : "Inbox"} />
         
         <main className="flex-1 overflow-auto p-6 bg-muted/30">
-          {isAdmin ? (
+          {isTenant ? (
+            <Messages />
+          ) : isAdmin ? (
             <Tabs defaultValue="external" className="w-full">
               <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
                 <TabsTrigger value="external" data-testid="tab-external">
