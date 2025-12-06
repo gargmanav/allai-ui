@@ -2120,7 +2120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: users.email,
           firstName: users.firstName,
           lastName: users.lastName,
-          profilePicture: users.profilePicture,
+          profileImageUrl: users.profileImageUrl,
           primaryRole: users.primaryRole,
         })
         .from(organizationMembers)
@@ -6035,13 +6035,30 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
   app.get('/api/messages/threads', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const org = await storage.getUserOrganization(userId);
+      let orgId: string | null = null;
       
-      if (!org) {
+      // First try regular organization membership
+      const org = await storage.getUserOrganization(userId);
+      if (org) {
+        orgId = org.id;
+      } else {
+        // Check if user is a tenant - get org from tenants table
+        const tenantRecord = await db
+          .select({ orgId: tenants.orgId })
+          .from(tenants)
+          .where(eq(tenants.userId, userId))
+          .limit(1);
+        
+        if (tenantRecord.length && tenantRecord[0].orgId) {
+          orgId = tenantRecord[0].orgId;
+        }
+      }
+      
+      if (!orgId) {
         return res.status(404).json({ message: "Organization not found" });
       }
       
-      const threads = await storage.getMessageThreads(org.id, userId);
+      const threads = await storage.getMessageThreads(orgId, userId);
       res.json(threads);
     } catch (error) {
       console.error("Error fetching message threads:", error);
@@ -6052,16 +6069,33 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
   app.post('/api/messages/threads', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const org = await storage.getUserOrganization(userId);
+      let orgId: string | null = null;
       
-      if (!org) {
+      // First try regular organization membership
+      const org = await storage.getUserOrganization(userId);
+      if (org) {
+        orgId = org.id;
+      } else {
+        // Check if user is a tenant - get org from tenants table
+        const tenantRecord = await db
+          .select({ orgId: tenants.orgId })
+          .from(tenants)
+          .where(eq(tenants.userId, userId))
+          .limit(1);
+        
+        if (tenantRecord.length && tenantRecord[0].orgId) {
+          orgId = tenantRecord[0].orgId;
+        }
+      }
+      
+      if (!orgId) {
         return res.status(404).json({ message: "Organization not found" });
       }
       
       const { participantIds, subject } = req.body;
       
       const threadData = insertMessageThreadSchema.parse({
-        orgId: org.id,
+        orgId: orgId,
         subject: subject || null,
         isDirect: participantIds.length === 2
       });
@@ -7579,15 +7613,54 @@ If you cannot identify the equipment with confidence, return an empty object {}.
   app.get('/api/scheduled-jobs', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      let orgId: string | null = null;
+      let isTenant = user?.primaryRole === 'tenant';
+      let tenantCaseIds: string[] = [];
+      
+      // First try regular organization membership
       const org = await storage.getUserOrganization(userId);
-      if (!org) return res.status(404).json({ message: "Organization not found" });
+      if (org) {
+        orgId = org.id;
+      } else {
+        // Check if user is a tenant - get org from tenants table
+        const tenantRecord = await db
+          .select({ orgId: tenants.orgId })
+          .from(tenants)
+          .where(eq(tenants.userId, userId))
+          .limit(1);
+        
+        if (tenantRecord.length && tenantRecord[0].orgId) {
+          orgId = tenantRecord[0].orgId;
+          isTenant = true;
+        }
+      }
+      
+      if (!orgId) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
 
       const filters = {
         teamId: req.query.teamId as string | undefined,
         status: req.query.status as string | undefined,
       };
 
-      const jobs = await storage.getScheduledJobs(org.id, filters);
+      let jobs = await storage.getScheduledJobs(orgId, filters);
+      
+      // For tenants, filter jobs to only those linked to their cases
+      if (isTenant) {
+        // Get the tenant's cases
+        const tenantCases = await db
+          .select({ id: smartCases.id })
+          .from(smartCases)
+          .where(eq(smartCases.reporterUserId, userId));
+        
+        tenantCaseIds = tenantCases.map(c => c.id);
+        
+        // Filter jobs to only those linked to tenant's cases
+        jobs = jobs.filter(job => job.caseId && tenantCaseIds.includes(job.caseId));
+      }
+      
       res.json(jobs);
     } catch (error) {
       console.error("Error fetching scheduled jobs:", error);

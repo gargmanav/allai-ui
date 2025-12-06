@@ -40,11 +40,10 @@ export default function Sidebar() {
     { name: "Reminders", href: "/reminders", icon: Clock },
   ];
 
+  // Tenants now use a unified dashboard without sidebar navigation
+  // This is kept minimal in case they somehow access a page with sidebar
   const tenantNavigation = [
-    { name: "Dashboard", href: "/tenant-dashboard", icon: Home },
-    { name: "Messages", href: "/inbox", icon: Inbox },
-    { name: "Requests & Calendar", href: "/maintenance", icon: Wrench },
-    { name: "Reminders", href: "/reminders", icon: Bell },
+    { name: "Home", href: "/tenant-dashboard", icon: Home },
   ];
 
   let navigation = currentRole === 'platform_super_admin'
