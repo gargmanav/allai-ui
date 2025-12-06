@@ -190,6 +190,7 @@ export default function TenantDashboard() {
   );
 
   const activeCases = myCases.filter(c => !['Resolved', 'Closed'].includes(c.status));
+  const inProgressCases = myCases.filter(c => ['In Progress', 'Scheduled'].includes(c.status));
   const pendingApproval = appointments.filter(a => a.requiresTenantAccess && !a.tenantApproved);
   const upcomingAppointments = appointments.filter(a => 
     new Date(a.scheduledStartAt) > new Date() && a.status !== 'Cancelled'
@@ -398,9 +399,9 @@ export default function TenantDashboard() {
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
                 <Bell className="h-5 w-5" />
-                {pendingApproval.length + pendingJobApprovals.length > 0 && (
+                {upcomingAppointments.length > 0 && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {pendingApproval.length + pendingJobApprovals.length}
+                    {upcomingAppointments.length}
                   </span>
                 )}
               </Button>
@@ -493,16 +494,16 @@ export default function TenantDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab("requests")}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Needs Approval</p>
-                    <p className="text-2xl font-bold text-red-600" data-testid="text-pending-approval">
-                      {pendingApproval.length + pendingJobApprovals.length}
+                    <p className="text-sm text-muted-foreground">In Progress</p>
+                    <p className="text-2xl font-bold text-green-600" data-testid="text-in-progress">
+                      {inProgressCases.length}
                     </p>
                   </div>
-                  <Clock className="h-8 w-8 text-red-500 opacity-50" />
+                  <Clock className="h-8 w-8 text-green-500 opacity-50" />
                 </div>
               </CardContent>
             </Card>
@@ -691,7 +692,7 @@ export default function TenantDashboard() {
                       View All
                     </Button>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="max-h-[300px] overflow-y-auto">
                     {casesLoading ? (
                       <div className="py-8 text-center text-muted-foreground">Loading...</div>
                     ) : myCases.length === 0 ? (
@@ -702,7 +703,7 @@ export default function TenantDashboard() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {myCases.slice(0, 3).map((c) => (
+                        {myCases.slice(0, 5).map((c) => (
                           <div
                             key={c.id}
                             className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
@@ -734,7 +735,7 @@ export default function TenantDashboard() {
                   <CardHeader>
                     <CardTitle className="text-lg">Reminders</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="max-h-[300px] overflow-y-auto">
                     {upcomingReminders.length === 0 ? (
                       <div className="py-8 text-center">
                         <Bell className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
@@ -773,7 +774,7 @@ export default function TenantDashboard() {
                     View All
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="max-h-[300px] overflow-y-auto">
                   {messageThreads.length === 0 ? (
                     <div className="py-8 text-center">
                       <MessageSquare className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
@@ -782,7 +783,7 @@ export default function TenantDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {messageThreads.slice(0, 3).map((thread) => (
+                      {messageThreads.slice(0, 5).map((thread) => (
                         <div
                           key={thread.id}
                           className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
