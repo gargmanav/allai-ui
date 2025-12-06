@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireAuth, AuthenticatedRequest } from "./middleware/rbac";
 import { ObjectStorageService } from "./objectStorage";
 import { db } from "./db";
-import { users, organizationMembers, vendors, counterProposals, tenants } from "@shared/schema";
+import { users, organizationMembers, vendors, counterProposals, tenants, smartCases } from "@shared/schema";
 import { z } from "zod";
 import authRouter from "./routes/auth";
 import contractorRouter from "./routes/contractor";
@@ -2074,11 +2074,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/tenant/cases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const org = await storage.getUserOrganization(userId);
-      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Get tenant's org from tenants table
+      const tenantRecord = await db
+        .select({ orgId: tenants.orgId })
+        .from(tenants)
+        .where(eq(tenants.userId, userId))
+        .limit(1);
+      
+      if (!tenantRecord.length || !tenantRecord[0].orgId) {
+        return res.status(404).json({ message: "Tenant not linked to an organization" });
+      }
+      
+      const orgId = tenantRecord[0].orgId;
       
       // Get all cases for the organization
-      const allCases = await storage.getSmartCases(org.id);
+      const allCases = await storage.getSmartCases(orgId);
       
       // Filter to only cases where this user is the reporter
       const tenantCases = allCases.filter(c => c.reporterUserId === userId);
@@ -2087,6 +2098,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching tenant cases:", error);
       res.status(500).json({ message: "Failed to fetch tenant cases" });
+    }
+  });
+  
+  // Tenant-specific case creation endpoint
+  app.post('/api/tenant/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.primaryRole !== 'tenant') {
+        return res.status(403).json({ message: "Access denied - tenant role required" });
+      }
+      
+      // Get tenant's org and unit from tenants table
+      const tenantRecord = await db.query.tenants.findFirst({
+        where: eq(tenants.userId, userId),
+        with: {
+          unit: {
+            with: {
+              property: true,
+            },
+          },
+        },
+      });
+      
+      if (!tenantRecord || !tenantRecord.orgId) {
+        return res.status(404).json({ message: "Tenant not linked to an organization" });
+      }
+      
+      const orgId = tenantRecord.orgId;
+      
+      // Determine property and unit from tenant record or request body
+      let propertyId = req.body.propertyId;
+      let unitId = req.body.unitId;
+      
+      // If tenant has a unit assigned and no override provided, use their unit
+      if (tenantRecord.unit && tenantRecord.unit.property) {
+        if (!propertyId) propertyId = tenantRecord.unit.property.id;
+        if (!unitId) unitId = tenantRecord.unitId;
+      }
+      
+      // Normalize priority
+      const priorityMap: Record<string, string> = {
+        'normal': 'Normal',
+        'medium': 'Normal',
+        'low': 'Normal', 
+        'high': 'High',
+        'urgent': 'Urgent',
+        'critical': 'Urgent'
+      };
+      const normalizedPriority = req.body.priority 
+        ? priorityMap[req.body.priority.toLowerCase()] || req.body.priority 
+        : 'Normal';
+
+      // Build case data
+      const caseData = {
+        title: req.body.title,
+        description: req.body.description || null,
+        orgId: orgId,
+        reporterUserId: userId,
+        propertyId: propertyId || null,
+        unitId: unitId || null,
+        priority: normalizedPriority,
+        category: req.body.category || null,
+        status: 'Open',
+        aiTriageJson: req.body.aiTriageJson || null,
+      };
+      
+      const { insertSmartCaseSchema } = await import("@shared/schema");
+      const validatedData = insertSmartCaseSchema.parse(caseData);
+      
+      const smartCase = await storage.createSmartCase(validatedData);
+      
+      // Handle media uploads if present
+      if (req.body.mediaIds && Array.isArray(req.body.mediaIds)) {
+        for (const mediaId of req.body.mediaIds) {
+          await storage.updateCaseMedia(mediaId, { caseId: smartCase.id });
+        }
+      }
+      
+      res.status(201).json(smartCase);
+    } catch (error) {
+      console.error("Error creating tenant case:", error);
+      res.status(500).json({ message: "Failed to create case" });
     }
   });
 
@@ -5462,9 +5557,12 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
         let tenantUnitInfo = null;
         
         if (userRole === 'tenant') {
-          // Get tenant's unit and property
+          // Get tenant's unit and property - look for one with a unit assigned first
           const tenant = await db.query.tenants.findFirst({
-            where: eq(tenants.userId, userId),
+            where: and(
+              eq(tenants.userId, userId),
+              eq(tenants.orgId, orgId)
+            ),
             with: {
               unit: {
                 with: {
@@ -5474,32 +5572,47 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
             },
           });
 
-          if (!tenant || !tenant.unit || !tenant.unit.property) {
-            return res.status(400).json({ message: "Tenant unit or property not found" });
+          if (tenant?.unit?.property) {
+            // Tenant has a unit assigned - use their property
+            tenantUnitInfo = {
+              unitLabel: tenant.unit.label,
+              unitId: tenant.unitId,
+              propertyName: tenant.unit.property.name || tenant.unit.property.street,
+              propertyId: tenant.unit.property.id,
+              propertyStreet: tenant.unit.property.street,
+              propertyCity: tenant.unit.property.city,
+              propertyState: tenant.unit.property.state,
+              propertyZip: tenant.unit.property.zip
+            };
+
+            // Auto-fill the tenant's property
+            propertyMatches = [{
+              id: tenant.unit.property.id,
+              name: tenant.unit.property.name || tenant.unit.property.street || 'Your Property',
+              address: `${tenant.unit.property.street}, ${tenant.unit.property.city}, ${tenant.unit.property.state}`,
+              confidence: 1.0,
+              reasoning: "Your assigned property"
+            }];
+            
+            properties = [tenant.unit.property];
+          } else {
+            // Tenant doesn't have a unit assigned yet - get org's properties
+            properties = await storage.getProperties(orgId);
+            
+            if (properties.length === 0) {
+              return res.status(400).json({ message: "No properties available. Please contact your landlord." });
+            }
+            
+            // Use the first property as default for tenants without unit assignment
+            const defaultProperty = properties[0];
+            propertyMatches = [{
+              id: defaultProperty.id,
+              name: defaultProperty.name || defaultProperty.street || 'Property',
+              address: `${defaultProperty.street || ''}, ${defaultProperty.city || ''}, ${defaultProperty.state || ''}`,
+              confidence: 0.8,
+              reasoning: "Default property for your organization"
+            }];
           }
-
-          // Store unit info for confirmation message
-          tenantUnitInfo = {
-            unitLabel: tenant.unit.label,
-            unitId: tenant.unitId,
-            propertyName: tenant.unit.property.name || tenant.unit.property.street,
-            propertyId: tenant.unit.property.id,
-            propertyStreet: tenant.unit.property.street,
-            propertyCity: tenant.unit.property.city,
-            propertyState: tenant.unit.property.state,
-            propertyZip: tenant.unit.property.zip
-          };
-
-          // Auto-fill the tenant's property
-          propertyMatches = [{
-            id: tenant.unit.property.id,
-            name: tenant.unit.property.name || tenant.unit.property.street || 'Your Property',
-            address: `${tenant.unit.property.street}, ${tenant.unit.property.city}, ${tenant.unit.property.state}`,
-            confidence: 1.0,
-            reasoning: "Your assigned property"
-          }];
-          
-          properties = [tenant.unit.property];
         } else {
           // For non-tenants, get all properties and do AI matching
           properties = await storage.getProperties(orgId);
