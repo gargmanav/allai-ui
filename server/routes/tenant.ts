@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { db } from '../db';
-import { tenants, smartCases, caseMedia } from '@shared/schema';
+import { tenants, smartCases, caseMedia, properties } from '@shared/schema';
 import { eq, and, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { notificationService } from '../notificationService.js';
@@ -13,6 +13,7 @@ const createCaseSchema = z.object({
   description: z.string().min(1),
   priority: z.string().optional(),
   category: z.string().optional(),
+  propertyId: z.string().optional(),
   aiTriageJson: z.any().optional(),
   mediaUrls: z.array(z.string()).optional(),
 });
@@ -158,20 +159,16 @@ router.post('/cases', requireAuth, requireRole('tenant'), async (req: Authentica
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    if (!tenant.unit) {
-      return res.status(400).json({ error: 'No unit assigned' });
-    }
-
     // Derive orgId from property chain (preferred) or direct tenant.orgId (legacy)
-    const derivedOrgId = tenant.unit.property.orgId || tenant.orgId;
+    const derivedOrgId = tenant.unit?.property?.orgId || tenant.orgId;
     
     if (!derivedOrgId) {
       console.error(`Tenant ${tenant.id} cannot create case - no orgId`);
       return res.status(403).json({ error: 'Organization not found for tenant' });
     }
 
-    // Validate derived orgId matches authenticated user's orgId
-    if (derivedOrgId !== req.user!.orgId) {
+    // Validate derived orgId matches authenticated user's orgId (if set)
+    if (req.user!.orgId && derivedOrgId !== req.user!.orgId) {
       console.error(`Tenant ${tenant.id} orgId mismatch: derived ${derivedOrgId} !== auth ${req.user!.orgId}`);
       return res.status(403).json({ error: 'Organization mismatch' });
     }
@@ -184,13 +181,52 @@ router.post('/cases', requireAuth, requireRole('tenant'), async (req: Authentica
       return 'Normal'; // Default for 'low', 'medium', or any other value
     };
 
+    // Get propertyId - use tenant's unit property if available, or fallback to org's first property
+    let propertyId: string | null = null;
+    let unitId = tenant.unitId || null;
+    
+    // Priority 1: Use tenant's assigned unit's property
+    if (tenant.unit?.propertyId) {
+      propertyId = tenant.unit.propertyId;
+    }
+    // Priority 2: If provided propertyId from request, validate it belongs to the org
+    else if (parsed.data.propertyId) {
+      const requestedProperty = await db.query.properties.findFirst({
+        where: and(
+          eq(properties.id, parsed.data.propertyId),
+          eq(properties.orgId, derivedOrgId)
+        ),
+      });
+      // Only use if it's validated to belong to tenant's org
+      if (requestedProperty) {
+        propertyId = requestedProperty.id;
+      }
+      // Otherwise propertyId stays null (not the untrusted value)
+    }
+    
+    // Priority 3: If still no property, try to get the organization's first property as fallback
+    if (!propertyId) {
+      const orgProperties = await db.query.properties.findMany({
+        where: eq(properties.orgId, derivedOrgId),
+        limit: 1,
+      });
+      if (orgProperties.length > 0) {
+        propertyId = orgProperties[0].id;
+      }
+    }
+    
+    // Ensure we have a valid property - reject if no org property exists
+    if (!propertyId) {
+      return res.status(400).json({ error: 'No property available in your organization. Please contact your landlord.' });
+    }
+
     // Create the case
     const [newCase] = await db.insert(smartCases).values({
       title: parsed.data.title,
       description: parsed.data.description,
       orgId: derivedOrgId,
-      propertyId: tenant.unit.propertyId,
-      unitId: tenant.unitId,
+      propertyId: propertyId,
+      unitId: unitId,
       reporterUserId: userId,
       status: 'New',
       priority: mapUrgencyToPriority(parsed.data.priority || 'Normal'),
