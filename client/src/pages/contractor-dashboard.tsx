@@ -22,6 +22,7 @@ import Sidebar from "@/components/layout/sidebar";
 import { Link } from "wouter";
 import PropertyAssistant from "@/components/ai/property-assistant";
 import { LiveSchedulingWidget } from "@/components/LiveSchedulingWidget";
+import PendingCounterProposals from "@/components/contractor/pending-counter-proposals";
 
 interface ContractorCase {
   id: string;
@@ -616,6 +617,9 @@ export default function ContractorDashboard() {
 
             {/* Maya AI Assistant */}
             <PropertyAssistant context="contractor-dashboard" />
+
+            {/* Pending Counter-Proposals - shown prominently if any exist */}
+            <PendingCounterProposals />
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedTab("cases")} data-testid="card-my-cases">

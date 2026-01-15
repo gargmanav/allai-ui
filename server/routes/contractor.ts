@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, insertQuoteSchema, insertQuoteLineItemSchema } from '@shared/schema';
+import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema } from '@shared/schema';
 import { eq, and, inArray, or, sql } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -551,6 +551,220 @@ router.delete('/quotes/:quoteId/line-items/:id', requireAuth, requireRole('contr
   } catch (error) {
     console.error('Error deleting line item:', error);
     res.status(500).json({ error: 'Failed to delete line item' });
+  }
+});
+
+// ============================================================================
+// COUNTER-PROPOSAL RESPONSE ROUTES
+// ============================================================================
+
+// Get pending counter-proposals for contractor's quotes
+router.get('/counter-proposals/pending', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    
+    // Get all quotes with pending counter-proposals
+    const quotesWithPending = await db.query.quotes.findMany({
+      where: and(
+        eq(quotes.contractorId, contractorUserId),
+        eq(quotes.hasCounterProposal, true),
+        eq(quotes.status, 'awaiting_response')
+      ),
+      with: {
+        case: {
+          with: {
+            property: true,
+          },
+        },
+        counterProposals: {
+          where: eq(quoteCounterProposals.status, 'pending'),
+          orderBy: (cp, { desc }) => [desc(cp.createdAt)],
+          with: {
+            proposer: true,
+          },
+        },
+      },
+    });
+    
+    res.json(quotesWithPending);
+  } catch (error) {
+    console.error('Error fetching pending counter-proposals:', error);
+    res.status(500).json({ error: 'Failed to fetch pending counter-proposals' });
+  }
+});
+
+// Accept a counter-proposal from landlord
+router.post('/counter-proposals/:id/accept', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const counterProposalId = req.params.id;
+    
+    // Get the counter-proposal
+    const counterProposal = await db.query.quoteCounterProposals.findFirst({
+      where: eq(quoteCounterProposals.id, counterProposalId),
+      with: {
+        quote: true,
+      },
+    });
+    
+    if (!counterProposal) {
+      return res.status(404).json({ error: 'Counter-proposal not found' });
+    }
+    
+    // Verify contractor owns the quote
+    if (counterProposal.quote.contractorId !== contractorUserId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Update counter-proposal status
+    await db.update(quoteCounterProposals)
+      .set({
+        status: 'accepted',
+        respondedAt: new Date(),
+        respondedBy: contractorUserId,
+      })
+      .where(eq(quoteCounterProposals.id, counterProposalId));
+    
+    // Update quote with accepted terms
+    const updateData: any = {
+      status: 'sent', // Back to sent status, landlord needs to re-accept
+      hasCounterProposal: false,
+      updatedAt: new Date(),
+    };
+    
+    // Apply counter-proposal terms if provided
+    if (counterProposal.proposedTotal) {
+      updateData.total = counterProposal.proposedTotal;
+    }
+    if (counterProposal.proposedStartDate) {
+      updateData.availableStartDate = counterProposal.proposedStartDate;
+    }
+    if (counterProposal.proposedEndDate) {
+      updateData.availableEndDate = counterProposal.proposedEndDate;
+    }
+    
+    await db.update(quotes)
+      .set(updateData)
+      .where(eq(quotes.id, counterProposal.quoteId));
+    
+    res.json({ success: true, message: 'Counter-proposal accepted' });
+  } catch (error) {
+    console.error('Error accepting counter-proposal:', error);
+    res.status(500).json({ error: 'Failed to accept counter-proposal' });
+  }
+});
+
+// Decline a counter-proposal from landlord
+router.post('/counter-proposals/:id/decline', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const counterProposalId = req.params.id;
+    const { reason } = req.body;
+    
+    // Get the counter-proposal
+    const counterProposal = await db.query.quoteCounterProposals.findFirst({
+      where: eq(quoteCounterProposals.id, counterProposalId),
+      with: {
+        quote: true,
+      },
+    });
+    
+    if (!counterProposal) {
+      return res.status(404).json({ error: 'Counter-proposal not found' });
+    }
+    
+    // Verify contractor owns the quote
+    if (counterProposal.quote.contractorId !== contractorUserId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Update counter-proposal status
+    await db.update(quoteCounterProposals)
+      .set({
+        status: 'rejected',
+        respondedAt: new Date(),
+        respondedBy: contractorUserId,
+        responseMessage: reason,
+      })
+      .where(eq(quoteCounterProposals.id, counterProposalId));
+    
+    // Update quote status
+    await db.update(quotes)
+      .set({
+        status: 'sent', // Back to sent, original terms stand
+        hasCounterProposal: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotes.id, counterProposal.quoteId));
+    
+    res.json({ success: true, message: 'Counter-proposal declined' });
+  } catch (error) {
+    console.error('Error declining counter-proposal:', error);
+    res.status(500).json({ error: 'Failed to decline counter-proposal' });
+  }
+});
+
+// Re-counter a counter-proposal (contractor makes a new counter)
+router.post('/counter-proposals/:id/counter', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const counterProposalId = req.params.id;
+    
+    // Get the original counter-proposal
+    const originalCounterProposal = await db.query.quoteCounterProposals.findFirst({
+      where: eq(quoteCounterProposals.id, counterProposalId),
+      with: {
+        quote: true,
+      },
+    });
+    
+    if (!originalCounterProposal) {
+      return res.status(404).json({ error: 'Counter-proposal not found' });
+    }
+    
+    // Verify contractor owns the quote
+    if (originalCounterProposal.quote.contractorId !== contractorUserId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Mark original counter-proposal as rejected
+    await db.update(quoteCounterProposals)
+      .set({
+        status: 'rejected',
+        respondedAt: new Date(),
+        respondedBy: contractorUserId,
+        responseMessage: 'Counter-offered with new terms',
+      })
+      .where(eq(quoteCounterProposals.id, counterProposalId));
+    
+    // Create a new counter-proposal from contractor
+    const validatedData = insertQuoteCounterProposalSchema.parse({
+      ...req.body,
+      quoteId: originalCounterProposal.quoteId,
+      proposedBy: contractorUserId,
+      proposedByRole: 'contractor',
+    });
+    
+    const [newCounterProposal] = await db.insert(quoteCounterProposals)
+      .values(validatedData)
+      .returning();
+    
+    // Update quote counter count
+    await db.update(quotes)
+      .set({
+        counterProposalCount: (originalCounterProposal.quote.counterProposalCount || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotes.id, originalCounterProposal.quoteId));
+    
+    res.json({
+      success: true,
+      counterProposal: newCounterProposal,
+      message: 'Counter-proposal sent to landlord',
+    });
+  } catch (error) {
+    console.error('Error creating contractor counter-proposal:', error);
+    res.status(500).json({ error: 'Failed to create counter-proposal' });
   }
 });
 

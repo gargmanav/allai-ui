@@ -168,11 +168,13 @@ export const contractorCustomers = pgTable("contractor_customers", {
 export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "awaiting_response", "approved", "declined", "expired"]);
 export const depositTypeEnum = pgEnum("deposit_type", ["none", "percent", "fixed"]);
 
-// Quotes - Contractor quotes sent to customers
+// Quotes - Contractor quotes sent to customers or landlords for work orders
 export const quotes = pgTable("quotes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contractorId: varchar("contractor_id").notNull().references(() => users.id),
-  customerId: varchar("customer_id").notNull().references(() => contractorCustomers.id),
+  customerId: varchar("customer_id").references(() => contractorCustomers.id), // Optional - for direct contractor customers
+  caseId: varchar("case_id").references(() => smartCases.id), // Link to work order for landlord proposals
+  orgId: varchar("org_id").references(() => organizations.id), // For landlord-facing quotes
   propertyId: varchar("property_id").references(() => properties.id), // Optional link to AllAI properties
   title: varchar("title").notNull(),
   status: quoteStatusEnum("status").default("draft"),
@@ -193,6 +195,14 @@ export const quotes = pgTable("quotes", {
   declinedAt: timestamp("declined_at"),
   approvalToken: varchar("approval_token"),
   archivedAt: timestamp("archived_at"),
+  // Scheduling fields for work order proposals
+  availableStartDate: timestamp("available_start_date", { withTimezone: true }), // Earliest the contractor can start
+  availableEndDate: timestamp("available_end_date", { withTimezone: true }), // Latest they can start
+  estimatedDays: integer("estimated_days").default(1), // How many days the job will take
+  scopeOfWork: text("scope_of_work"), // Description of what's included
+  // Counter-proposal tracking
+  hasCounterProposal: boolean("has_counter_proposal").default(false),
+  counterProposalCount: integer("counter_proposal_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -209,6 +219,31 @@ export const quoteLineItems = pgTable("quote_line_items", {
   isOptional: boolean("is_optional").default(false),
   isTaxable: boolean("is_taxable").default(true),
   displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Quote Counter-Proposals - Landlord counter-proposals on contractor quotes
+export const quoteCounterProposalStatusEnum = pgEnum("quote_counter_proposal_status", ["pending", "accepted", "rejected", "expired"]);
+
+export const quoteCounterProposals = pgTable("quote_counter_proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
+  proposedBy: varchar("proposed_by").notNull().references(() => users.id), // Landlord or contractor
+  proposedByRole: varchar("proposed_by_role").notNull(), // "landlord" or "contractor"
+  
+  // Counter-proposal terms
+  proposedTotal: decimal("proposed_total", { precision: 10, scale: 2 }), // New price if different
+  proposedStartDate: timestamp("proposed_start_date", { withTimezone: true }), // New start date if different
+  proposedEndDate: timestamp("proposed_end_date", { withTimezone: true }), // New end date if different
+  scopeChanges: text("scope_changes"), // Description of scope changes
+  message: text("message"), // Explanation for the counter-proposal
+  
+  // Response tracking
+  status: quoteCounterProposalStatusEnum("status").default("pending"),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+  respondedBy: varchar("responded_by").references(() => users.id),
+  responseMessage: text("response_message"),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1068,6 +1103,28 @@ export const smartCasesRelations = relations(smartCases, ({ one, many }) => ({
   property: one(properties, { fields: [smartCases.propertyId], references: [properties.id] }),
   media: many(caseMedia),
   events: many(caseEvents),
+  quotes: many(quotes), // Contractor proposals for this work order
+}));
+
+// Quote relations
+export const quotesRelations = relations(quotes, ({ one, many }) => ({
+  contractor: one(users, { fields: [quotes.contractorId], references: [users.id] }),
+  customer: one(contractorCustomers, { fields: [quotes.customerId], references: [contractorCustomers.id] }),
+  case: one(smartCases, { fields: [quotes.caseId], references: [smartCases.id] }),
+  organization: one(organizations, { fields: [quotes.orgId], references: [organizations.id] }),
+  property: one(properties, { fields: [quotes.propertyId], references: [properties.id] }),
+  lineItems: many(quoteLineItems),
+  counterProposals: many(quoteCounterProposals),
+}));
+
+export const quoteLineItemsRelations = relations(quoteLineItems, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteLineItems.quoteId], references: [quotes.id] }),
+}));
+
+export const quoteCounterProposalsRelations = relations(quoteCounterProposals, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteCounterProposals.quoteId], references: [quotes.id] }),
+  proposer: one(users, { fields: [quoteCounterProposals.proposedBy], references: [users.id] }),
+  responder: one(users, { fields: [quoteCounterProposals.respondedBy], references: [users.id] }),
 }));
 
 // Depreciation table relations
@@ -1786,6 +1843,11 @@ export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, cre
   sentAt: z.coerce.date().nullable().optional(),
   approvedAt: z.coerce.date().nullable().optional(),
   declinedAt: z.coerce.date().nullable().optional(),
+  availableStartDate: z.coerce.date().nullable().optional(),
+  availableEndDate: z.coerce.date().nullable().optional(),
+  customerId: z.string().nullable().optional(), // Optional for landlord quotes
+  caseId: z.string().nullable().optional(),
+  orgId: z.string().nullable().optional(),
 });
 export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit({ id: true, createdAt: true });
 export const insertFavoriteContractorSchema = createInsertSchema(favoriteContractors).omit({ id: true, createdAt: true });
@@ -1811,6 +1873,13 @@ export type Quote = typeof quotes.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
 export type InsertQuoteLineItem = z.infer<typeof insertQuoteLineItemSchema>;
+export const insertQuoteCounterProposalSchema = createInsertSchema(quoteCounterProposals).omit({ id: true, createdAt: true }).extend({
+  proposedStartDate: z.coerce.date().nullable().optional(),
+  proposedEndDate: z.coerce.date().nullable().optional(),
+  respondedAt: z.coerce.date().nullable().optional(),
+});
+export type QuoteCounterProposal = typeof quoteCounterProposals.$inferSelect;
+export type InsertQuoteCounterProposal = z.infer<typeof insertQuoteCounterProposalSchema>;
 export type FavoriteContractor = typeof favoriteContractors.$inferSelect;
 export type InsertFavoriteContractor = z.infer<typeof insertFavoriteContractorSchema>;
 export type VerificationToken = typeof verificationTokens.$inferSelect;

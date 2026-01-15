@@ -33,6 +33,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import PropertyAssistant from "@/components/ai/property-assistant";
 import { TimePickerDropdown } from "@/components/ui/time-picker-dropdown";
 import EquipmentManagementModal from "@/components/modals/equipment-management-modal";
+import ProposalComparison from "@/components/proposals/proposal-comparison";
 import AvailabilityCalendar from "@/components/contractor/availability-calendar";
 import TenantCalendar from "@/components/TenantCalendar";
 import TenantAvailabilitySelector from "@/components/TenantAvailabilitySelector";
@@ -3047,10 +3048,14 @@ export default function Maintenance() {
           </DialogHeader>
           {selectedCase && (
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="details" data-testid="tab-case-details">
                   <Wrench className="h-4 w-4 mr-2" />
                   Details
+                </TabsTrigger>
+                <TabsTrigger value="proposals" data-testid="tab-case-proposals">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Proposals
                 </TabsTrigger>
                 <TabsTrigger value="communications" data-testid="tab-case-communications">
                   <MessageSquare className="h-4 w-4 mr-2" />
@@ -3183,6 +3188,13 @@ export default function Maintenance() {
                   </Button>
                 </div>
               </div>
+              </TabsContent>
+              
+              <TabsContent value="proposals" className="mt-6">
+                <ProposalComparison 
+                  caseId={selectedCase.id} 
+                  caseTitle={selectedCase.title} 
+                />
               </TabsContent>
               
               <TabsContent value="communications" className="mt-6">
