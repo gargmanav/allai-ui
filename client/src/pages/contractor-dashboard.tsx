@@ -23,6 +23,8 @@ import { Link } from "wouter";
 import PropertyAssistant from "@/components/ai/property-assistant";
 import { LiveSchedulingWidget } from "@/components/LiveSchedulingWidget";
 import PendingCounterProposals from "@/components/contractor/pending-counter-proposals";
+import WorkQueue from "@/components/contractor/work-queue";
+import { LayoutGrid, List } from "lucide-react";
 
 interface ContractorCase {
   id: string;
@@ -247,6 +249,7 @@ export default function ContractorDashboard() {
   const [typeFilter, setTypeFilter] = useState<string>("All");
   const [hideClosedCases, setHideClosedCases] = useState<boolean>(true);
   const [favoriteCases, setFavoriteCases] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'cards' | 'queue'>('queue');
   
   // Multi-slot proposal state
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
@@ -675,6 +678,42 @@ export default function ContractorDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Jobs</h2>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === 'queue' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8"
+                      onClick={() => setViewMode('queue')}
+                    >
+                      <List className="h-4 w-4 mr-1" />
+                      Queue
+                    </Button>
+                    <Button
+                      variant={viewMode === 'cards' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8"
+                      onClick={() => setViewMode('cards')}
+                    >
+                      <LayoutGrid className="h-4 w-4 mr-1" />
+                      Cards
+                    </Button>
+                  </div>
+                </div>
+
+                {viewMode === 'queue' ? (
+                  <WorkQueue
+                    cases={assignedCases}
+                    isLoading={casesLoading}
+                    onAcceptCase={handleAcceptCase}
+                    onProposeTime={handleProposeTime}
+                    onViewDetails={(case_) => {
+                      setAcceptingCase(case_);
+                      setAcceptDialogOpen(true);
+                    }}
+                  />
+                ) : (
                 <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="cases" data-testid="tab-my-cases">
@@ -754,6 +793,7 @@ export default function ContractorDashboard() {
               </TabsContent>
 
                 </Tabs>
+                )}
               </div>
 
               <div className="lg:col-span-1">
