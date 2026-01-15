@@ -41,6 +41,7 @@ import ContractorCalendarMatch from "@/components/ContractorCalendarMatch";
 import { ThumbsUp, ThumbsDown, CalendarClock, X } from "lucide-react";
 import WorkOrderCard from "@/components/cards/work-order-card";
 import ImpersonationBanner from "@/components/admin/impersonation-banner";
+import WorkQueue from "@/components/contractor/work-queue";
 
 // Helper function to convert days to human-friendly relative time
 function formatDaysToRelativeTime(days: number): string {
@@ -197,7 +198,7 @@ export default function Maintenance() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [reminderCaseContext, setReminderCaseContext] = useState<{caseId: string; caseTitle: string} | null>(null);
-  const [currentView, setCurrentView] = useState<"cards" | "heat-map" | "kanban" | "list">("cards");
+  const [currentView, setCurrentView] = useState<"cards" | "heat-map" | "kanban" | "list" | "queue">(role === "contractor" ? "queue" : "cards");
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
   const [acceptingCase, setAcceptingCase] = useState<SmartCase | null>(null);
   const [tenantTab, setTenantTab] = useState<"requests" | "calendar" | "appointments" | "approval">("requests");
@@ -2052,6 +2053,17 @@ export default function Maintenance() {
                       <BarChart3 className="h-4 w-4 mr-1" />
                       Kanban
                     </Button>
+                    {role === "contractor" && (
+                      <Button
+                        variant={currentView === "queue" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentView("queue")}
+                        data-testid="button-view-queue"
+                      >
+                        <List className="h-4 w-4 mr-1" />
+                        Queue
+                      </Button>
+                    )}
                   </div>
 
                   {/* Scrollable Cards Container */}
@@ -2776,6 +2788,27 @@ export default function Maintenance() {
                     })}
                   </div>
                 </div>
+                </VisualizationErrorBoundary>
+              )}
+
+              {currentView === "queue" && role === "contractor" && (
+                <VisualizationErrorBoundary>
+                  <WorkQueue
+                    cases={filteredCases}
+                    isLoading={casesLoading}
+                    onAcceptCase={(case_) => {
+                      setAcceptingCase(case_);
+                      setShowAcceptDialog(true);
+                    }}
+                    onProposeTime={(case_) => {
+                      setAcceptingCase(case_);
+                      setShowAcceptDialog(true);
+                    }}
+                    onViewDetails={(case_) => {
+                      setSelectedCase(case_);
+                      setShowCaseDialog(true);
+                    }}
+                  />
                 </VisualizationErrorBoundary>
               )}
 

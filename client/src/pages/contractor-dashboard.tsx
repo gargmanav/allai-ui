@@ -23,8 +23,6 @@ import { Link } from "wouter";
 import PropertyAssistant from "@/components/ai/property-assistant";
 import { LiveSchedulingWidget } from "@/components/LiveSchedulingWidget";
 import PendingCounterProposals from "@/components/contractor/pending-counter-proposals";
-import WorkQueue from "@/components/contractor/work-queue";
-import { LayoutGrid, List } from "lucide-react";
 
 interface ContractorCase {
   id: string;
@@ -249,7 +247,6 @@ export default function ContractorDashboard() {
   const [typeFilter, setTypeFilter] = useState<string>("All");
   const [hideClosedCases, setHideClosedCases] = useState<boolean>(true);
   const [favoriteCases, setFavoriteCases] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'cards' | 'queue'>('queue');
   
   // Multi-slot proposal state
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
@@ -679,121 +676,64 @@ export default function ContractorDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">Jobs</h2>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={viewMode === 'queue' ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-8"
-                      onClick={() => setViewMode('queue')}
-                    >
-                      <List className="h-4 w-4 mr-1" />
-                      Queue
+                  <h2 className="text-lg font-semibold">Recent Jobs</h2>
+                  <Link href="/maintenance">
+                    <Button variant="outline" size="sm">
+                      <Wrench className="h-4 w-4 mr-1" />
+                      Open Job Hub
                     </Button>
-                    <Button
-                      variant={viewMode === 'cards' ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-8"
-                      onClick={() => setViewMode('cards')}
-                    >
-                      <LayoutGrid className="h-4 w-4 mr-1" />
-                      Cards
-                    </Button>
-                  </div>
+                  </Link>
                 </div>
 
-                {viewMode === 'queue' ? (
-                  <WorkQueue
-                    cases={assignedCases}
-                    isLoading={casesLoading}
-                    onAcceptCase={handleAcceptCase}
-                    onProposeTime={handleProposeTime}
-                    onViewDetails={(case_) => {
-                      setAcceptingCase(case_);
-                      setAcceptDialogOpen(true);
-                    }}
-                  />
-                ) : (
-                <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="cases" data-testid="tab-my-cases">
-                      My Work ({myCases.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="new" data-testid="tab-new-cases">
-                      New Work Orders ({newCases.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="active" data-testid="tab-active">
-                      Active ({activeCases.length})
-                    </TabsTrigger>
-                  </TabsList>
-
-              <TabsContent value="cases" className="mt-6 space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                {casesLoading ? (
-                  <div className="text-center py-8">Loading cases...</div>
-                ) : myCases.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No work assigned to you. Check the "New Work Orders" tab to accept new work.
-                  </div>
-                ) : (
-                  myCases.map((case_) => (
-                    <CaseCard
-                      key={case_.id}
-                      case_={case_}
-                      isFavorite={favoriteCases.has(case_.id)}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAcceptCase={handleAcceptCase}
-                      onProposeTime={handleProposeTime}
-                      updateCaseStatus={updateCaseStatus}
-                      acceptCaseMutation={acceptCaseMutation}
-                    />
-                  ))
-                )}
-              </TabsContent>
-
-              <TabsContent value="new" className="mt-6 space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                {newCases.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No new cases available at the moment.
-                  </div>
-                ) : (
-                  newCases.map((case_) => (
-                    <CaseCard
-                      key={case_.id}
-                      case_={case_}
-                      isFavorite={favoriteCases.has(case_.id)}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAcceptCase={handleAcceptCase}
-                      onProposeTime={handleProposeTime}
-                      updateCaseStatus={updateCaseStatus}
-                      acceptCaseMutation={acceptCaseMutation}
-                    />
-                  ))
-                )}
-              </TabsContent>
-
-              <TabsContent value="active" className="mt-6 space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                {activeCases.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No active cases.
-                  </div>
-                ) : (
-                  activeCases.map((case_) => (
-                    <CaseCard
-                      key={case_.id}
-                      case_={case_}
-                      isFavorite={favoriteCases.has(case_.id)}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAcceptCase={handleAcceptCase}
-                      onProposeTime={handleProposeTime}
-                      updateCaseStatus={updateCaseStatus}
-                      acceptCaseMutation={acceptCaseMutation}
-                    />
-                  ))
-                )}
-              </TabsContent>
-
-                </Tabs>
-                )}
+                <Card>
+                  <CardContent className="p-4">
+                    {casesLoading ? (
+                      <div className="text-center py-8 text-muted-foreground">Loading jobs...</div>
+                    ) : assignedCases.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Wrench className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No jobs assigned yet.</p>
+                        <Link href="/maintenance">
+                          <Button variant="link" size="sm" className="mt-2">
+                            Go to Job Hub to view available work
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {assignedCases.slice(0, 5).map((case_) => (
+                          <div 
+                            key={case_.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  case_.priority === 'Urgent' ? 'bg-red-500' : 
+                                  case_.priority === 'High' ? 'bg-orange-500' : 'bg-green-500'
+                                }`} />
+                                <span className="font-medium text-sm truncate">{case_.title}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {case_.status} • {case_.category || 'General'}
+                              </div>
+                            </div>
+                            <Badge variant={case_.status === 'New' ? 'default' : 'outline'} className="ml-2">
+                              {case_.status}
+                            </Badge>
+                          </div>
+                        ))}
+                        {assignedCases.length > 5 && (
+                          <Link href="/maintenance">
+                            <Button variant="link" size="sm" className="w-full">
+                              View {assignedCases.length - 5} more jobs in Job Hub →
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
 
               <div className="lg:col-span-1">

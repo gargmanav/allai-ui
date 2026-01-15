@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Link } from "wouter";
 import { 
   Wrench, 
   Bell, 
@@ -22,6 +29,10 @@ import {
   X,
   Pause,
   Send,
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { SmartCase, Property, Unit } from "@shared/schema";
@@ -167,6 +178,14 @@ export default function WorkOrderCard({
   const durationDays = teamInfo?.durationDays;
 
   const isCompact = variant === "compact";
+  const [isTriageExpanded, setIsTriageExpanded] = useState(false);
+
+  // Parse AI triage JSON if available
+  const aiTriage = workOrder.aiTriageJson ? (
+    typeof workOrder.aiTriageJson === 'string' 
+      ? JSON.parse(workOrder.aiTriageJson) 
+      : workOrder.aiTriageJson
+  ) : null;
 
   return (
     <Card 
@@ -249,8 +268,61 @@ export default function WorkOrderCard({
           </div>
         )}
         
-        {/* AI Assessment if available */}
-        {workOrder.aiReasoningNotes && !isCompact && (
+        {/* AI Triage - Expandable Section */}
+        {aiTriage && !isCompact && (
+          <Collapsible open={isTriageExpanded} onOpenChange={setIsTriageExpanded} className="mb-3">
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full justify-between h-8 px-2 bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded"
+              >
+                <span className="flex items-center gap-1.5 text-xs text-blue-800 dark:text-blue-200">
+                  <Brain className="h-3.5 w-3.5" />
+                  AI Triage Analysis
+                  {aiTriage.urgency && (
+                    <Badge variant="outline" className="ml-2 text-[10px] py-0 h-4">
+                      {aiTriage.urgency}
+                    </Badge>
+                  )}
+                </span>
+                {isTriageExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+              <div className="space-y-2 text-xs text-blue-800 dark:text-blue-200">
+                {aiTriage.rootCause && (
+                  <div>
+                    <strong>Root Cause:</strong> {aiTriage.rootCause}
+                  </div>
+                )}
+                {aiTriage.estimatedTime && (
+                  <div>
+                    <strong>Est. Time:</strong> {aiTriage.estimatedTime}
+                  </div>
+                )}
+                {aiTriage.estimatedCost && (
+                  <div>
+                    <strong>Est. Cost:</strong> {aiTriage.estimatedCost}
+                  </div>
+                )}
+                {aiTriage.suggestedActions && Array.isArray(aiTriage.suggestedActions) && (
+                  <div>
+                    <strong>Suggested Actions:</strong>
+                    <ul className="list-disc list-inside mt-1 space-y-0.5">
+                      {aiTriage.suggestedActions.map((action: string, i: number) => (
+                        <li key={i} className="text-blue-700 dark:text-blue-300">{action}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+        
+        {/* Legacy AI Assessment if no triage but has notes */}
+        {!aiTriage && workOrder.aiReasoningNotes && !isCompact && (
           <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
             <p className="text-xs text-blue-800 dark:text-blue-200 line-clamp-2">
               <strong>AI Assessment:</strong> {workOrder.aiReasoningNotes}
@@ -337,6 +409,22 @@ export default function WorkOrderCard({
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Accept
               </Button>
+            )}
+            
+            {/* Send Quote Button (Contractor Only) */}
+            {userRole === 'contractor' && (
+              <Link href={`/quotes?caseId=${workOrder.id}`}>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="h-8 px-3 border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                  data-testid={`button-send-quote-${index}`}
+                  title="Send Quote"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Quote
+                </Button>
+              </Link>
             )}
             
             {/* Review Counter-Proposal (Contractor Only) */}
