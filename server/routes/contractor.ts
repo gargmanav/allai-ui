@@ -9,6 +9,25 @@ import { generateApprovalToken } from '../utils/tokens';
 
 const router = Router();
 
+// Get all cases for contractor (assigned + marketplace)
+router.get('/cases', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const cases = await db.query.smartCases.findMany({
+      where: eq(smartCases.assignedContractorId, contractorUserId),
+      with: {
+        property: true,
+        unit: true,
+      },
+      orderBy: (cases, { desc }) => [desc(cases.createdAt)],
+    });
+    res.json(cases);
+  } catch (error) {
+    console.error('Error fetching contractor cases:', error);
+    res.status(500).json({ error: 'Failed to fetch contractor cases' });
+  }
+});
+
 // Get marketplace cases for contractor
 router.get('/marketplace', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {
