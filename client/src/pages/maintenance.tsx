@@ -23,7 +23,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Wrench, AlertTriangle, Clock, CheckCircle, XCircle, Trash2, Bell, LayoutGrid, CalendarDays, Map, BarChart3, List, MapPin, Home, Tag, Eye, Play, Calendar as CalendarIcon, MessageSquare, Mail, Phone, TrendingUp, Target, DollarSign, Settings, GripVertical, Users, Star } from "lucide-react";
+import { Plus, Wrench, AlertTriangle, Clock, CheckCircle, XCircle, Trash2, Bell, LayoutGrid, CalendarDays, Map, BarChart3, List, MapPin, Home, Tag, Eye, Play, Calendar as CalendarIcon, MessageSquare, Mail, Phone, TrendingUp, Target, DollarSign, Settings, GripVertical, Users, Star, Maximize2, Minimize2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReminderForm from "@/components/forms/reminder-form";
@@ -212,6 +212,18 @@ export default function Maintenance() {
   const [showMarketplaceDialog, setShowMarketplaceDialog] = useState(false);
   const [marketplaceCase, setMarketplaceCase] = useState<SmartCase | null>(null);
   const [marketplaceOptions, setMarketplaceOptions] = useState({ restrictToFavorites: false, isUrgent: false });
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Escape key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -1423,32 +1435,58 @@ export default function Maintenance() {
 
   // Admin/Contractor view
   return (
-    <div className="flex h-screen bg-background" data-testid="page-maintenance">
+    <div className={`flex h-screen bg-background ${isFullscreen ? 'fixed inset-0 z-50' : ''}`} data-testid="page-maintenance">
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Maintenance Requests" />
+        {!isFullscreen && <Header title="Maintenance Requests" />}
         
         {/* Back to Dashboard Link */}
-        <div className="px-6 pt-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(role === 'contractor' ? '/contractor-dashboard' : '/dashboard')}
-            className="text-muted-foreground hover:text-foreground"
-            data-testid="button-back-dashboard"
-          >
-            <Home className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </div>
+        {!isFullscreen && (
+          <div className="px-6 pt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(role === 'contractor' ? '/contractor-dashboard' : '/dashboard')}
+              className="text-muted-foreground hover:text-foreground"
+              data-testid="button-back-dashboard"
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </div>
+        )}
         
-        <main className="flex-1 overflow-auto p-6 bg-muted/30">
+        <main className={`flex-1 overflow-auto bg-muted/30 ${isFullscreen ? 'p-4' : 'p-6'}`}>
               <ImpersonationBanner />
               
-              {/* Header */}
+              {/* Header with Fullscreen Toggle */}
               <div className="mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Maintenance Requests</h1>
-                  <p className="text-muted-foreground">Track and manage maintenance requests</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">
+                      {isFullscreen ? 'Job Hub' : 'Maintenance Requests'}
+                    </h1>
+                    <p className="text-muted-foreground">Track and manage maintenance requests</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                    className="flex items-center gap-2"
+                    data-testid="button-fullscreen-toggle"
+                    title={isFullscreen ? "Exit fullscreen" : "Fullscreen mode"}
+                  >
+                    {isFullscreen ? (
+                      <>
+                        <Minimize2 className="h-4 w-4" />
+                        Exit Fullscreen
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="h-4 w-4" />
+                        Fullscreen
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
 
