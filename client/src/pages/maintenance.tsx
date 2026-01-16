@@ -213,17 +213,19 @@ export default function Maintenance() {
   const [marketplaceCase, setMarketplaceCase] = useState<SmartCase | null>(null);
   const [marketplaceOptions, setMarketplaceOptions] = useState({ restrictToFavorites: false, isUrgent: false });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
 
-  // Escape key to exit fullscreen
+  // Escape key to exit fullscreen/focus mode
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
+      if (e.key === 'Escape') {
+        if (isFocusMode) setIsFocusMode(false);
+        else if (isFullscreen) setIsFullscreen(false);
       }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isFullscreen]);
+  }, [isFullscreen, isFocusMode]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -2846,6 +2848,7 @@ export default function Maintenance() {
                       setSelectedCase(case_);
                       setShowCaseDialog(true);
                     }}
+                    onExpand={() => setIsFocusMode(true)}
                   />
                 </VisualizationErrorBoundary>
               )}
@@ -3491,6 +3494,68 @@ export default function Maintenance() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Focus Mode Overlay - Work Queue + Maya */}
+      {isFocusMode && role === 'contractor' && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          {/* Focus Mode Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-background">
+            <div>
+              <h1 className="text-xl font-bold">Work Queue Focus Mode</h1>
+              <p className="text-sm text-muted-foreground">Focused view with Maya AI assistant</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFocusMode(false)}
+              className="flex items-center gap-2"
+            >
+              <Minimize2 className="h-4 w-4" />
+              Exit Focus Mode
+            </Button>
+          </div>
+          
+          {/* Split Panel: Work Queue (left) + Maya (right) */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Work Queue - 70% width */}
+            <div className="w-[70%] overflow-auto p-4 border-r">
+              <WorkQueue
+                cases={filteredCases}
+                isLoading={casesLoading}
+                isExpanded={true}
+                onAcceptCase={(case_) => {
+                  setAcceptingCase(case_);
+                  setShowAcceptDialog(true);
+                }}
+                onProposeTime={(case_) => {
+                  setAcceptingCase(case_);
+                  setShowAcceptDialog(true);
+                }}
+                onViewDetails={(case_) => {
+                  setSelectedCase(case_);
+                  setShowCaseDialog(true);
+                }}
+              />
+            </div>
+            
+            {/* Maya AI - 30% width */}
+            <div className="w-[30%] overflow-auto p-4 bg-muted/30">
+              <div className="sticky top-0">
+                <PropertyAssistant 
+                  key="focus-mode-maya"
+                  context="maintenance"
+                  exampleQuestions={[
+                    "What jobs are most urgent right now?",
+                    "Show me high-value work orders",
+                    "Which jobs have been waiting longest?",
+                    "Any patterns in these maintenance requests?"
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

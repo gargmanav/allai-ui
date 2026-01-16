@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Clock, MapPin, DollarSign, AlertTriangle, Zap, Calendar, 
   ChevronRight, Check, X, ArrowUpDown, Search, Filter,
-  CalendarClock, TrendingUp, Bell, CheckCircle
+  CalendarClock, TrendingUp, Bell, CheckCircle, Maximize2
 } from "lucide-react";
 import { format, differenceInDays, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,8 @@ interface WorkQueueProps {
   onAcceptCase: (case_: WorkQueueCase) => void;
   onProposeTime: (case_: WorkQueueCase) => void;
   onViewDetails: (case_: WorkQueueCase) => void;
+  onExpand?: () => void;
+  isExpanded?: boolean;
 }
 
 type SortOption = 'newest' | 'oldest' | 'priority' | 'value';
@@ -75,7 +77,9 @@ export default function WorkQueue({
   isLoading, 
   onAcceptCase, 
   onProposeTime,
-  onViewDetails 
+  onViewDetails,
+  onExpand,
+  isExpanded = false
 }: WorkQueueProps) {
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState<SortOption>('priority');
@@ -243,13 +247,27 @@ export default function WorkQueue({
               <CardTitle className="text-lg">Work Queue</CardTitle>
               <CardDescription>{filteredAndSortedCases.length} jobs</CardDescription>
             </div>
-            <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
-              <TabsList className="h-8">
-                <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
-                <TabsTrigger value="today" className="text-xs px-3 h-7">Today</TabsTrigger>
-                <TabsTrigger value="this_week" className="text-xs px-3 h-7">This Week</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-3">
+              <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
+                  <TabsTrigger value="today" className="text-xs px-3 h-7">Today</TabsTrigger>
+                  <TabsTrigger value="this_week" className="text-xs px-3 h-7">This Week</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              {onExpand && !isExpanded && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onExpand}
+                  className="flex items-center gap-1.5"
+                  title="Focus mode with Maya AI"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                  Focus
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
