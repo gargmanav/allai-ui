@@ -5438,6 +5438,61 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
     }
   });
 
+  // Standalone AI triage endpoint for homeowner/property owner quick analysis
+  app.post('/api/ai/triage', isAuthenticated, async (req: any, res) => {
+    try {
+      const { description, category } = req.body;
+      
+      if (!description || typeof description !== 'string') {
+        return res.status(400).json({ error: 'Description is required' });
+      }
+
+      const { aiTriageService } = await import('./aiTriage');
+      
+      const triageResult = await aiTriageService.analyzeMaintenanceRequest({
+        title: description.substring(0, 100),
+        description: description,
+        category: category || undefined,
+        orgId: req.user?.orgId
+      });
+
+      // Generate reasonable cost estimate based on complexity
+      const costEstimates: Record<string, string> = {
+        'Simple': '$75 - $200',
+        'Moderate': '$200 - $500',
+        'Complex': '$500 - $1,500'
+      };
+      const estimatedCost = costEstimates[triageResult.estimatedComplexity] || '$150 - $400';
+
+      // Map to simpler format for homeowner UI
+      res.json({
+        urgency: triageResult.urgency.toLowerCase(),
+        rootCause: triageResult.preliminaryDiagnosis,
+        estimatedCost: estimatedCost,
+        estimatedTime: triageResult.estimatedDuration || '1-3 hours',
+        suggestedActions: triageResult.troubleshootingSteps || [],
+        category: triageResult.category,
+        contractorType: triageResult.contractorType,
+        safetyRisk: triageResult.safetyRisk
+      });
+    } catch (error) {
+      console.error('AI Triage error:', error);
+      // Return fallback triage for graceful degradation
+      res.json({
+        urgency: 'medium',
+        rootCause: 'Unable to determine - professional inspection recommended',
+        estimatedCost: '$150 - $400',
+        estimatedTime: '1-3 hours',
+        suggestedActions: [
+          'Take photos of the issue',
+          'Note when the problem started',
+          'Contact a professional for inspection'
+        ],
+        category: req.body.category || 'General Maintenance'
+      });
+    }
+  });
+
   // AI-powered smart case enhancement routes
   app.post('/api/cases/:id/ai-triage', isAuthenticated, async (req: any, res) => {
     try {

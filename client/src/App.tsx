@@ -44,6 +44,7 @@ import Quotes from "@/pages/quotes";
 import QuoteForm from "@/pages/quote-form";
 import QuoteApproval from "@/pages/quote-approval";
 import FavoriteContractors from "@/pages/favorite-contractors";
+import Homeowner from "@/pages/homeowner";
 import NotFound from "@/pages/not-found";
 
 function RoleBasedHome() {
@@ -58,7 +59,12 @@ function RoleBasedHome() {
     return <Redirect to="/admin-dashboard" />;
   }
   
-  // Landlords and property owners go to main dashboard
+  // Property owners go to simplified homeowner view
+  if (user?.primaryRole === 'property_owner') {
+    return <Redirect to="/homeowner" />;
+  }
+  
+  // Landlords go to main dashboard
   return <Redirect to="/dashboard" />;
 }
 
@@ -113,6 +119,7 @@ function Router() {
           <Route path="/quotes/:id" component={QuoteForm} />
           <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
           <Route path="/favorite-contractors" component={FavoriteContractors} />
+          <Route path="/homeowner" component={Homeowner} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin-calendar" component={AdminCalendar} />
           <Route path="/expenses" component={Expenses} />
