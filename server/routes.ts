@@ -282,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/landlord', landlordInvitesRouter);
   
   // Property Owner routes
-  app.use('/api/property-owner', propertyOwnerRouter);
+  app.use('/api/property-owner', isAuthenticated, propertyOwnerRouter);
   
   // Tenant routes
   app.use('/api/tenant', tenantRouter);

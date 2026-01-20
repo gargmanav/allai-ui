@@ -1,17 +1,42 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { properties, smartCases, organizationMembers, favoriteContractors, vendors } from '@shared/schema';
+import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users } from '@shared/schema';
 import { eq, and, or, desc } from 'drizzle-orm';
-import { requireRole } from '../middleware/rbac';
 import { z } from 'zod';
 
 const router = Router();
 
-router.use(requireRole(['property_owner']));
+// Helper to get user ID from session
+const getUserId = (req: any): string => {
+  return req.user?.claims?.sub || req.session?.userId;
+};
 
-router.get('/properties', async (req, res) => {
+// Middleware to verify property_owner role
+router.use(async (req: any, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    
+    if (!user || user.primaryRole !== 'property_owner') {
+      return res.status(403).json({ error: 'Property owner access required' });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Property owner auth error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+router.get('/properties', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
 
     const membership = await db.query.organizationMembers.findFirst({
       where: and(
@@ -39,9 +64,9 @@ router.get('/properties', async (req, res) => {
   }
 });
 
-router.post('/properties', async (req, res) => {
+router.post('/properties', async (req: any, res) => {
   try {
-    const userId = req.user!.id;
+    const userId = getUserId(req);
 
     const membership = await db.query.organizationMembers.findFirst({
       where: and(
@@ -68,9 +93,9 @@ router.post('/properties', async (req, res) => {
   }
 });
 
-router.get('/cases', async (req, res) => {
+router.get('/cases', async (req: any, res) => {
   try {
-    const userId = req.user!.id;
+    const userId = getUserId(req);
 
     const membership = await db.query.organizationMembers.findFirst({
       where: and(
@@ -113,9 +138,9 @@ router.get('/cases', async (req, res) => {
   }
 });
 
-router.get('/favorites', async (req, res) => {
+router.get('/favorites', async (req: any, res) => {
   try {
-    const userId = req.user!.id;
+    const userId = getUserId(req);
 
     const membership = await db.query.organizationMembers.findFirst({
       where: and(
@@ -154,9 +179,9 @@ router.get('/favorites', async (req, res) => {
   }
 });
 
-router.post('/favorites', async (req, res) => {
+router.post('/favorites', async (req: any, res) => {
   try {
-    const userId = req.user!.id;
+    const userId = getUserId(req);
     const { contractorUserId } = req.body;
 
     if (!contractorUserId) {
@@ -187,9 +212,9 @@ router.post('/favorites', async (req, res) => {
   }
 });
 
-router.delete('/favorites/:id', async (req, res) => {
+router.delete('/favorites/:id', async (req: any, res) => {
   try {
-    const userId = req.user!.id;
+    const userId = getUserId(req);
     const { id } = req.params;
 
     const membership = await db.query.organizationMembers.findFirst({
