@@ -356,67 +356,63 @@ export default function Homeowner() {
               )}
             </form>
 
-            {/* Quick Categories - with subtle gradient background for frosted effect */}
-            <div className="relative p-6 rounded-3xl">
-              {/* Gradient background for frosted glass effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-100/50 via-blue-50/30 to-cyan-100/50 dark:from-violet-900/20 dark:via-blue-900/10 dark:to-cyan-900/20 rounded-3xl" />
+            {/* Quick Categories */}
+            <div className="grid grid-cols-4 gap-4 max-w-md">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategoryClick(cat.id)}
+                  className="relative flex flex-col items-center gap-2 p-2 transition-all"
+                >
+                  <div 
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
+                      selectedCategories.includes(cat.id) 
+                        ? `${cat.bgColor} ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
+                        : "hover:scale-105"
+                    }`} 
+                    style={{
+                      background: selectedCategories.includes(cat.id) 
+                        ? undefined 
+                        : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,240,240,0.6) 50%, rgba(220,220,220,0.4))',
+                      border: '2px solid rgba(147, 197, 253, 0.6)',
+                      boxShadow: selectedCategories.includes(cat.id) 
+                        ? `0 0 20px ${cat.glowColor}` 
+                        : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.08)'
+                    }}
+                  >
+                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500"}`} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
+                </button>
+              ))}
               
-              <div className="relative grid grid-cols-4 gap-4 max-w-md">
-                {categories.map((cat) => (
+              {/* Other - Dropdown */}
+              <Popover>
+                <PopoverTrigger asChild>
                   <button
-                    key={cat.id}
-                    onClick={() => handleCategoryClick(cat.id)}
                     className="relative flex flex-col items-center gap-2 p-2 transition-all"
                   >
                     <div 
                       className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
-                        selectedCategories.includes(cat.id) 
-                          ? `${cat.bgColor} ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
+                        selectedCategories.some(id => otherCategories.some(c => c.id === id))
+                          ? "bg-purple-100 dark:bg-purple-900/30 ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
                           : "hover:scale-105"
-                      }`} 
+                      }`}
                       style={{
-                        background: selectedCategories.includes(cat.id) 
-                          ? undefined 
-                          : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.4) 50%, rgba(200,200,200,0.3))',
-                        border: '1px solid rgba(255,255,255,0.6)',
-                        boxShadow: selectedCategories.includes(cat.id) 
-                          ? `0 0 20px ${cat.glowColor}` 
-                          : 'inset 0 1px 1px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.05)'
+                        background: selectedCategories.some(id => otherCategories.some(c => c.id === id))
+                          ? undefined
+                          : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,240,240,0.6) 50%, rgba(220,220,220,0.4))',
+                        border: '2px solid rgba(147, 197, 253, 0.6)',
+                        boxShadow: selectedCategories.some(id => otherCategories.some(c => c.id === id))
+                          ? '0 0 20px rgba(139, 92, 246, 0.3)'
+                          : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.08)'
                       }}
                     >
-                      <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500"}`} />
+                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500"}`} />
                     </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
                   </button>
-                ))}
-                
-                {/* Other - Dropdown */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="relative flex flex-col items-center gap-2 p-2 transition-all"
-                    >
-                      <div 
-                        className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
-                          selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                            ? "bg-purple-100 dark:bg-purple-900/30 ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
-                            : "hover:scale-105"
-                        }`}
-                        style={{
-                          background: selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                            ? undefined
-                            : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.4) 50%, rgba(200,200,200,0.3))',
-                          border: '1px solid rgba(255,255,255,0.6)',
-                          boxShadow: selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                            ? '0 0 20px rgba(139, 92, 246, 0.3)'
-                            : 'inset 0 1px 1px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.05)'
-                        }}
-                      >
-                        <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500"}`} />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
-                    </button>
-                  </PopoverTrigger>
+                </PopoverTrigger>
                 <PopoverContent className="w-48 p-2" align="center">
                   <div className="space-y-1">
                     {otherCategories.map((cat) => (
@@ -431,9 +427,8 @@ export default function Homeowner() {
                       </button>
                     ))}
                   </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}
