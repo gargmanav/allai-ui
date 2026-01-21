@@ -374,15 +374,15 @@ export default function Homeowner() {
                           border: '1.5px solid rgba(255,255,255,0.7)'
                         } 
                       : { 
-                          background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(240,240,250,0.75) 30%, rgba(220,225,240,0.55) 70%, rgba(200,210,230,0.4) 100%)',
-                          backdropFilter: 'blur(24px) saturate(180%)',
-                          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                          border: '2px solid rgba(255,255,255,0.7)',
-                          boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.9), inset 0 -4px 8px rgba(0,0,0,0.06), 0 10px 32px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08)'
+                          background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(250,250,255,0.85) 20%, rgba(235,240,255,0.7) 50%, rgba(220,230,250,0.55) 80%, rgba(200,215,240,0.45) 100%)',
+                          backdropFilter: 'blur(40px) saturate(200%)',
+                          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+                          border: '2px solid rgba(255,255,255,0.85)',
+                          boxShadow: 'inset 0 6px 16px rgba(255,255,255,1), inset 0 -5px 10px rgba(100,120,180,0.08), 0 12px 40px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3)'
                         }
                     }
                   >
-                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500 dark:text-gray-400"}`} />
+                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-600 dark:text-gray-400"}`} />
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
                 </button>
@@ -406,15 +406,15 @@ export default function Homeowner() {
                             border: '1.5px solid rgba(255,255,255,0.7)'
                           } 
                         : { 
-                            background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(240,240,250,0.75) 30%, rgba(220,225,240,0.55) 70%, rgba(200,210,230,0.4) 100%)',
-                            backdropFilter: 'blur(24px) saturate(180%)',
-                            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                            border: '2px solid rgba(255,255,255,0.7)',
-                            boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.9), inset 0 -4px 8px rgba(0,0,0,0.06), 0 10px 32px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08)'
+                            background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(250,250,255,0.85) 20%, rgba(235,240,255,0.7) 50%, rgba(220,230,250,0.55) 80%, rgba(200,215,240,0.45) 100%)',
+                            backdropFilter: 'blur(40px) saturate(200%)',
+                            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+                            border: '2px solid rgba(255,255,255,0.85)',
+                            boxShadow: 'inset 0 6px 16px rgba(255,255,255,1), inset 0 -5px 10px rgba(100,120,180,0.08), 0 12px 40px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3)'
                           }
                       }
                     >
-                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500 dark:text-gray-400"}`} />
+                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-600 dark:text-gray-400"}`} />
                     </div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
                   </button>
