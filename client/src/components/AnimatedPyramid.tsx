@@ -1,20 +1,9 @@
-import { useEffect, useState } from "react";
-
 interface AnimatedPyramidProps {
   size?: number;
   className?: string;
 }
 
 export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidProps) {
-  const [rotation, setRotation] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRotation((prev) => (prev + 0.5) % 360);
-    }, 30);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div 
       className={className}
@@ -23,7 +12,8 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
         height: size,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        perspective: '200px'
       }}
     >
       <svg
@@ -31,8 +21,9 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
         height={size}
         viewBox="0 0 100 100"
         style={{
-          transform: `rotate(${rotation}deg)`,
-          transformOrigin: 'center center'
+          animation: 'pyramidSpin3D 10s linear infinite',
+          transformOrigin: 'center center',
+          transformStyle: 'preserve-3d'
         }}
       >
         <defs>
@@ -58,6 +49,16 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
           <circle cx="50" cy="50" r="4" fill="#8b5cf6" />
         </g>
       </svg>
+      <style>{`
+        @keyframes pyramidSpin3D {
+          0% {
+            transform: rotateY(0deg);
+          }
+          100% {
+            transform: rotateY(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
