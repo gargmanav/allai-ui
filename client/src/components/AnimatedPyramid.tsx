@@ -10,7 +10,7 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setRotation((prev) => (prev + 1) % 360);
+      setRotation((prev) => (prev + 0.5) % 360);
     }, 30);
     return () => clearInterval(interval);
   }, []);
