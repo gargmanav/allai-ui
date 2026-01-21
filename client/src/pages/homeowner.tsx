@@ -365,22 +365,14 @@ export default function Homeowner() {
                   className="relative flex flex-col items-center gap-2 p-2 transition-all"
                 >
                   <div 
-                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all ${
                       selectedCategories.includes(cat.id) 
-                        ? `${cat.bgColor} ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
-                        : "hover:scale-105"
+                        ? `${cat.bgColor} border-white/60 shadow-lg ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
+                        : "bg-white/20 dark:bg-white/10 border-white/40 dark:border-white/20 hover:bg-white/30 dark:hover:bg-white/20 shadow-sm"
                     }`} 
-                    style={{
-                      background: selectedCategories.includes(cat.id) 
-                        ? undefined 
-                        : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,240,240,0.6) 50%, rgba(220,220,220,0.4))',
-                      border: '2px solid rgba(180, 180, 180, 0.5)',
-                      boxShadow: selectedCategories.includes(cat.id) 
-                        ? `0 0 20px ${cat.glowColor}` 
-                        : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.08)'
-                    }}
+                    style={selectedCategories.includes(cat.id) ? { boxShadow: `0 0 20px ${cat.glowColor}` } : {}}
                   >
-                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500"}`} />
+                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500 dark:text-gray-400"}`} />
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
                 </button>
@@ -392,23 +384,12 @@ export default function Homeowner() {
                   <button
                     className="relative flex flex-col items-center gap-2 p-2 transition-all"
                   >
-                    <div 
-                      className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
-                        selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                          ? "bg-purple-100 dark:bg-purple-900/30 ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
-                          : "hover:scale-105"
-                      }`}
-                      style={{
-                        background: selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                          ? undefined
-                          : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,240,240,0.6) 50%, rgba(220,220,220,0.4))',
-                        border: '2px solid rgba(180, 180, 180, 0.5)',
-                        boxShadow: selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                          ? '0 0 20px rgba(139, 92, 246, 0.3)'
-                          : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.08)'
-                      }}
-                    >
-                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500"}`} />
+                    <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all ${
+                      selectedCategories.some(id => otherCategories.some(c => c.id === id))
+                        ? "bg-purple-100 dark:bg-purple-900/30 border-white/60 shadow-lg ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
+                        : "bg-white/20 dark:bg-white/10 border-white/40 dark:border-white/20 hover:bg-white/30 dark:hover:bg-white/20 shadow-sm"
+                    }`} style={selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? { boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)' } : {}}>
+                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500 dark:text-gray-400"}`} />
                     </div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
                   </button>
