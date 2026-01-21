@@ -331,33 +331,31 @@ export default function Homeowner() {
                   </Button>
                 </div>
               </div>
-              {selectedCategories.length > 0 && (
-                <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
-                  {selectedCategories.map(catId => {
-                    const catInfo = getCategoryInfo(catId);
-                    return (
-                      <Badge 
-                        key={catId} 
-                        variant="secondary" 
-                        className={`gap-1 ${catInfo?.badgeBg || "bg-gray-100 text-gray-700"}`}
+              <div className="flex items-center justify-center gap-2 mt-3 flex-wrap min-h-[32px]">
+                {selectedCategories.map(catId => {
+                  const catInfo = getCategoryInfo(catId);
+                  return (
+                    <Badge 
+                      key={catId} 
+                      variant="secondary" 
+                      className={`gap-1 ${catInfo?.badgeBg || "bg-gray-100 text-gray-700"}`}
+                    >
+                      {catInfo?.label}
+                      <button 
+                        type="button"
+                        onClick={() => removeCategory(catId)}
+                        className="ml-1 hover:opacity-70"
                       >
-                        {catInfo?.label}
-                        <button 
-                          type="button"
-                          onClick={() => removeCategory(catId)}
-                          className="ml-1 hover:opacity-70"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
+                        ×
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
             </form>
 
             {/* Quick Categories */}
-            <div className="grid grid-cols-4 gap-4 max-w-md">
+            <div className="grid grid-cols-4 gap-4 max-w-md mt-6">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -376,11 +374,11 @@ export default function Homeowner() {
                           border: '1.5px solid rgba(255,255,255,0.7)'
                         } 
                       : { 
-                          background: 'linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 40%, rgba(230,230,240,0.4) 100%)',
-                          backdropFilter: 'blur(16px)',
-                          WebkitBackdropFilter: 'blur(16px)',
-                          border: '1.5px solid rgba(255,255,255,0.6)',
-                          boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)'
+                          background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(240,240,250,0.75) 30%, rgba(220,225,240,0.55) 70%, rgba(200,210,230,0.4) 100%)',
+                          backdropFilter: 'blur(24px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                          border: '2px solid rgba(255,255,255,0.7)',
+                          boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.9), inset 0 -4px 8px rgba(0,0,0,0.06), 0 10px 32px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08)'
                         }
                     }
                   >
@@ -408,11 +406,11 @@ export default function Homeowner() {
                             border: '1.5px solid rgba(255,255,255,0.7)'
                           } 
                         : { 
-                            background: 'linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 40%, rgba(230,230,240,0.4) 100%)',
-                            backdropFilter: 'blur(16px)',
-                            WebkitBackdropFilter: 'blur(16px)',
-                            border: '1.5px solid rgba(255,255,255,0.6)',
-                            boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)'
+                            background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(240,240,250,0.75) 30%, rgba(220,225,240,0.55) 70%, rgba(200,210,230,0.4) 100%)',
+                            backdropFilter: 'blur(24px) saturate(180%)',
+                            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                            border: '2px solid rgba(255,255,255,0.7)',
+                            boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.9), inset 0 -4px 8px rgba(0,0,0,0.06), 0 10px 32px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08)'
                           }
                       }
                     >
