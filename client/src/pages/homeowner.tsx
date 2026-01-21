@@ -206,13 +206,13 @@ export default function Homeowner() {
           )}
           
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <div className="flex items-center gap-2" style={{ perspective: '500px' }}>
+            <div className="flex items-center gap-3" style={{ perspective: '800px' }}>
               <svg 
-                width="48" 
-                height="48" 
+                width="72" 
+                height="72" 
                 viewBox="0 0 100 100" 
                 className="animate-pyramid-rotate"
-                style={{ transformStyle: 'preserve-3d' }}
+                style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
               >
                 <defs>
                   <linearGradient id="pyramidGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -232,9 +232,9 @@ export default function Homeowner() {
                 <polygon points="50,10 80,80 50,65" fill="url(#pyramidGradientRight)" />
                 <polygon points="20,80 50,65 80,80 50,90" fill="url(#pyramidGradientCenter)" />
               </svg>
-              <span className="text-3xl font-bold text-gray-800 dark:text-gray-100">AllAI</span>
+              <span className="text-4xl font-bold text-gray-800 dark:text-gray-100">AllAI</span>
             </div>
-            <span className="text-sm text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
+            <span className="text-sm text-muted-foreground italic mt-2">Home maintenance, simplified.</span>
           </div>
 
           {/* Hidden Menu */}
