@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MoreHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Menu, 
@@ -68,10 +70,23 @@ export default function Homeowner() {
   const firstName = user?.firstName || user?.email?.split("@")[0] || "there";
 
   const categories = [
-    { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500" },
-    { id: "electrical", label: "Electrical", icon: Zap, color: "text-yellow-500" },
-    { id: "hvac", label: "HVAC", icon: Snowflake, color: "text-cyan-500" },
-    { id: "other", label: "Other", icon: Wrench, color: "text-gray-500" },
+    { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+    { id: "electrical", label: "Electrical", icon: Zap, color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
+    { id: "hvac", label: "HVAC", icon: Snowflake, color: "text-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30" },
+  ];
+
+  const otherCategories = [
+    { id: "appliances", label: "Appliances" },
+    { id: "roofing", label: "Roofing" },
+    { id: "flooring", label: "Flooring" },
+    { id: "windows_doors", label: "Windows & Doors" },
+    { id: "painting", label: "Painting" },
+    { id: "landscaping", label: "Landscaping" },
+    { id: "pest_control", label: "Pest Control" },
+    { id: "garage", label: "Garage Door" },
+    { id: "security", label: "Security Systems" },
+    { id: "cleaning", label: "Cleaning" },
+    { id: "other", label: "Other" },
   ];
 
   const { data: pastRequests = [] } = useQuery<any[]>({
@@ -307,8 +322,9 @@ export default function Homeowner() {
               </div>
               {selectedCategory && (
                 <div className="flex items-center justify-center gap-2 mt-3">
-                  <Badge variant="secondary" className="gap-1">
-                    {categories.find(c => c.id === selectedCategory)?.label}
+                  <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-violet-500/10 to-blue-500/10 border-violet-500/20">
+                    {categories.find(c => c.id === selectedCategory)?.label || 
+                     otherCategories.find(c => c.id === selectedCategory)?.label}
                     <button 
                       type="button"
                       onClick={() => setSelectedCategory(null)}
@@ -327,16 +343,52 @@ export default function Homeowner() {
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.id)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50 ${
-                    selectedCategory === cat.id ? "bg-muted ring-2 ring-primary" : ""
-                  }`}
+                  className="relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50"
                 >
-                  <div className={`p-3 rounded-full bg-muted ${cat.color}`}>
+                  {/* Gradient glow when selected */}
+                  {selectedCategory === cat.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-2xl opacity-20 blur-sm" />
+                  )}
+                  <div className={`relative p-3 rounded-full ${selectedCategory === cat.id ? cat.bgColor : "bg-muted"} ${cat.color}`}>
                     <cat.icon className="h-6 w-6" />
                   </div>
-                  <span className="text-sm font-medium">{cat.label}</span>
+                  <span className="relative text-sm font-medium">{cat.label}</span>
                 </button>
               ))}
+              
+              {/* Other - Dropdown */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50 ${
+                      otherCategories.some(c => c.id === selectedCategory) ? "" : ""
+                    }`}
+                  >
+                    {otherCategories.some(c => c.id === selectedCategory) && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-2xl opacity-20 blur-sm" />
+                    )}
+                    <div className={`relative p-3 rounded-full ${otherCategories.some(c => c.id === selectedCategory) ? "bg-purple-100 dark:bg-purple-900/30" : "bg-muted"} text-gray-500`}>
+                      <Wrench className="h-6 w-6" />
+                    </div>
+                    <span className="relative text-sm font-medium">More</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2" align="center">
+                  <div className="space-y-1">
+                    {otherCategories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => handleCategoryClick(cat.id)}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors hover:bg-muted ${
+                          selectedCategory === cat.id ? "bg-primary/10 text-primary font-medium" : ""
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}
