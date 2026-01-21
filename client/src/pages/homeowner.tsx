@@ -204,10 +204,11 @@ export default function Homeowner() {
             <div className="w-20" />
           )}
           
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="font-semibold">AllAI</span>
-          </div>
+          <img 
+            src="/attached_assets/ChatGPT_Image_Jan_20,_2026,_07_39_22_PM_1768956347794.png" 
+            alt="AllAI" 
+            className="h-8"
+          />
 
           {/* Hidden Menu */}
           <Sheet>
@@ -280,18 +281,21 @@ export default function Homeowner() {
         {view === "landing" && (
           <div className="flex-1 flex flex-col items-center justify-center -mt-16">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-semibold mb-2">
+              <h1 className="text-3xl font-semibold mb-1">
                 Hi, {firstName}
               </h1>
+              <p className="text-sm text-muted-foreground mb-3">
+                Home maintenance, simplified
+              </p>
               <p className="text-muted-foreground">
-                How can I help?
+                I help diagnose issues and connect you with the right help.
               </p>
             </div>
 
             {/* The Hero Input */}
             <form onSubmit={handleSubmit} className="w-full max-w-xl mb-8">
               <label htmlFor="problem-input" className="sr-only">
-                How can I help?
+                Describe your issue
               </label>
               <div className="relative group">
                 {/* AI Gradient Glow Effect */}
@@ -300,7 +304,7 @@ export default function Homeowner() {
                   id="problem-input"
                   ref={inputRef}
                   type="text"
-                  placeholder="How can I help today?"
+                  placeholder="Describe what's going on..."
                   value={problemDescription}
                   onChange={(e) => setProblemDescription(e.target.value)}
                   className="relative h-14 pl-5 pr-24 text-lg rounded-full border-2 border-muted-foreground/20 focus:border-primary/50 shadow-lg bg-background"
