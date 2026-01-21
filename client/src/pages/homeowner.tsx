@@ -205,7 +205,10 @@ export default function Homeowner() {
             <div className="w-20" />
           )}
           
-          <img src={allaiLogo} alt="AllAI" className="h-12" />
+          <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+            <img src={allaiLogo} alt="AllAI" className="h-10" />
+            <span className="text-xs text-muted-foreground italic">Home maintenance, simplified.</span>
+          </div>
 
           {/* Hidden Menu */}
           <Sheet>
