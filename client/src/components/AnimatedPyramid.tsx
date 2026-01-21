@@ -6,18 +6,14 @@ interface AnimatedPyramidProps {
 }
 
 export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidProps) {
-  const [time, setTime] = useState(0);
+  const [rotation, setRotation] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTime((prev) => prev + 0.02);
+      setRotation((prev) => (prev + 0.5) % 360);
     }, 30);
     return () => clearInterval(interval);
   }, []);
-
-  const rotateX = Math.sin(time * 0.7) * 15;
-  const rotateY = Math.cos(time * 0.5) * 20;
-  const rotateZ = Math.sin(time * 0.3) * 10;
 
   return (
     <div 
@@ -27,8 +23,7 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
         height: size,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        perspective: '200px'
+        justifyContent: 'center'
       }}
     >
       <svg
@@ -36,9 +31,8 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
         height={size}
         viewBox="0 0 100 100"
         style={{
-          transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg)`,
-          transformOrigin: 'center center',
-          transformStyle: 'preserve-3d'
+          transform: `rotate(${rotation}deg)`,
+          transformOrigin: 'center center'
         }}
       >
         <defs>
