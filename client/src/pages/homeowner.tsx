@@ -68,7 +68,7 @@ export default function Homeowner() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const firstName = user?.firstName || user?.email?.split("@")[0] || "there";
+  const firstName = "Sarah"; // Temporarily hardcoded for demo view
 
   const categories = [
     { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30", badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300", ringColor: "ring-blue-400", glowColor: "rgba(59, 130, 246, 0.4)" },
