@@ -203,6 +203,10 @@ export default function Homeowner() {
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3"
+                  onClick={() => {
+                    setView("landing");
+                    toast({ title: "Past Requests", description: "View your request history below" });
+                  }}
                 >
                   <FileText className="h-4 w-4" />
                   Past Requests
@@ -215,6 +219,9 @@ export default function Homeowner() {
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3"
+                  onClick={() => {
+                    toast({ title: "Messages", description: "Coming soon - contractors will message you here" });
+                  }}
                 >
                   <MessageCircle className="h-4 w-4" />
                   Messages
@@ -223,6 +230,9 @@ export default function Homeowner() {
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3"
+                  onClick={() => {
+                    toast({ title: "Settings", description: "Account settings coming soon" });
+                  }}
                 >
                   <Settings className="h-4 w-4" />
                   Settings

@@ -122,11 +122,6 @@ router.get('/cases', async (req: any, res) => {
       where: or(...propertyIds.map(id => eq(smartCases.propertyId, id))),
       with: {
         property: true,
-        assignedContractor: {
-          with: {
-            user: true,
-          },
-        },
       },
       orderBy: [desc(smartCases.createdAt)],
     });
