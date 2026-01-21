@@ -205,7 +205,7 @@ export default function Homeowner() {
             <div className="w-20" />
           )}
           
-          <img src={allaiLogo} alt="AllAI" className="h-8" />
+          <img src={allaiLogo} alt="AllAI" className="h-12" />
 
           {/* Hidden Menu */}
           <Sheet>
