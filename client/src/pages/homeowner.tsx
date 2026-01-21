@@ -208,7 +208,17 @@ export default function Homeowner() {
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div className="flex items-center gap-2">
               <AnimatedPyramid size={56} />
-              <span className="text-2xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">AllAI</span>
+              <span 
+                className="text-2xl font-semibold tracking-tight"
+                style={{
+                  background: 'linear-gradient(90deg, #22c55e, #3b82f6, #8b5cf6, #22c55e)',
+                  backgroundSize: '300% 100%',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: 'gradientFlow 4s ease-in-out infinite'
+                }}
+              >AllAI</span>
             </div>
             <span className="text-xs text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
           </div>
