@@ -207,7 +207,7 @@ export default function Homeowner() {
           
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
             <img src={allaiLogo} alt="AllAI" className="h-32" />
-            <span className="text-xs text-muted-foreground italic -mt-6">Home maintenance, simplified.</span>
+            <span className="text-xs text-muted-foreground italic -mt-8">Home maintenance, simplified.</span>
           </div>
 
           {/* Hidden Menu */}
@@ -275,7 +275,7 @@ export default function Homeowner() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-20 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
+      <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
         {/* Landing View - The Hero Input */}
         {view === "landing" && (
