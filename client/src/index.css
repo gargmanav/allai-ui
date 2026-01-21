@@ -197,17 +197,3 @@
     color: hsl(var(--muted-foreground));
   }
 }
-
-@keyframes pyramid-rotate {
-  0% {
-    transform: rotateY(0deg);
-  }
-  100% {
-    transform: rotateY(360deg);
-  }
-}
-
-.animate-pyramid-rotate {
-  animation: pyramid-rotate 8s linear infinite;
-  transform-origin: center center;
-}
