@@ -210,7 +210,7 @@ export default function Homeowner() {
               <img 
                 src={allaiLogo} 
                 alt="AllAI" 
-                className="h-32 animate-[rotate3d_8s_ease-in-out_infinite]"
+                className="h-32 animate-[rotate3d_2s_ease-in-out_infinite]"
                 style={{
                   transformStyle: 'preserve-3d',
                 }}
