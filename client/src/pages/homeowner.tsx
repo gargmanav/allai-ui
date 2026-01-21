@@ -362,16 +362,16 @@ export default function Homeowner() {
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.id)}
-                  className="relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50"
+                  className="relative flex flex-col items-center gap-2 p-2 transition-all"
                 >
-                  {/* Gradient glow when selected */}
-                  {selectedCategories.includes(cat.id) && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-2xl opacity-20 blur-sm" />
-                  )}
-                  <div className={`relative p-3 rounded-full ${selectedCategories.includes(cat.id) ? cat.bgColor : "bg-muted"} ${cat.color}`}>
-                    <cat.icon className="h-6 w-6" />
+                  <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md border transition-all ${
+                    selectedCategories.includes(cat.id) 
+                      ? "bg-white/30 dark:bg-white/20 border-white/50 shadow-lg" 
+                      : "bg-gray-200/40 dark:bg-gray-700/40 border-gray-300/30 dark:border-gray-600/30 hover:bg-gray-200/60 dark:hover:bg-gray-700/60"
+                  }`}>
+                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-600 dark:text-gray-300"}`} />
                   </div>
-                  <span className="relative text-sm font-medium">{cat.label}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
                 </button>
               ))}
               
@@ -379,15 +379,16 @@ export default function Homeowner() {
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className="relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50"
+                    className="relative flex flex-col items-center gap-2 p-2 transition-all"
                   >
-                    {selectedCategories.some(id => otherCategories.some(c => c.id === id)) && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-2xl opacity-20 blur-sm" />
-                    )}
-                    <div className={`relative p-3 rounded-full ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "bg-purple-100 dark:bg-purple-900/30" : "bg-muted"} text-gray-500`}>
-                      <Wrench className="h-6 w-6" />
+                    <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md border transition-all ${
+                      selectedCategories.some(id => otherCategories.some(c => c.id === id))
+                        ? "bg-white/30 dark:bg-white/20 border-white/50 shadow-lg"
+                        : "bg-gray-200/40 dark:bg-gray-700/40 border-gray-300/30 dark:border-gray-600/30 hover:bg-gray-200/60 dark:hover:bg-gray-700/60"
+                    }`}>
+                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-600 dark:text-gray-300"}`} />
                     </div>
-                    <span className="relative text-sm font-medium">More</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-48 p-2" align="center">
