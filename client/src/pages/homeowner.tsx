@@ -374,11 +374,11 @@ export default function Homeowner() {
                           border: '1.5px solid rgba(255,255,255,0.7)'
                         } 
                       : { 
-                          background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(250,250,255,0.85) 20%, rgba(235,240,255,0.7) 50%, rgba(220,230,250,0.55) 80%, rgba(200,215,240,0.45) 100%)',
-                          backdropFilter: 'blur(40px) saturate(200%)',
-                          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-                          border: '2px solid rgba(255,255,255,0.85)',
-                          boxShadow: 'inset 0 6px 16px rgba(255,255,255,1), inset 0 -5px 10px rgba(100,120,180,0.08), 0 12px 40px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3)'
+                          background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.8) 25%, rgba(220,230,250,0.6) 50%, rgba(200,215,245,0.45) 75%, rgba(180,200,235,0.35) 100%), linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(240,245,255,0.5) 100%)',
+                          backdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
+                          WebkitBackdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
+                          border: '2.5px solid rgba(255,255,255,0.9)',
+                          boxShadow: 'inset 0 8px 20px rgba(255,255,255,1), inset 0 -6px 12px rgba(100,130,200,0.1), inset 2px 0 8px rgba(255,255,255,0.6), inset -2px 0 8px rgba(200,210,240,0.3), 0 16px 48px rgba(0,0,0,0.2), 0 8px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.4)'
                         }
                     }
                   >
@@ -406,11 +406,11 @@ export default function Homeowner() {
                             border: '1.5px solid rgba(255,255,255,0.7)'
                           } 
                         : { 
-                            background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(250,250,255,0.85) 20%, rgba(235,240,255,0.7) 50%, rgba(220,230,250,0.55) 80%, rgba(200,215,240,0.45) 100%)',
-                            backdropFilter: 'blur(40px) saturate(200%)',
-                            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-                            border: '2px solid rgba(255,255,255,0.85)',
-                            boxShadow: 'inset 0 6px 16px rgba(255,255,255,1), inset 0 -5px 10px rgba(100,120,180,0.08), 0 12px 40px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.3)'
+                            background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.8) 25%, rgba(220,230,250,0.6) 50%, rgba(200,215,245,0.45) 75%, rgba(180,200,235,0.35) 100%), linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(240,245,255,0.5) 100%)',
+                            backdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
+                            WebkitBackdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
+                            border: '2.5px solid rgba(255,255,255,0.9)',
+                            boxShadow: 'inset 0 8px 20px rgba(255,255,255,1), inset 0 -6px 12px rgba(100,130,200,0.1), inset 2px 0 8px rgba(255,255,255,0.6), inset -2px 0 8px rgba(200,210,240,0.3), 0 16px 48px rgba(0,0,0,0.2), 0 8px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.4)'
                           }
                       }
                     >
