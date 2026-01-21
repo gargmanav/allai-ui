@@ -64,30 +64,34 @@ export default function Homeowner() {
   const [view, setView] = useState<ViewState>("landing");
   const [problemDescription, setProblemDescription] = useState("");
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const firstName = user?.firstName || user?.email?.split("@")[0] || "there";
 
   const categories = [
-    { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
-    { id: "electrical", label: "Electrical", icon: Zap, color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
-    { id: "hvac", label: "HVAC", icon: Snowflake, color: "text-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30" },
+    { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30", badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300" },
+    { id: "electrical", label: "Electrical", icon: Zap, color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30", badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" },
+    { id: "hvac", label: "HVAC", icon: Snowflake, color: "text-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30", badgeBg: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300" },
   ];
 
   const otherCategories = [
-    { id: "appliances", label: "Appliances" },
-    { id: "roofing", label: "Roofing" },
-    { id: "flooring", label: "Flooring" },
-    { id: "windows_doors", label: "Windows & Doors" },
-    { id: "painting", label: "Painting" },
-    { id: "landscaping", label: "Landscaping" },
-    { id: "pest_control", label: "Pest Control" },
-    { id: "garage", label: "Garage Door" },
-    { id: "security", label: "Security Systems" },
-    { id: "cleaning", label: "Cleaning" },
-    { id: "other", label: "Other" },
+    { id: "appliances", label: "Appliances", badgeBg: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300" },
+    { id: "roofing", label: "Roofing", badgeBg: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300" },
+    { id: "flooring", label: "Flooring", badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" },
+    { id: "windows_doors", label: "Windows & Doors", badgeBg: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300" },
+    { id: "painting", label: "Painting", badgeBg: "bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300" },
+    { id: "landscaping", label: "Landscaping", badgeBg: "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" },
+    { id: "pest_control", label: "Pest Control", badgeBg: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" },
+    { id: "garage", label: "Garage Door", badgeBg: "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300" },
+    { id: "security", label: "Security Systems", badgeBg: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300" },
+    { id: "cleaning", label: "Cleaning", badgeBg: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300" },
+    { id: "other", label: "Other", badgeBg: "bg-gray-100 text-gray-700 dark:bg-gray-900/50 dark:text-gray-300" },
   ];
+
+  const getCategoryInfo = (id: string) => {
+    return categories.find(c => c.id === id) || otherCategories.find(c => c.id === id);
+  };
 
   const { data: pastRequests = [] } = useQuery<any[]>({
     queryKey: ["/api/property-owner/cases"],
@@ -124,17 +128,23 @@ export default function Homeowner() {
     setIsAnalyzing(true);
     triageMutation.mutate({ 
       description: problemDescription, 
-      category: selectedCategory || undefined 
+      category: selectedCategories.length > 0 ? selectedCategories.join(", ") : undefined 
     });
   };
 
   const handleCategoryClick = (categoryId: string) => {
-    if (selectedCategory === categoryId) {
-      setSelectedCategory(null);
-    } else {
-      setSelectedCategory(categoryId);
-      inputRef.current?.focus();
-    }
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+    inputRef.current?.focus();
+  };
+
+  const removeCategory = (categoryId: string) => {
+    setSelectedCategories(prev => prev.filter(id => id !== categoryId));
   };
 
   const handleBack = () => {
@@ -144,7 +154,7 @@ export default function Homeowner() {
       setView("landing");
       setTriageResult(null);
       setProblemDescription("");
-      setSelectedCategory(null);
+      setSelectedCategories([]);
     }
   };
 
@@ -320,19 +330,27 @@ export default function Homeowner() {
                   </Button>
                 </div>
               </div>
-              {selectedCategory && (
-                <div className="flex items-center justify-center gap-2 mt-3">
-                  <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-violet-500/10 to-blue-500/10 border-violet-500/20">
-                    {categories.find(c => c.id === selectedCategory)?.label || 
-                     otherCategories.find(c => c.id === selectedCategory)?.label}
-                    <button 
-                      type="button"
-                      onClick={() => setSelectedCategory(null)}
-                      className="ml-1 hover:text-destructive"
-                    >
-                      ×
-                    </button>
-                  </Badge>
+              {selectedCategories.length > 0 && (
+                <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+                  {selectedCategories.map(catId => {
+                    const catInfo = getCategoryInfo(catId);
+                    return (
+                      <Badge 
+                        key={catId} 
+                        variant="secondary" 
+                        className={`gap-1 ${catInfo?.badgeBg || "bg-gray-100 text-gray-700"}`}
+                      >
+                        {catInfo?.label}
+                        <button 
+                          type="button"
+                          onClick={() => removeCategory(catId)}
+                          className="ml-1 hover:opacity-70"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    );
+                  })}
                 </div>
               )}
             </form>
@@ -346,10 +364,10 @@ export default function Homeowner() {
                   className="relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50"
                 >
                   {/* Gradient glow when selected */}
-                  {selectedCategory === cat.id && (
+                  {selectedCategories.includes(cat.id) && (
                     <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-2xl opacity-20 blur-sm" />
                   )}
-                  <div className={`relative p-3 rounded-full ${selectedCategory === cat.id ? cat.bgColor : "bg-muted"} ${cat.color}`}>
+                  <div className={`relative p-3 rounded-full ${selectedCategories.includes(cat.id) ? cat.bgColor : "bg-muted"} ${cat.color}`}>
                     <cat.icon className="h-6 w-6" />
                   </div>
                   <span className="relative text-sm font-medium">{cat.label}</span>
@@ -360,14 +378,12 @@ export default function Homeowner() {
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50 ${
-                      otherCategories.some(c => c.id === selectedCategory) ? "" : ""
-                    }`}
+                    className="relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:bg-muted/50"
                   >
-                    {otherCategories.some(c => c.id === selectedCategory) && (
+                    {selectedCategories.some(id => otherCategories.some(c => c.id === id)) && (
                       <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-2xl opacity-20 blur-sm" />
                     )}
-                    <div className={`relative p-3 rounded-full ${otherCategories.some(c => c.id === selectedCategory) ? "bg-purple-100 dark:bg-purple-900/30" : "bg-muted"} text-gray-500`}>
+                    <div className={`relative p-3 rounded-full ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "bg-purple-100 dark:bg-purple-900/30" : "bg-muted"} text-gray-500`}>
                       <Wrench className="h-6 w-6" />
                     </div>
                     <span className="relative text-sm font-medium">More</span>
@@ -380,7 +396,7 @@ export default function Homeowner() {
                         key={cat.id}
                         onClick={() => handleCategoryClick(cat.id)}
                         className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors hover:bg-muted ${
-                          selectedCategory === cat.id ? "bg-primary/10 text-primary font-medium" : ""
+                          selectedCategories.includes(cat.id) ? "bg-primary/10 text-primary font-medium" : ""
                         }`}
                       >
                         {cat.label}
