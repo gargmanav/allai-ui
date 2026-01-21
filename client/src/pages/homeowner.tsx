@@ -34,7 +34,7 @@ import {
   Sparkles
 } from "lucide-react";
 
-type ViewState = "landing" | "triage" | "contractors" | "chat";
+type ViewState = "landing" | "triage" | "contractors" | "chat" | "pastRequests";
 
 interface TriageResult {
   urgency: string;
@@ -121,7 +121,7 @@ export default function Homeowner() {
   const handleBack = () => {
     if (view === "contractors") {
       setView("triage");
-    } else if (view === "triage" || view === "chat") {
+    } else if (view === "triage" || view === "chat" || view === "pastRequests") {
       setView("landing");
       setTriageResult(null);
       setProblemDescription("");
@@ -203,10 +203,7 @@ export default function Homeowner() {
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3"
-                  onClick={() => {
-                    setView("landing");
-                    toast({ title: "Past Requests", description: "View your request history below" });
-                  }}
+                  onClick={() => setView("pastRequests")}
                 >
                   <FileText className="h-4 w-4" />
                   Past Requests
@@ -218,10 +215,8 @@ export default function Homeowner() {
                 </Button>
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    toast({ title: "Messages", description: "Coming soon - contractors will message you here" });
-                  }}
+                  className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
+                  disabled
                 >
                   <MessageCircle className="h-4 w-4" />
                   Messages
@@ -229,10 +224,8 @@ export default function Homeowner() {
                 <Separator className="my-4" />
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    toast({ title: "Settings", description: "Account settings coming soon" });
-                  }}
+                  className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
+                  disabled
                 >
                   <Settings className="h-4 w-4" />
                   Settings
@@ -262,26 +255,28 @@ export default function Homeowner() {
                 Hi, {firstName}
               </h1>
               <p className="text-muted-foreground">
-                What needs fixing today?
+                How can I help?
               </p>
             </div>
 
             {/* The Hero Input */}
             <form onSubmit={handleSubmit} className="w-full max-w-xl mb-8">
               <label htmlFor="problem-input" className="sr-only">
-                Describe what needs fixing
+                How can I help?
               </label>
-              <div className="relative">
+              <div className="relative group">
+                {/* AI Gradient Glow Effect */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-full opacity-30 blur-lg group-hover:opacity-50 group-focus-within:opacity-60 transition-opacity duration-300" />
                 <Input
                   id="problem-input"
                   ref={inputRef}
                   type="text"
-                  placeholder="Describe what's wrong..."
+                  placeholder="How can I help today?"
                   value={problemDescription}
                   onChange={(e) => setProblemDescription(e.target.value)}
-                  className="h-14 pl-5 pr-24 text-lg rounded-full border-2 focus:border-primary shadow-lg"
+                  className="relative h-14 pl-5 pr-24 text-lg rounded-full border-2 border-muted-foreground/20 focus:border-primary/50 shadow-lg bg-background"
                   disabled={isAnalyzing}
-                  aria-label="Describe what needs fixing"
+                  aria-label="How can I help?"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                   <Button 
@@ -339,29 +334,6 @@ export default function Homeowner() {
                 </button>
               ))}
             </div>
-
-            {/* Past Requests Preview */}
-            {pastRequests.length > 0 && (
-              <div className="mt-12 w-full max-w-xl">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-muted-foreground">Recent Requests</h3>
-                  <Button variant="link" size="sm" className="text-xs">
-                    View All
-                  </Button>
-                </div>
-                <Card className="divide-y">
-                  {pastRequests.slice(0, 2).map((request: any) => (
-                    <div key={request.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{request.title}</p>
-                        <p className="text-xs text-muted-foreground">{request.status}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  ))}
-                </Card>
-              </div>
-            )}
           </div>
         )}
 
@@ -561,6 +533,75 @@ export default function Homeowner() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Past Requests View */}
+        {view === "pastRequests" && (
+          <div className="flex-1 flex flex-col pt-8">
+            <div className="max-w-xl mx-auto w-full">
+              <h2 className="text-2xl font-semibold mb-6">Your Requests</h2>
+              
+              {pastRequests.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="p-4 rounded-full bg-muted inline-block mb-4">
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-medium mb-2">No requests yet</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    When you report an issue, it will appear here
+                  </p>
+                  <Button onClick={() => setView("landing")}>
+                    Report an Issue
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pastRequests.map((request: any) => (
+                    <Card key={request.id} className="overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium">{request.title}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {request.property?.name || "Your Property"}
+                            </p>
+                          </div>
+                          <Badge 
+                            variant="secondary"
+                            className={
+                              request.status === "completed" 
+                                ? "bg-green-100 text-green-700" 
+                                : request.status === "in_progress"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-gray-100 text-gray-700"
+                            }
+                          >
+                            {request.status === "in_progress" ? "In Progress" : 
+                             request.status === "completed" ? "Completed" : 
+                             request.status?.replace(/_/g, " ") || "New"}
+                          </Badge>
+                        </div>
+                        {request.description && (
+                          <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
+                            {request.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(request.createdAt).toLocaleDateString()}
+                          </span>
+                          {request.category && (
+                            <span className="capitalize">{request.category}</span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
