@@ -374,7 +374,7 @@ export default function Homeowner() {
                       background: selectedCategories.includes(cat.id) 
                         ? undefined 
                         : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,240,240,0.6) 50%, rgba(220,220,220,0.4))',
-                      border: '2px solid rgba(147, 197, 253, 0.6)',
+                      border: '2px solid rgba(180, 180, 180, 0.5)',
                       boxShadow: selectedCategories.includes(cat.id) 
                         ? `0 0 20px ${cat.glowColor}` 
                         : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.08)'
@@ -402,7 +402,7 @@ export default function Homeowner() {
                         background: selectedCategories.some(id => otherCategories.some(c => c.id === id))
                           ? undefined
                           : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,240,240,0.6) 50%, rgba(220,220,220,0.4))',
-                        border: '2px solid rgba(147, 197, 253, 0.6)',
+                        border: '2px solid rgba(180, 180, 180, 0.5)',
                         boxShadow: selectedCategories.some(id => otherCategories.some(c => c.id === id))
                           ? '0 0 20px rgba(139, 92, 246, 0.3)'
                           : 'inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 8px rgba(0,0,0,0.08)'
