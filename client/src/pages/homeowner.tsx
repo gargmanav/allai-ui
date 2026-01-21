@@ -365,18 +365,22 @@ export default function Homeowner() {
                   className="relative flex flex-col items-center gap-2 p-2 transition-all"
                 >
                   <div 
-                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border-2 transition-all ${
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                       selectedCategories.includes(cat.id) 
-                        ? `${cat.bgColor} border-white/70 ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
-                        : "border-gray-300/50 dark:border-gray-500/30 hover:border-gray-400/60"
+                        ? `${cat.bgColor} ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
+                        : ""
                     }`} 
                     style={selectedCategories.includes(cat.id) 
                       ? { 
-                          boxShadow: `0 0 24px ${cat.glowColor}, inset 0 2px 4px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.15)` 
+                          boxShadow: `0 0 28px ${cat.glowColor}, inset 0 3px 6px rgba(255,255,255,0.5), 0 8px 20px rgba(0,0,0,0.2)`,
+                          border: '1.5px solid rgba(255,255,255,0.7)'
                         } 
                       : { 
-                          background: 'linear-gradient(145deg, rgba(255,255,255,0.6) 0%, rgba(240,240,245,0.4) 50%, rgba(220,220,230,0.3) 100%)',
-                          boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.08)'
+                          background: 'linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 40%, rgba(230,230,240,0.4) 100%)',
+                          backdropFilter: 'blur(16px)',
+                          WebkitBackdropFilter: 'blur(16px)',
+                          border: '1.5px solid rgba(255,255,255,0.6)',
+                          boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)'
                         }
                     }
                   >
@@ -393,16 +397,22 @@ export default function Homeowner() {
                     className="relative flex flex-col items-center gap-2 p-2 transition-all"
                   >
                     <div 
-                      className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border-2 transition-all ${
+                      className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                         selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                          ? "bg-purple-100 dark:bg-purple-900/30 border-white/70 ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
-                          : "border-gray-300/50 dark:border-gray-500/30 hover:border-gray-400/60"
+                          ? "bg-purple-100 dark:bg-purple-900/30 ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
+                          : ""
                       }`} 
                       style={selectedCategories.some(id => otherCategories.some(c => c.id === id)) 
-                        ? { boxShadow: '0 0 24px rgba(139, 92, 246, 0.4), inset 0 2px 4px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.15)' } 
+                        ? { 
+                            boxShadow: '0 0 28px rgba(139, 92, 246, 0.4), inset 0 3px 6px rgba(255,255,255,0.5), 0 8px 20px rgba(0,0,0,0.2)',
+                            border: '1.5px solid rgba(255,255,255,0.7)'
+                          } 
                         : { 
-                            background: 'linear-gradient(145deg, rgba(255,255,255,0.6) 0%, rgba(240,240,245,0.4) 50%, rgba(220,220,230,0.3) 100%)',
-                            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.08)'
+                            background: 'linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 40%, rgba(230,230,240,0.4) 100%)',
+                            backdropFilter: 'blur(16px)',
+                            WebkitBackdropFilter: 'blur(16px)',
+                            border: '1.5px solid rgba(255,255,255,0.6)',
+                            boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)'
                           }
                       }
                     >
