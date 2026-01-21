@@ -422,14 +422,29 @@ export default function Homeowner() {
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-2" align="center">
+                <PopoverContent 
+                  className="w-52 p-3 border-0 shadow-xl" 
+                  align="end"
+                  side="bottom"
+                  sideOffset={8}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.85)',
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255, 255, 255, 0.6)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)'
+                  }}
+                >
                   <div className="space-y-1">
                     {otherCategories.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => handleCategoryClick(cat.id)}
-                        className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors hover:bg-muted ${
-                          selectedCategories.includes(cat.id) ? "bg-primary/10 text-primary font-medium" : ""
+                        className={`w-full text-left px-4 py-2.5 text-sm rounded-xl transition-all hover:bg-gray-100/80 dark:hover:bg-gray-800/50 ${
+                          selectedCategories.includes(cat.id) 
+                            ? "bg-primary/10 text-primary font-medium" 
+                            : "text-gray-700 dark:text-gray-200"
                         }`}
                       >
                         {cat.label}
