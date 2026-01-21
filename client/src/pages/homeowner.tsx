@@ -216,7 +216,7 @@ export default function Homeowner() {
                   WebkitBackgroundClip: 'text',
                   backgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
-                  animation: 'gradientFlow 4s ease-in-out infinite'
+                  animation: 'gradientFlow 12s ease-in-out infinite'
                 }}
               >AllAI</span>
             </div>
