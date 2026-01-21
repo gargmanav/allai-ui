@@ -71,9 +71,9 @@ export default function Homeowner() {
   const firstName = user?.firstName || user?.email?.split("@")[0] || "there";
 
   const categories = [
-    { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30", badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300" },
-    { id: "electrical", label: "Electrical", icon: Zap, color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30", badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" },
-    { id: "hvac", label: "HVAC", icon: Snowflake, color: "text-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30", badgeBg: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300" },
+    { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30", badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300", ringColor: "ring-blue-400", glowColor: "rgba(59, 130, 246, 0.4)" },
+    { id: "electrical", label: "Electrical", icon: Zap, color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30", badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300", ringColor: "ring-amber-400", glowColor: "rgba(245, 158, 11, 0.4)" },
+    { id: "hvac", label: "HVAC", icon: Snowflake, color: "text-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30", badgeBg: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300", ringColor: "ring-cyan-400", glowColor: "rgba(6, 182, 212, 0.4)" },
   ];
 
   const otherCategories = [
@@ -364,12 +364,15 @@ export default function Homeowner() {
                   onClick={() => handleCategoryClick(cat.id)}
                   className="relative flex flex-col items-center gap-2 p-2 transition-all"
                 >
-                  <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md border transition-all ${
-                    selectedCategories.includes(cat.id) 
-                      ? "bg-white/30 dark:bg-white/20 border-white/50 shadow-lg" 
-                      : "bg-gray-200/40 dark:bg-gray-700/40 border-gray-300/30 dark:border-gray-600/30 hover:bg-gray-200/60 dark:hover:bg-gray-700/60"
-                  }`}>
-                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-600 dark:text-gray-300"}`} />
+                  <div 
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all ${
+                      selectedCategories.includes(cat.id) 
+                        ? `${cat.bgColor} border-white/60 shadow-lg ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
+                        : "bg-white/20 dark:bg-white/10 border-white/40 dark:border-white/20 hover:bg-white/30 dark:hover:bg-white/20 shadow-sm"
+                    }`} 
+                    style={selectedCategories.includes(cat.id) ? { boxShadow: `0 0 20px ${cat.glowColor}` } : {}}
+                  >
+                    <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500 dark:text-gray-400"}`} />
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
                 </button>
@@ -381,12 +384,12 @@ export default function Homeowner() {
                   <button
                     className="relative flex flex-col items-center gap-2 p-2 transition-all"
                   >
-                    <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-md border transition-all ${
+                    <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all ${
                       selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                        ? "bg-white/30 dark:bg-white/20 border-white/50 shadow-lg"
-                        : "bg-gray-200/40 dark:bg-gray-700/40 border-gray-300/30 dark:border-gray-600/30 hover:bg-gray-200/60 dark:hover:bg-gray-700/60"
-                    }`}>
-                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-600 dark:text-gray-300"}`} />
+                        ? "bg-purple-100 dark:bg-purple-900/30 border-white/60 shadow-lg ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
+                        : "bg-white/20 dark:bg-white/10 border-white/40 dark:border-white/20 hover:bg-white/30 dark:hover:bg-white/20 shadow-sm"
+                    }`} style={selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? { boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)' } : {}}>
+                      <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500 dark:text-gray-400"}`} />
                     </div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
                   </button>
