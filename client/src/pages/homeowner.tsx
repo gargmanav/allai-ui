@@ -206,8 +206,35 @@ export default function Homeowner() {
           )}
           
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <img src={allaiLogo} alt="AllAI" className="h-32" />
-            <span className="text-xs text-muted-foreground italic -mt-12">Home maintenance, simplified.</span>
+            <div className="flex items-center gap-2" style={{ perspective: '500px' }}>
+              <svg 
+                width="48" 
+                height="48" 
+                viewBox="0 0 100 100" 
+                className="animate-pyramid-rotate"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <defs>
+                  <linearGradient id="pyramidGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#22c55e" />
+                    <stop offset="100%" stopColor="#16a34a" />
+                  </linearGradient>
+                  <linearGradient id="pyramidGradientRight" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#0ea5e9" />
+                    <stop offset="100%" stopColor="#0284c7" />
+                  </linearGradient>
+                  <linearGradient id="pyramidGradientCenter" x1="50%" y1="0%" x2="50%" y2="100%">
+                    <stop offset="0%" stopColor="#14b8a6" />
+                    <stop offset="100%" stopColor="#0d9488" />
+                  </linearGradient>
+                </defs>
+                <polygon points="50,10 20,80 50,65" fill="url(#pyramidGradientLeft)" />
+                <polygon points="50,10 80,80 50,65" fill="url(#pyramidGradientRight)" />
+                <polygon points="20,80 50,65 80,80 50,90" fill="url(#pyramidGradientCenter)" />
+              </svg>
+              <span className="text-3xl font-bold text-gray-800 dark:text-gray-100">AllAI</span>
+            </div>
+            <span className="text-sm text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
           </div>
 
           {/* Hidden Menu */}
