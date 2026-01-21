@@ -5,8 +5,11 @@ interface AnimatedPyramidProps {
   className?: string;
 }
 
+type RotationAxis = 'rotateZ' | 'rotateY' | 'rotateX';
+
 export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidProps) {
   const [rotation, setRotation] = useState(0);
+  const [axis, setAxis] = useState<RotationAxis>('rotateZ');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -14,6 +17,30 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
     }, 30);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const axes: RotationAxis[] = ['rotateZ', 'rotateY', 'rotateX'];
+    let currentIndex = 0;
+    
+    const axisInterval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % axes.length;
+      setAxis(axes[currentIndex]);
+    }, 2000);
+    
+    return () => clearInterval(axisInterval);
+  }, []);
+
+  const getTransform = () => {
+    switch (axis) {
+      case 'rotateX':
+        return `perspective(200px) rotateX(${rotation}deg)`;
+      case 'rotateY':
+        return `perspective(200px) rotateY(${rotation}deg)`;
+      case 'rotateZ':
+      default:
+        return `rotateZ(${rotation}deg)`;
+    }
+  };
 
   return (
     <div 
@@ -23,7 +50,8 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
         height: size,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        perspective: '200px'
       }}
     >
       <svg
@@ -31,8 +59,9 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
         height={size}
         viewBox="0 0 100 100"
         style={{
-          transform: `rotate(${rotation}deg)`,
-          transformOrigin: 'center center'
+          transform: getTransform(),
+          transformOrigin: 'center center',
+          transition: 'transform 0.1s linear'
         }}
       >
         <defs>
