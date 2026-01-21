@@ -206,8 +206,8 @@ export default function Homeowner() {
           )}
           
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <img src={allaiLogo} alt="AllAI" className="h-24" />
-            <span className="text-xs text-muted-foreground italic">Home maintenance, simplified.</span>
+            <img src={allaiLogo} alt="AllAI" className="h-32" />
+            <span className="text-xs text-muted-foreground italic -mt-2">Home maintenance, simplified.</span>
           </div>
 
           {/* Hidden Menu */}
