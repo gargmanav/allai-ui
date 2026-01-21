@@ -424,9 +424,9 @@ export default function Homeowner() {
                 </PopoverTrigger>
                 <PopoverContent 
                   className="w-52 p-3 border-0 shadow-xl" 
-                  align="end"
+                  align="center"
                   side="bottom"
-                  sideOffset={8}
+                  sideOffset={12}
                   style={{
                     background: 'rgba(255, 255, 255, 0.85)',
                     backdropFilter: 'blur(20px) saturate(180%)',
