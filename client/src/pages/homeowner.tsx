@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import allaiLogo from "@assets/ChatGPT_Image_Jan_20,_2026,_07_39_22_PM_1768956785867.png";
+import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -206,8 +206,11 @@ export default function Homeowner() {
           )}
           
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <img src={allaiLogo} alt="AllAI" className="h-36" />
-            <span className="text-xs text-muted-foreground italic -mt-14">Home maintenance, simplified.</span>
+            <div className="flex items-center gap-2">
+              <AnimatedPyramid size={40} />
+              <span className="text-2xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">AllAI</span>
+            </div>
+            <span className="text-xs text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
           </div>
 
           {/* Hidden Menu */}
