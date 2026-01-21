@@ -285,7 +285,7 @@ export default function Homeowner() {
                 Hi, {firstName}
               </h1>
               <p className="text-muted-foreground">
-                How can I help?
+                I help diagnose issues and connect the right help.
               </p>
             </div>
 
