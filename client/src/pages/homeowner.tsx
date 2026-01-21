@@ -365,12 +365,20 @@ export default function Homeowner() {
                   className="relative flex flex-col items-center gap-2 p-2 transition-all"
                 >
                   <div 
-                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all ${
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border-2 transition-all ${
                       selectedCategories.includes(cat.id) 
-                        ? `${cat.bgColor} border-white/60 shadow-lg ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
-                        : "bg-white/20 dark:bg-white/10 border-white/40 dark:border-white/20 hover:bg-white/30 dark:hover:bg-white/20 shadow-sm"
+                        ? `${cat.bgColor} border-white/70 ring-2 ${cat.ringColor} ring-offset-2 ring-offset-background` 
+                        : "border-gray-300/50 dark:border-gray-500/30 hover:border-gray-400/60"
                     }`} 
-                    style={selectedCategories.includes(cat.id) ? { boxShadow: `0 0 20px ${cat.glowColor}` } : {}}
+                    style={selectedCategories.includes(cat.id) 
+                      ? { 
+                          boxShadow: `0 0 24px ${cat.glowColor}, inset 0 2px 4px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.15)` 
+                        } 
+                      : { 
+                          background: 'linear-gradient(145deg, rgba(255,255,255,0.6) 0%, rgba(240,240,245,0.4) 50%, rgba(220,220,230,0.3) 100%)',
+                          boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.08)'
+                        }
+                    }
                   >
                     <cat.icon className={`h-7 w-7 ${selectedCategories.includes(cat.id) ? cat.color : "text-gray-500 dark:text-gray-400"}`} />
                   </div>
@@ -384,11 +392,20 @@ export default function Homeowner() {
                   <button
                     className="relative flex flex-col items-center gap-2 p-2 transition-all"
                   >
-                    <div className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all ${
-                      selectedCategories.some(id => otherCategories.some(c => c.id === id))
-                        ? "bg-purple-100 dark:bg-purple-900/30 border-white/60 shadow-lg ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
-                        : "bg-white/20 dark:bg-white/10 border-white/40 dark:border-white/20 hover:bg-white/30 dark:hover:bg-white/20 shadow-sm"
-                    }`} style={selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? { boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)' } : {}}>
+                    <div 
+                      className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-xl border-2 transition-all ${
+                        selectedCategories.some(id => otherCategories.some(c => c.id === id))
+                          ? "bg-purple-100 dark:bg-purple-900/30 border-white/70 ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
+                          : "border-gray-300/50 dark:border-gray-500/30 hover:border-gray-400/60"
+                      }`} 
+                      style={selectedCategories.some(id => otherCategories.some(c => c.id === id)) 
+                        ? { boxShadow: '0 0 24px rgba(139, 92, 246, 0.4), inset 0 2px 4px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.15)' } 
+                        : { 
+                            background: 'linear-gradient(145deg, rgba(255,255,255,0.6) 0%, rgba(240,240,245,0.4) 50%, rgba(220,220,230,0.3) 100%)',
+                            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.08)'
+                          }
+                      }
+                    >
                       <Wrench className={`h-7 w-7 ${selectedCategories.some(id => otherCategories.some(c => c.id === id)) ? "text-purple-500" : "text-gray-500 dark:text-gray-400"}`} />
                     </div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">More</span>
