@@ -11,13 +11,13 @@ export function AnimatedPyramid({ size = 48, className = "" }: AnimatedPyramidPr
   useEffect(() => {
     let time = 0;
     const interval = setInterval(() => {
-      time += 0.03;
+      time += 0.015;
       setTransform({
-        rotateX: Math.sin(time * 0.7) * 15,
-        rotateY: Math.cos(time * 0.5) * 20,
-        rotateZ: Math.sin(time * 0.3) * 10 + Math.cos(time * 0.8) * 5
+        rotateX: Math.sin(time * 0.2) * 25 + Math.sin(time * 0.07) * 10,
+        rotateY: Math.cos(time * 0.15) * 30 + Math.cos(time * 0.05) * 15,
+        rotateZ: Math.sin(time * 0.1) * 20
       });
-    }, 30);
+    }, 25);
     return () => clearInterval(interval);
   }, []);
 
