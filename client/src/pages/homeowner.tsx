@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import allaiLogo from "@assets/ChatGPT_Image_Jan_20,_2026,_07_39_22_PM_1768956785867.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -204,10 +205,7 @@ export default function Homeowner() {
             <div className="w-20" />
           )}
           
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="font-semibold">AllAI</span>
-          </div>
+          <img src={allaiLogo} alt="AllAI" className="h-8" />
 
           {/* Hidden Menu */}
           <Sheet>
