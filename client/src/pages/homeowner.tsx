@@ -206,7 +206,16 @@ export default function Homeowner() {
           )}
           
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <img src={allaiLogo} alt="AllAI" className="h-32" />
+            <div className="perspective-[800px]">
+              <img 
+                src={allaiLogo} 
+                alt="AllAI" 
+                className="h-32 animate-[rotate3d_8s_ease-in-out_infinite]"
+                style={{
+                  transformStyle: 'preserve-3d',
+                }}
+              />
+            </div>
             <span className="text-xs text-muted-foreground italic -mt-12">Home maintenance, simplified.</span>
           </div>
 

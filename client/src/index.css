@@ -197,3 +197,22 @@
     color: hsl(var(--muted-foreground));
   }
 }
+
+/* 3D rotating logo animation */
+@keyframes rotate3d {
+  0% {
+    transform: perspective(800px) rotateY(0deg) rotateX(0deg);
+  }
+  25% {
+    transform: perspective(800px) rotateY(15deg) rotateX(5deg);
+  }
+  50% {
+    transform: perspective(800px) rotateY(0deg) rotateX(0deg);
+  }
+  75% {
+    transform: perspective(800px) rotateY(-15deg) rotateX(-5deg);
+  }
+  100% {
+    transform: perspective(800px) rotateY(0deg) rotateX(0deg);
+  }
+}
