@@ -114,8 +114,12 @@ export default function Homeowner() {
   };
 
   const handleCategoryClick = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    inputRef.current?.focus();
+    if (selectedCategory === categoryId) {
+      setSelectedCategory(null);
+    } else {
+      setSelectedCategory(categoryId);
+      inputRef.current?.focus();
+    }
   };
 
   const handleBack = () => {
