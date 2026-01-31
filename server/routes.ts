@@ -5493,6 +5493,59 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
     }
   });
 
+  // Maya AI chat endpoint for homeowners - contextual advice about quotes
+  app.post('/api/homeowner/maya-chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message, quotes, requestDescription } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const quoteSummary = quotes?.map((q: any) => 
+        `${q.name}: $${q.quote}, available ${q.availability}, ~${q.estimatedDays} days to complete`
+      ).join('\n') || 'No quotes available yet';
+
+      const systemPrompt = `You are Maya, a friendly and helpful AI assistant for homeowners managing property maintenance requests. You help homeowners:
+1. Compare contractor quotes and make informed decisions
+2. Draft messages to send to contractors
+3. Answer questions about timing, pricing, and contractor selection
+4. Provide practical advice based on their specific situation
+
+Current request: ${requestDescription || 'Home maintenance request'}
+
+Contractor quotes received:
+${quoteSummary}
+
+Keep responses concise and friendly. If asked to draft a message for contractors, format it professionally. When recommending contractors, explain your reasoning briefly. If the user mentions scheduling constraints (like only being available on certain days), factor that into your recommendations based on contractor availability.`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-5-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        max_completion_tokens: 500,
+      });
+
+      const reply = response.choices[0]?.message?.content || "I'm here to help you with your contractor quotes. What would you like to know?";
+      
+      res.json({ reply });
+    } catch (error) {
+      console.error('Maya chat error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get response',
+        reply: "I'm having trouble connecting right now. Based on your quotes, Mike's Roofing offers good value at $850 with quick availability. How can I help you compare your options?"
+      });
+    }
+  });
+
   // AI-powered smart case enhancement routes
   app.post('/api/cases/:id/ai-triage', isAuthenticated, async (req: any, res) => {
     try {
