@@ -948,7 +948,7 @@ export default function Homeowner() {
 
                 <div className="w-px h-14 bg-gradient-to-b from-transparent via-border to-transparent" />
 
-                {/* Contractor bubbles - frosted glass */}
+                {/* Contractor bubbles - neutral when unselected, colored when selected */}
                 {contractorQuotes.map((quote) => {
                   const isSelected = selectedContractorId === quote.contractorId && !showMayaPanel;
                   return (
@@ -961,31 +961,33 @@ export default function Homeowner() {
                       className="flex flex-col items-center min-w-[80px] group"
                     >
                       <div 
-                        className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                        className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
                           isSelected ? `ring-2 ${quote.ringColor} scale-105` : "hover:scale-105"
                         }`}
                         style={{
                           background: isSelected 
-                            ? `radial-gradient(ellipse at 30% 20%, ${quote.glowColor}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))`
-                            : `radial-gradient(ellipse at 30% 20%, ${quote.glowColor.replace("0.5", "0.2")}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))`,
-                          backdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
-                          WebkitBackdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                            ? `radial-gradient(ellipse at 30% 20%, ${quote.glowColor}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1))`
+                            : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                          backdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
+                          WebkitBackdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           boxShadow: isSelected 
-                            ? `0 8px 32px ${quote.glowColor}, inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.1)`
-                            : "inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.05)",
+                            ? `0 8px 24px ${quote.glowColor}, inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.08)`
+                            : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <span className={`text-sm font-bold ${quote.textColor}`}>{quote.contractorInitials}</span>
+                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? quote.textColor : "text-gray-600"}`}>
+                          {quote.contractorInitials}
+                        </span>
                         {quote.messages.filter(m => m.sender === "contractor").length > 0 && (
-                          <div className={`absolute -top-1 -right-1 w-5 h-5 ${quote.contractorColor} rounded-full flex items-center justify-center shadow-md`}>
+                          <div className={`absolute -top-1 -right-1 w-5 h-5 ${isSelected ? quote.contractorColor : "bg-blue-500"} rounded-full flex items-center justify-center shadow-md`}>
                             <span className="text-[10px] text-white font-medium">{quote.messages.filter(m => m.sender === "contractor").length}</span>
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] ${isSelected ? quote.textColor : "text-foreground"}`}>
+                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? quote.textColor : "text-foreground"}`}>
                         {quote.contractorName.split(" ")[0]}
                       </span>
-                      <span className={`text-[10px] font-semibold ${quote.textColor}`}>${quote.quote}</span>
+                      <span className={`text-[10px] font-semibold transition-colors duration-300 ${isSelected ? quote.textColor : "text-muted-foreground"}`}>${quote.quote}</span>
                     </button>
                   );
                 })}
