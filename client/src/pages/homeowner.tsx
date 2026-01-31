@@ -918,39 +918,45 @@ export default function Homeowner() {
             {/* Contractor Selector - Horizontal scroll bubbles with frosted glass */}
             <div className="px-4 py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
               <div className="flex items-center gap-4 overflow-x-auto pb-2">
-                {/* Maya AI bubble - frosted glass */}
+                {/* Maya AI bubble - subtle purple, matching category bubbles */}
                 <button
                   onClick={() => setShowMayaPanel(!showMayaPanel)}
                   className="flex flex-col items-center min-w-[80px] group"
                 >
                   <div 
-                    className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                    className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
                       showMayaPanel 
-                        ? "ring-2 ring-violet-400 scale-105" 
+                        ? "ring-2 ring-violet-300/60 scale-105" 
                         : "hover:scale-105"
                     }`}
                     style={{
                       background: showMayaPanel 
-                        ? "linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(147, 51, 234, 0.2))"
-                        : "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(147, 51, 234, 0.1))",
-                      backdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
-                      WebkitBackdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                        ? "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.2), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(245,243,255,0.95))"
+                        : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,246,255,0.95))",
+                      backdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
+                      WebkitBackdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                       boxShadow: showMayaPanel 
-                        ? "0 8px 32px rgba(139, 92, 246, 0.4), inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.1)"
-                        : "inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.05)",
+                        ? "0 6px 20px rgba(139, 92, 246, 0.15), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)"
+                        : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                     }}
                   >
-                    <Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+                    <Sparkles 
+                      className="h-6 w-6 text-violet-500 dark:text-violet-400" 
+                      style={{ animation: "spin 8s linear infinite" }}
+                    />
                   </div>
-                  <span className="text-xs mt-2 font-medium text-violet-700 dark:text-violet-300">Maya</span>
+                  <span className={`text-xs mt-2 font-medium transition-colors duration-300 ${showMayaPanel ? "text-violet-600" : "text-foreground"}`}>Maya</span>
                   <span className="text-[10px] text-muted-foreground">AI Advisor</span>
                 </button>
 
                 <div className="w-px h-14 bg-gradient-to-b from-transparent via-border to-transparent" />
 
-                {/* Contractor bubbles - neutral when unselected, colored when selected */}
+                {/* Contractor bubbles - neutral when unselected, subtle color when selected */}
                 {contractorQuotes.map((quote) => {
                   const isSelected = selectedContractorId === quote.contractorId && !showMayaPanel;
+                  // Create subtle glow by reducing opacity
+                  const subtleGlow = quote.glowColor.replace("0.5", "0.15");
+                  const subtleShadow = quote.glowColor.replace("0.5", "0.1");
                   return (
                     <button
                       key={quote.contractorId}
@@ -962,24 +968,24 @@ export default function Homeowner() {
                     >
                       <div 
                         className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
-                          isSelected ? `ring-2 ${quote.ringColor} scale-105` : "hover:scale-105"
+                          isSelected ? "ring-2 ring-gray-300/60 scale-105" : "hover:scale-105"
                         }`}
                         style={{
                           background: isSelected 
-                            ? `radial-gradient(ellipse at 30% 20%, ${quote.glowColor}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1))`
+                            ? `radial-gradient(ellipse at 30% 20%, ${subtleGlow}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,252,0.95))`
                             : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
                           backdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           WebkitBackdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           boxShadow: isSelected 
-                            ? `0 8px 24px ${quote.glowColor}, inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.08)`
+                            ? `0 6px 20px ${subtleShadow}, inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)`
                             : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? quote.textColor : "text-gray-600"}`}>
+                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? quote.textColor : "text-gray-500"}`}>
                           {quote.contractorInitials}
                         </span>
                         {quote.messages.filter(m => m.sender === "contractor").length > 0 && (
-                          <div className={`absolute -top-1 -right-1 w-5 h-5 ${isSelected ? quote.contractorColor : "bg-blue-500"} rounded-full flex items-center justify-center shadow-md`}>
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
                             <span className="text-[10px] text-white font-medium">{quote.messages.filter(m => m.sender === "contractor").length}</span>
                           </div>
                         )}
@@ -987,7 +993,7 @@ export default function Homeowner() {
                       <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? quote.textColor : "text-foreground"}`}>
                         {quote.contractorName.split(" ")[0]}
                       </span>
-                      <span className={`text-[10px] font-semibold transition-colors duration-300 ${isSelected ? quote.textColor : "text-muted-foreground"}`}>${quote.quote}</span>
+                      <span className={`text-[10px] font-medium transition-colors duration-300 ${isSelected ? quote.textColor : "text-muted-foreground"}`}>${quote.quote}</span>
                     </button>
                   );
                 })}
@@ -1001,42 +1007,42 @@ export default function Homeowner() {
                 <ScrollArea className="flex-1 p-4">
                   {selectedContractorId && !showMayaPanel && (
                     <div className="space-y-4">
-                      {/* Contractor info card - frosted glass */}
+                      {/* Contractor info card - subtle frosted glass */}
                       {(() => {
                         const quote = contractorQuotes.find(q => q.contractorId === selectedContractorId);
                         if (!quote) return null;
+                        const subtleGlow = quote.glowColor.replace("0.5", "0.08");
                         return (
                           <div 
-                            className="mb-4 rounded-2xl p-4 border"
+                            className="mb-4 rounded-2xl p-4 border border-gray-200/60"
                             style={{
-                              background: `radial-gradient(ellipse at 20% 20%, ${quote.glowColor.replace("0.5", "0.15")}, transparent 60%), linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.1))`,
+                              background: `radial-gradient(ellipse at 20% 20%, ${subtleGlow}, transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,250,252,0.9))`,
                               backdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
                               WebkitBackdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
-                              boxShadow: `inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.05), 0 4px 16px ${quote.glowColor.replace("0.5", "0.2")}`,
+                              boxShadow: "inset 0 1px 2px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.04)",
                             }}
                           >
                             <div className="flex items-center gap-3">
                               <div 
-                                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                className="w-12 h-12 rounded-full flex items-center justify-center"
                                 style={{
-                                  background: `radial-gradient(ellipse at 30% 20%, ${quote.glowColor}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))`,
-                                  backdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
-                                  boxShadow: `inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 8px ${quote.glowColor.replace("0.5", "0.3")}`,
+                                  background: `radial-gradient(ellipse at 30% 20%, ${quote.glowColor.replace("0.5", "0.2")}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,248,250,0.95))`,
+                                  boxShadow: "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                                 }}
                               >
                                 <span className={`text-sm font-bold ${quote.textColor}`}>{quote.contractorInitials}</span>
                               </div>
                               <div className="flex-1">
-                                <h4 className={`font-semibold ${quote.textColor}`}>{quote.contractorName}</h4>
+                                <h4 className="font-semibold text-foreground">{quote.contractorName}</h4>
                                 <p className="text-sm text-muted-foreground">{quote.availability}</p>
                               </div>
                               <div className="text-right">
-                                <p className={`font-bold text-xl ${quote.textColor}`}>${quote.quote}</p>
+                                <p className="font-bold text-xl text-foreground">${quote.quote}</p>
                                 <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""} est.</p>
                               </div>
                             </div>
                             <div className="flex gap-2 mt-4">
-                              <Button size="sm" className={`flex-1 ${quote.bgColor} ${quote.textColor} hover:opacity-90 border-0`}>
+                              <Button size="sm" className="flex-1">
                                 Accept Quote
                               </Button>
                               <Button size="sm" variant="outline" className="flex-1">
