@@ -38,7 +38,7 @@ import {
   Sparkles
 } from "lucide-react";
 
-type ViewState = "landing" | "triage" | "contractors" | "chat" | "pastRequests";
+type ViewState = "landing" | "triage" | "contractors" | "chat" | "pastRequests" | "requestDetail";
 
 interface TriageResult {
   urgency: string;
@@ -58,6 +58,77 @@ interface Contractor {
   priceRange: string;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: "homeowner" | "contractor" | "maya";
+  message: string;
+  timestamp: Date;
+}
+
+interface ContractorQuote {
+  id: string;
+  contractorId: string;
+  contractorName: string;
+  contractorInitials: string;
+  contractorColor: string;
+  quote: number;
+  availability: string;
+  estimatedDays: number;
+  messages: ChatMessage[];
+  status: "pending" | "accepted" | "declined";
+}
+
+const mockContractorQuotes: ContractorQuote[] = [
+  {
+    id: "quote-1",
+    contractorId: "contractor-1",
+    contractorName: "Mike's Roofing",
+    contractorInitials: "MR",
+    contractorColor: "bg-blue-500",
+    quote: 850,
+    availability: "Available Mon-Wed",
+    estimatedDays: 2,
+    status: "pending",
+    messages: [
+      { id: "m1", sender: "contractor", message: "Hi Sarah! I've reviewed your roof leak issue. Based on your description, it sounds like the flashing around the chimney may need repair. I can come out Monday to take a closer look.", timestamp: new Date("2025-11-12T10:30:00") },
+      { id: "m2", sender: "homeowner", message: "That sounds great! What time works for you?", timestamp: new Date("2025-11-12T11:15:00") },
+      { id: "m3", sender: "contractor", message: "I can be there around 9 AM. The inspection is free, and I'll give you a detailed quote on the spot. If it's just the flashing, we're looking at around $850.", timestamp: new Date("2025-11-12T11:45:00") },
+    ],
+  },
+  {
+    id: "quote-2",
+    contractorId: "contractor-2",
+    contractorName: "Premier Roofing Co",
+    contractorInitials: "PR",
+    contractorColor: "bg-emerald-500",
+    quote: 1200,
+    availability: "Available Thursday",
+    estimatedDays: 1,
+    status: "pending",
+    messages: [
+      { id: "m4", sender: "contractor", message: "Hello! Thanks for reaching out. We specialize in roof repairs and have 15 years of experience. For water stains appearing after rain, it could be a few things - damaged shingles, worn flashing, or gutter issues.", timestamp: new Date("2025-11-12T09:00:00") },
+      { id: "m5", sender: "homeowner", message: "What would repair typically cost?", timestamp: new Date("2025-11-12T09:30:00") },
+      { id: "m6", sender: "contractor", message: "For a typical flashing repair, we charge $1,200 which includes a 5-year warranty on our work. We use premium materials and can usually complete the work in one day.", timestamp: new Date("2025-11-12T10:00:00") },
+    ],
+  },
+  {
+    id: "quote-3",
+    contractorId: "contractor-3",
+    contractorName: "Budget Roof Repair",
+    contractorInitials: "BR",
+    contractorColor: "bg-orange-500",
+    quote: 550,
+    availability: "Available tomorrow",
+    estimatedDays: 3,
+    status: "pending",
+    messages: [
+      { id: "m7", sender: "contractor", message: "Hey! Saw your request. I can come by tomorrow to check out that leak. I'm the most affordable option in the area.", timestamp: new Date("2025-11-12T14:00:00") },
+      { id: "m8", sender: "homeowner", message: "What's your estimate looking like?", timestamp: new Date("2025-11-12T14:30:00") },
+      { id: "m9", sender: "contractor", message: "I can do it for $550. Might take a couple extra days since I work solo, but I'll get it done right.", timestamp: new Date("2025-11-12T15:00:00") },
+    ],
+  },
+];
+
 export default function Homeowner() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -69,6 +140,12 @@ export default function Homeowner() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedContractorId, setSelectedContractorId] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [contractorQuotes, setContractorQuotes] = useState<ContractorQuote[]>(mockContractorQuotes);
+  const [showMayaPanel, setShowMayaPanel] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const firstName = "Sarah"; // Temporarily hardcoded for demo view
 
@@ -231,7 +308,9 @@ export default function Homeowner() {
                   key={request.id}
                   className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
                   onClick={() => {
-                    setView("pastRequests");
+                    setSelectedRequest(request);
+                    setSelectedContractorId(mockContractorQuotes[0]?.contractorId || null);
+                    setView("requestDetail");
                   }}
                 >
                   <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -748,7 +827,15 @@ export default function Homeowner() {
               ) : (
                 <div className="space-y-3">
                   {pastRequests.map((request: any) => (
-                    <Card key={request.id} className="overflow-hidden">
+                    <Card 
+                      key={request.id} 
+                      className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setSelectedContractorId(mockContractorQuotes[0]?.contractorId || null);
+                        setView("requestDetail");
+                      }}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -789,6 +876,265 @@ export default function Homeowner() {
                       </CardContent>
                     </Card>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Request Detail View - Chat with Contractors */}
+        {view === "requestDetail" && selectedRequest && (
+          <div className="flex-1 flex flex-col h-[calc(100vh-8rem)]">
+            {/* Request Summary Header */}
+            <div className="px-4 py-3 border-b bg-muted/30 rounded-t-xl">
+              <h2 className="font-semibold text-lg">{selectedRequest.title || "Request Details"}</h2>
+              <p className="text-sm text-muted-foreground">{selectedRequest.description?.slice(0, 100)}</p>
+            </div>
+
+            {/* Contractor Selector - Horizontal scroll bubbles */}
+            <div className="px-4 py-3 border-b">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                {/* Maya AI bubble */}
+                <button
+                  onClick={() => setShowMayaPanel(!showMayaPanel)}
+                  className={`flex flex-col items-center min-w-[70px] p-2 rounded-xl transition-all ${
+                    showMayaPanel 
+                      ? "bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 ring-2 ring-violet-400" 
+                      : "hover:bg-muted"
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold shadow-lg">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs mt-1 font-medium">Maya</span>
+                  <span className="text-[10px] text-muted-foreground">AI Advisor</span>
+                </button>
+
+                <div className="w-px h-12 bg-border" />
+
+                {/* Contractor bubbles */}
+                {contractorQuotes.map((quote) => (
+                  <button
+                    key={quote.contractorId}
+                    onClick={() => {
+                      setSelectedContractorId(quote.contractorId);
+                      setShowMayaPanel(false);
+                    }}
+                    className={`flex flex-col items-center min-w-[70px] p-2 rounded-xl transition-all ${
+                      selectedContractorId === quote.contractorId && !showMayaPanel
+                        ? "bg-muted ring-2 ring-primary" 
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-full ${quote.contractorColor} flex items-center justify-center text-white text-sm font-semibold shadow-md relative`}>
+                      {quote.contractorInitials}
+                      {quote.messages.length > 0 && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-[10px] text-white">{quote.messages.filter(m => m.sender === "contractor").length}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs mt-1 font-medium truncate max-w-[60px]">{quote.contractorName.split(" ")[0]}</span>
+                    <span className="text-[10px] text-green-600 font-medium">${quote.quote}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chat Area */}
+            <div className="flex-1 overflow-hidden flex">
+              {/* Main Chat Thread */}
+              <div className={`flex-1 flex flex-col transition-all ${showMayaPanel ? "w-1/2" : "w-full"}`}>
+                <ScrollArea className="flex-1 p-4">
+                  {selectedContractorId && !showMayaPanel && (
+                    <div className="space-y-4">
+                      {/* Contractor info card */}
+                      {(() => {
+                        const quote = contractorQuotes.find(q => q.contractorId === selectedContractorId);
+                        if (!quote) return null;
+                        return (
+                          <Card className="mb-4 bg-muted/30">
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full ${quote.contractorColor} flex items-center justify-center text-white text-sm font-semibold`}>
+                                  {quote.contractorInitials}
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-medium">{quote.contractorName}</h4>
+                                  <p className="text-sm text-muted-foreground">{quote.availability}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-lg text-green-600">${quote.quote}</p>
+                                  <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <Button size="sm" className="flex-1">Accept Quote</Button>
+                                <Button size="sm" variant="outline" className="flex-1">Decline</Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+
+                      {/* Chat messages */}
+                      {contractorQuotes
+                        .find(q => q.contractorId === selectedContractorId)
+                        ?.messages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`flex ${msg.sender === "homeowner" ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                                msg.sender === "homeowner"
+                                  ? "bg-primary text-primary-foreground rounded-br-md"
+                                  : "bg-muted rounded-bl-md"
+                              }`}
+                            >
+                              <p className="text-sm">{msg.message}</p>
+                              <p className={`text-[10px] mt-1 ${msg.sender === "homeowner" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+
+                  {showMayaPanel && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">Select a contractor to view their conversation</p>
+                    </div>
+                  )}
+                </ScrollArea>
+
+                {/* Chat Input */}
+                {selectedContractorId && !showMayaPanel && (
+                  <div className="p-4 border-t">
+                    <div className="relative">
+                      <Input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder={`Message ${contractorQuotes.find(q => q.contractorId === selectedContractorId)?.contractorName || "contractor"}...`}
+                        className="h-12 pl-4 pr-24 rounded-full"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && chatInput.trim()) {
+                            const newMessage: ChatMessage = {
+                              id: `msg-${Date.now()}`,
+                              sender: "homeowner",
+                              message: chatInput,
+                              timestamp: new Date(),
+                            };
+                            setContractorQuotes(prev => prev.map(q => 
+                              q.contractorId === selectedContractorId 
+                                ? { ...q, messages: [...q.messages, newMessage] }
+                                : q
+                            ));
+                            setChatInput("");
+                            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+                          }
+                        }}
+                      />
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary"
+                          onClick={() => setShowMayaPanel(true)}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          className="h-10 w-10 rounded-full"
+                          onClick={() => {
+                            if (chatInput.trim()) {
+                              const newMessage: ChatMessage = {
+                                id: `msg-${Date.now()}`,
+                                sender: "homeowner",
+                                message: chatInput,
+                                timestamp: new Date(),
+                              };
+                              setContractorQuotes(prev => prev.map(q => 
+                                q.contractorId === selectedContractorId 
+                                  ? { ...q, messages: [...q.messages, newMessage] }
+                                  : q
+                              ));
+                              setChatInput("");
+                              setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+                            }
+                          }}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Maya AI Side Panel */}
+              {showMayaPanel && (
+                <div className="w-1/2 border-l flex flex-col bg-gradient-to-b from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20">
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                        <Sparkles className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm">Maya AI</h4>
+                        <p className="text-xs text-muted-foreground">Your second opinion</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setShowMayaPanel(false)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <ScrollArea className="flex-1 p-4">
+                    <div className="space-y-4">
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                        <h5 className="font-medium text-sm mb-2">Quote Comparison</h5>
+                        <div className="space-y-2">
+                          {contractorQuotes.map((quote) => (
+                            <div key={quote.id} className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">{quote.contractorName}</span>
+                              <span className="font-medium">${quote.quote}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <Separator className="my-3" />
+                        <p className="text-xs text-muted-foreground">
+                          Average quote: ${Math.round(contractorQuotes.reduce((a, b) => a + b.quote, 0) / contractorQuotes.length)}
+                        </p>
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                        <h5 className="font-medium text-sm mb-2">My Recommendation</h5>
+                        <p className="text-sm text-muted-foreground">
+                          Based on the quotes, <strong>Mike's Roofing</strong> offers good value at $850 with a 2-day timeline. Premier Roofing is pricier at $1,200 but includes a 5-year warranty - worth considering for long-term peace of mind.
+                        </p>
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                        <h5 className="font-medium text-sm mb-2">Questions to Ask</h5>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          <li>• Do they offer any warranty on work?</li>
+                          <li>• What materials will be used?</li>
+                          <li>• Can they provide references?</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </ScrollArea>
+
+                  <div className="p-4 border-t">
+                    <Input
+                      placeholder="Ask Maya about these quotes..."
+                      className="h-10 rounded-full text-sm"
+                    />
+                  </div>
                 </div>
               )}
             </div>
