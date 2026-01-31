@@ -321,30 +321,28 @@ export default function Homeowner() {
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"}`}>
         {/* Minimal Header */}
         <header className="fixed top-0 right-0 z-50 bg-background/80 backdrop-blur-sm transition-all duration-300" style={{ left: sidebarOpen ? "288px" : "0" }}>
-          <div className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
+          <div className="relative flex items-center justify-center px-6 py-4">
+            {/* Menu button - fixed to far left */}
             {!sidebarOpen && (
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-4">
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            {sidebarOpen && view !== "landing" ? (
-              <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2">
+            {sidebarOpen && view !== "landing" && (
+              <Button variant="ghost" size="sm" onClick={handleBack} className="absolute left-4 gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
-            ) : sidebarOpen ? (
-              <div className="w-20" />
-            ) : null}
+            )}
             
-            <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+            {/* Centered logo */}
+            <div className="flex flex-col items-center">
               <div className="flex items-center gap-2">
                 <AnimatedPyramid size={56} />
                 <span className="text-2xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">AllAI</span>
               </div>
               <span className="text-xs text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
             </div>
-            
-            <div className="w-10" />
           </div>
         </header>
 
