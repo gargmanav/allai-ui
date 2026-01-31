@@ -5526,7 +5526,7 @@ ${quoteSummary}
 Keep responses concise and friendly. If asked to draft a message for contractors, format it professionally. When recommending contractors, explain your reasoning briefly. If the user mentions scheduling constraints (like only being available on certain days), factor that into your recommendations based on contractor availability.`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-5-mini',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
