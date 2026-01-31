@@ -11,7 +11,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Menu, 
@@ -213,18 +214,84 @@ export default function Homeowner() {
             <span className="text-xs text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
           </div>
 
-          {/* Hidden Menu */}
+          {/* Left Sidebar Menu - OpenAI Style */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="absolute left-6">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-1">
+            <SheetContent side="left" className="w-72 p-0 flex flex-col">
+              <div className="p-4 border-b">
+                <Button 
+                  className="w-full justify-start gap-3 bg-primary/10 hover:bg-primary/20 text-primary"
+                  variant="ghost"
+                  onClick={() => setView("landing")}
+                >
+                  <Plus className="h-4 w-4" />
+                  New Request
+                </Button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  Recent Requests
+                </div>
+                <div className="space-y-1">
+                  {pastRequests.slice(0, 5).map((request: any) => (
+                    <div 
+                      key={request.id}
+                      className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                      onClick={() => {
+                        setView("pastRequests");
+                      }}
+                    >
+                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm truncate flex-1">
+                        {request.title || request.description?.slice(0, 30) || "Untitled Request"}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Pencil className="h-3 w-3 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                  {pastRequests.length === 0 && (
+                    <p className="text-sm text-muted-foreground px-3 py-2">
+                      No requests yet
+                    </p>
+                  )}
+                  {pastRequests.length > 5 && (
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start gap-3 text-sm text-muted-foreground"
+                      onClick={() => setView("pastRequests")}
+                    >
+                      View all {pastRequests.length} requests
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-auto border-t p-4 space-y-1">
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3"
@@ -235,26 +302,12 @@ export default function Homeowner() {
                 </Button>
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start gap-3"
-                  onClick={() => setView("pastRequests")}
-                >
-                  <FileText className="h-4 w-4" />
-                  Past Requests
-                  {pastRequests.length > 0 && (
-                    <Badge variant="secondary" className="ml-auto">
-                      {pastRequests.length}
-                    </Badge>
-                  )}
-                </Button>
-                <Button 
-                  variant="ghost" 
                   className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
                   disabled
                 >
                   <MessageCircle className="h-4 w-4" />
                   Messages
                 </Button>
-                <Separator className="my-4" />
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
@@ -263,6 +316,7 @@ export default function Homeowner() {
                   <Settings className="h-4 w-4" />
                   Settings
                 </Button>
+                <Separator className="my-2" />
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3 text-muted-foreground"
@@ -274,6 +328,8 @@ export default function Homeowner() {
               </div>
             </SheetContent>
           </Sheet>
+          
+          <div className="w-10" />
         </div>
       </header>
 
