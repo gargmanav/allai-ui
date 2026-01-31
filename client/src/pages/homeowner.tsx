@@ -68,6 +68,7 @@ export default function Homeowner() {
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const firstName = "Sarah"; // Temporarily hardcoded for demo view
 
@@ -193,148 +194,162 @@ export default function Homeowner() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Minimal Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
-          {view !== "landing" ? (
-            <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex">
+      {/* Left Sidebar - OpenAI Style (pushes content) */}
+      <aside 
+        className={`fixed left-0 top-0 h-full bg-muted/30 border-r flex flex-col z-40 transition-all duration-300 ${
+          sidebarOpen ? "w-72" : "w-0"
+        } overflow-hidden`}
+      >
+        <div className="w-72 h-full flex flex-col">
+          <div className="p-4 border-b flex items-center justify-between">
+            <Button 
+              className="flex-1 justify-start gap-3 bg-primary/10 hover:bg-primary/20 text-primary"
+              variant="ghost"
+              onClick={() => setView("landing")}
+            >
+              <Plus className="h-4 w-4" />
+              New Request
             </Button>
-          ) : (
-            <div className="w-20" />
-          )}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="ml-2"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </div>
           
-          <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <div className="flex items-center gap-2">
-              <AnimatedPyramid size={56} />
-              <span className="text-2xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">AllAI</span>
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+              Recent Requests
             </div>
-            <span className="text-xs text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
+            <div className="space-y-1">
+              {pastRequests.slice(0, 5).map((request: any) => (
+                <div 
+                  key={request.id}
+                  className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                  onClick={() => {
+                    setView("pastRequests");
+                  }}
+                >
+                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-sm truncate flex-1">
+                    {request.title || request.description?.slice(0, 30) || "Untitled Request"}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Pencil className="h-3 w-3 mr-2" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive">
+                        <Trash2 className="h-3 w-3 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+              {pastRequests.length === 0 && (
+                <p className="text-sm text-muted-foreground px-3 py-2">
+                  No requests yet
+                </p>
+              )}
+              {pastRequests.length > 5 && (
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start gap-3 text-sm text-muted-foreground"
+                  onClick={() => setView("pastRequests")}
+                >
+                  View all {pastRequests.length} requests
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Left Sidebar Menu - OpenAI Style */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="absolute left-6">
+          <div className="mt-auto border-t p-4 space-y-1">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => setView("landing")}
+            >
+              <Home className="h-4 w-4" />
+              Home
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
+              disabled
+            >
+              <MessageCircle className="h-4 w-4" />
+              Messages
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
+              disabled
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+            <Separator className="my-2" />
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 text-muted-foreground"
+              onClick={() => logout?.()}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"}`}>
+        {/* Minimal Header */}
+        <header className="fixed top-0 right-0 z-50 bg-background/80 backdrop-blur-sm transition-all duration-300" style={{ left: sidebarOpen ? "288px" : "0" }}>
+          <div className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
+            {!sidebarOpen && (
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 flex flex-col">
-              <div className="p-4 border-b">
-                <Button 
-                  className="w-full justify-start gap-3 bg-primary/10 hover:bg-primary/20 text-primary"
-                  variant="ghost"
-                  onClick={() => setView("landing")}
-                >
-                  <Plus className="h-4 w-4" />
-                  New Request
-                </Button>
+            )}
+            {sidebarOpen && view !== "landing" ? (
+              <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+            ) : sidebarOpen ? (
+              <div className="w-20" />
+            ) : null}
+            
+            <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <AnimatedPyramid size={56} />
+                <span className="text-2xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">AllAI</span>
               </div>
-              
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Recent Requests
-                </div>
-                <div className="space-y-1">
-                  {pastRequests.slice(0, 5).map((request: any) => (
-                    <div 
-                      key={request.id}
-                      className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                      onClick={() => {
-                        setView("pastRequests");
-                      }}
-                    >
-                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm truncate flex-1">
-                        {request.title || request.description?.slice(0, 30) || "Untitled Request"}
-                      </span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Pencil className="h-3 w-3 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="h-3 w-3 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ))}
-                  {pastRequests.length === 0 && (
-                    <p className="text-sm text-muted-foreground px-3 py-2">
-                      No requests yet
-                    </p>
-                  )}
-                  {pastRequests.length > 5 && (
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start gap-3 text-sm text-muted-foreground"
-                      onClick={() => setView("pastRequests")}
-                    >
-                      View all {pastRequests.length} requests
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <span className="text-xs text-muted-foreground italic mt-1">Home maintenance, simplified.</span>
+            </div>
+            
+            <div className="w-10" />
+          </div>
+        </header>
 
-              <div className="mt-auto border-t p-4 space-y-1">
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start gap-3"
-                  onClick={() => setView("landing")}
-                >
-                  <Home className="h-4 w-4" />
-                  Home
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Messages
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start gap-3 opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Button>
-                <Separator className="my-2" />
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start gap-3 text-muted-foreground"
-                  onClick={() => logout?.()}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-          
-          <div className="w-10" />
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
+        {/* Main Content */}
+        <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
         {/* Landing View - The Hero Input */}
         {view === "landing" && (
@@ -782,6 +797,7 @@ export default function Homeowner() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }
