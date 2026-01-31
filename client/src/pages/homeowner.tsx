@@ -71,6 +71,10 @@ interface ContractorQuote {
   contractorName: string;
   contractorInitials: string;
   contractorColor: string;
+  glowColor: string;
+  ringColor: string;
+  bgColor: string;
+  textColor: string;
   quote: number;
   availability: string;
   estimatedDays: number;
@@ -85,6 +89,10 @@ const mockContractorQuotes: ContractorQuote[] = [
     contractorName: "Mike's Roofing",
     contractorInitials: "MR",
     contractorColor: "bg-blue-500",
+    glowColor: "rgba(59, 130, 246, 0.5)",
+    ringColor: "ring-blue-400",
+    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    textColor: "text-blue-600 dark:text-blue-400",
     quote: 850,
     availability: "Available Mon-Wed",
     estimatedDays: 2,
@@ -101,6 +109,10 @@ const mockContractorQuotes: ContractorQuote[] = [
     contractorName: "Premier Roofing Co",
     contractorInitials: "PR",
     contractorColor: "bg-emerald-500",
+    glowColor: "rgba(16, 185, 129, 0.5)",
+    ringColor: "ring-emerald-400",
+    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    textColor: "text-emerald-600 dark:text-emerald-400",
     quote: 1200,
     availability: "Available Thursday",
     estimatedDays: 1,
@@ -117,6 +129,10 @@ const mockContractorQuotes: ContractorQuote[] = [
     contractorName: "Budget Roof Repair",
     contractorInitials: "BR",
     contractorColor: "bg-orange-500",
+    glowColor: "rgba(249, 115, 22, 0.5)",
+    ringColor: "ring-orange-400",
+    bgColor: "bg-orange-100 dark:bg-orange-900/30",
+    textColor: "text-orange-600 dark:text-orange-400",
     quote: 550,
     availability: "Available tomorrow",
     estimatedDays: 3,
@@ -885,59 +901,94 @@ export default function Homeowner() {
         {/* Request Detail View - Chat with Contractors */}
         {view === "requestDetail" && selectedRequest && (
           <div className="flex-1 flex flex-col h-[calc(100vh-8rem)]">
-            {/* Request Summary Header */}
-            <div className="px-4 py-3 border-b bg-muted/30 rounded-t-xl">
+            {/* Request Summary Header - frosted glass */}
+            <div 
+              className="px-5 py-4 border-b rounded-t-2xl"
+              style={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.2))",
+                backdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
+                WebkitBackdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.03)",
+              }}
+            >
               <h2 className="font-semibold text-lg">{selectedRequest.title || "Request Details"}</h2>
               <p className="text-sm text-muted-foreground">{selectedRequest.description?.slice(0, 100)}</p>
             </div>
 
-            {/* Contractor Selector - Horizontal scroll bubbles */}
-            <div className="px-4 py-3 border-b">
-              <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                {/* Maya AI bubble */}
+            {/* Contractor Selector - Horizontal scroll bubbles with frosted glass */}
+            <div className="px-4 py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
+              <div className="flex items-center gap-4 overflow-x-auto pb-2">
+                {/* Maya AI bubble - frosted glass */}
                 <button
                   onClick={() => setShowMayaPanel(!showMayaPanel)}
-                  className={`flex flex-col items-center min-w-[70px] p-2 rounded-xl transition-all ${
-                    showMayaPanel 
-                      ? "bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 ring-2 ring-violet-400" 
-                      : "hover:bg-muted"
-                  }`}
+                  className="flex flex-col items-center min-w-[80px] group"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold shadow-lg">
-                    <Sparkles className="h-5 w-5" />
+                  <div 
+                    className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                      showMayaPanel 
+                        ? "ring-2 ring-violet-400 scale-105" 
+                        : "hover:scale-105"
+                    }`}
+                    style={{
+                      background: showMayaPanel 
+                        ? "linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(147, 51, 234, 0.2))"
+                        : "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(147, 51, 234, 0.1))",
+                      backdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                      WebkitBackdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                      boxShadow: showMayaPanel 
+                        ? "0 8px 32px rgba(139, 92, 246, 0.4), inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.1)"
+                        : "inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-400" />
                   </div>
-                  <span className="text-xs mt-1 font-medium">Maya</span>
+                  <span className="text-xs mt-2 font-medium text-violet-700 dark:text-violet-300">Maya</span>
                   <span className="text-[10px] text-muted-foreground">AI Advisor</span>
                 </button>
 
-                <div className="w-px h-12 bg-border" />
+                <div className="w-px h-14 bg-gradient-to-b from-transparent via-border to-transparent" />
 
-                {/* Contractor bubbles */}
-                {contractorQuotes.map((quote) => (
-                  <button
-                    key={quote.contractorId}
-                    onClick={() => {
-                      setSelectedContractorId(quote.contractorId);
-                      setShowMayaPanel(false);
-                    }}
-                    className={`flex flex-col items-center min-w-[70px] p-2 rounded-xl transition-all ${
-                      selectedContractorId === quote.contractorId && !showMayaPanel
-                        ? "bg-muted ring-2 ring-primary" 
-                        : "hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-full ${quote.contractorColor} flex items-center justify-center text-white text-sm font-semibold shadow-md relative`}>
-                      {quote.contractorInitials}
-                      {quote.messages.length > 0 && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-[10px] text-white">{quote.messages.filter(m => m.sender === "contractor").length}</span>
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs mt-1 font-medium truncate max-w-[60px]">{quote.contractorName.split(" ")[0]}</span>
-                    <span className="text-[10px] text-green-600 font-medium">${quote.quote}</span>
-                  </button>
-                ))}
+                {/* Contractor bubbles - frosted glass */}
+                {contractorQuotes.map((quote) => {
+                  const isSelected = selectedContractorId === quote.contractorId && !showMayaPanel;
+                  return (
+                    <button
+                      key={quote.contractorId}
+                      onClick={() => {
+                        setSelectedContractorId(quote.contractorId);
+                        setShowMayaPanel(false);
+                      }}
+                      className="flex flex-col items-center min-w-[80px] group"
+                    >
+                      <div 
+                        className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                          isSelected ? `ring-2 ${quote.ringColor} scale-105` : "hover:scale-105"
+                        }`}
+                        style={{
+                          background: isSelected 
+                            ? `radial-gradient(ellipse at 30% 20%, ${quote.glowColor}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))`
+                            : `radial-gradient(ellipse at 30% 20%, ${quote.glowColor.replace("0.5", "0.2")}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))`,
+                          backdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                          WebkitBackdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                          boxShadow: isSelected 
+                            ? `0 8px 32px ${quote.glowColor}, inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.1)`
+                            : "inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.05)",
+                        }}
+                      >
+                        <span className={`text-sm font-bold ${quote.textColor}`}>{quote.contractorInitials}</span>
+                        {quote.messages.filter(m => m.sender === "contractor").length > 0 && (
+                          <div className={`absolute -top-1 -right-1 w-5 h-5 ${quote.contractorColor} rounded-full flex items-center justify-center shadow-md`}>
+                            <span className="text-[10px] text-white font-medium">{quote.messages.filter(m => m.sender === "contractor").length}</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] ${isSelected ? quote.textColor : "text-foreground"}`}>
+                        {quote.contractorName.split(" ")[0]}
+                      </span>
+                      <span className={`text-[10px] font-semibold ${quote.textColor}`}>${quote.quote}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -948,32 +999,49 @@ export default function Homeowner() {
                 <ScrollArea className="flex-1 p-4">
                   {selectedContractorId && !showMayaPanel && (
                     <div className="space-y-4">
-                      {/* Contractor info card */}
+                      {/* Contractor info card - frosted glass */}
                       {(() => {
                         const quote = contractorQuotes.find(q => q.contractorId === selectedContractorId);
                         if (!quote) return null;
                         return (
-                          <Card className="mb-4 bg-muted/30">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full ${quote.contractorColor} flex items-center justify-center text-white text-sm font-semibold`}>
-                                  {quote.contractorInitials}
-                                </div>
-                                <div className="flex-1">
-                                  <h4 className="font-medium">{quote.contractorName}</h4>
-                                  <p className="text-sm text-muted-foreground">{quote.availability}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-semibold text-lg text-green-600">${quote.quote}</p>
-                                  <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""}</p>
-                                </div>
+                          <div 
+                            className="mb-4 rounded-2xl p-4 border"
+                            style={{
+                              background: `radial-gradient(ellipse at 20% 20%, ${quote.glowColor.replace("0.5", "0.15")}, transparent 60%), linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.1))`,
+                              backdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
+                              WebkitBackdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
+                              boxShadow: `inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.05), 0 4px 16px ${quote.glowColor.replace("0.5", "0.2")}`,
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                style={{
+                                  background: `radial-gradient(ellipse at 30% 20%, ${quote.glowColor}, transparent 70%), linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))`,
+                                  backdropFilter: "blur(48px) saturate(220%) brightness(1.05)",
+                                  boxShadow: `inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 8px ${quote.glowColor.replace("0.5", "0.3")}`,
+                                }}
+                              >
+                                <span className={`text-sm font-bold ${quote.textColor}`}>{quote.contractorInitials}</span>
                               </div>
-                              <div className="flex gap-2 mt-3">
-                                <Button size="sm" className="flex-1">Accept Quote</Button>
-                                <Button size="sm" variant="outline" className="flex-1">Decline</Button>
+                              <div className="flex-1">
+                                <h4 className={`font-semibold ${quote.textColor}`}>{quote.contractorName}</h4>
+                                <p className="text-sm text-muted-foreground">{quote.availability}</p>
                               </div>
-                            </CardContent>
-                          </Card>
+                              <div className="text-right">
+                                <p className={`font-bold text-xl ${quote.textColor}`}>${quote.quote}</p>
+                                <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""} est.</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                              <Button size="sm" className={`flex-1 ${quote.bgColor} ${quote.textColor} hover:opacity-90 border-0`}>
+                                Accept Quote
+                              </Button>
+                              <Button size="sm" variant="outline" className="flex-1">
+                                Decline
+                              </Button>
+                            </div>
+                          </div>
                         );
                       })()}
 
