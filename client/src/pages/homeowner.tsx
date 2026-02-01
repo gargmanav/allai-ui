@@ -99,7 +99,7 @@ const mockContractorQuotes: ContractorQuote[] = [
     estimatedDays: 2,
     status: "pending",
     messages: [
-      { id: "m1", sender: "contractor", message: "Hi Sarah! I've reviewed your roof leak issue. Based on your description, it sounds like the flashing around the chimney may need repair. I can come out Monday to take a closer look.", timestamp: new Date("2025-11-12T10:30:00"), isRead: true },
+      { id: "m1", sender: "contractor", message: "Hi Sarah! I've reviewed your roof leak issue. Based on your description, it sounds like the flashing around the chimney may need repair. I can come out Monday to take a closer look.", timestamp: new Date("2025-11-12T10:30:00"), isRead: false },
       { id: "m2", sender: "homeowner", message: "That sounds great! What time works for you?", timestamp: new Date("2025-11-12T11:15:00"), isRead: true },
       { id: "m3", sender: "contractor", message: "I can be there around 9 AM. The inspection is free, and I'll give you a detailed quote on the spot. If it's just the flashing, we're looking at around $850.", timestamp: new Date("2025-11-12T11:45:00"), isRead: false },
     ],
@@ -119,9 +119,9 @@ const mockContractorQuotes: ContractorQuote[] = [
     estimatedDays: 1,
     status: "pending",
     messages: [
-      { id: "m4", sender: "contractor", message: "Hello! Thanks for reaching out. We specialize in roof repairs and have 15 years of experience. For water stains appearing after rain, it could be a few things - damaged shingles, worn flashing, or gutter issues.", timestamp: new Date("2025-11-12T09:00:00"), isRead: true },
+      { id: "m4", sender: "contractor", message: "Hello! Thanks for reaching out. We specialize in roof repairs and have 15 years of experience. For water stains appearing after rain, it could be a few things - damaged shingles, worn flashing, or gutter issues.", timestamp: new Date("2025-11-12T09:00:00"), isRead: false },
       { id: "m5", sender: "homeowner", message: "What would repair typically cost?", timestamp: new Date("2025-11-12T09:30:00"), isRead: true },
-      { id: "m6", sender: "contractor", message: "For a typical flashing repair, we charge $1,200 which includes a 5-year warranty on our work. We use premium materials and can usually complete the work in one day.", timestamp: new Date("2025-11-12T10:00:00"), isRead: true },
+      { id: "m6", sender: "contractor", message: "For a typical flashing repair, we charge $1,200 which includes a 5-year warranty on our work. We use premium materials and can usually complete the work in one day.", timestamp: new Date("2025-11-12T10:00:00"), isRead: false },
     ],
   },
   {
@@ -139,9 +139,9 @@ const mockContractorQuotes: ContractorQuote[] = [
     estimatedDays: 3,
     status: "pending",
     messages: [
-      { id: "m7", sender: "contractor", message: "Hey! Saw your request. I can come by tomorrow to check out that leak. I'm the most affordable option in the area.", timestamp: new Date("2025-11-12T14:00:00"), isRead: true },
+      { id: "m7", sender: "contractor", message: "Hey! Saw your request. I can come by tomorrow to check out that leak. I'm the most affordable option in the area.", timestamp: new Date("2025-11-12T14:00:00"), isRead: false },
       { id: "m8", sender: "homeowner", message: "What's your estimate looking like?", timestamp: new Date("2025-11-12T14:30:00"), isRead: true },
-      { id: "m9", sender: "contractor", message: "I can do it for $550. Might take a couple extra days since I work solo, but I'll get it done right.", timestamp: new Date("2025-11-12T15:00:00"), isRead: true },
+      { id: "m9", sender: "contractor", message: "I can do it for $550. Might take a couple extra days since I work solo, but I'll get it done right.", timestamp: new Date("2025-11-12T15:00:00"), isRead: false },
     ],
   },
 ];
@@ -1343,6 +1343,22 @@ export default function Homeowner() {
                                   requestDescription: selectedRequest?.description || "",
                                 }),
                               });
+                              
+                              // Handle broadcast action - add message to all contractor threads
+                              if (response.action === 'broadcast' && response.broadcastMessage) {
+                                const broadcastMsg = response.broadcastMessage;
+                                setContractorQuotes(prev => prev.map(q => ({
+                                  ...q,
+                                  messages: [...q.messages, {
+                                    id: `broadcast-${q.contractorId}-${Date.now()}`,
+                                    sender: "homeowner" as const,
+                                    message: broadcastMsg,
+                                    timestamp: new Date(),
+                                    isRead: true,
+                                  }]
+                                })));
+                              }
+                              
                               const mayaResponse: ChatMessage = {
                                 id: `maya-resp-${Date.now()}`,
                                 sender: "contractor",
@@ -1397,6 +1413,22 @@ export default function Homeowner() {
                                   requestDescription: selectedRequest?.description || "",
                                 }),
                               });
+                              
+                              // Handle broadcast action - add message to all contractor threads
+                              if (response.action === 'broadcast' && response.broadcastMessage) {
+                                const broadcastMsg = response.broadcastMessage;
+                                setContractorQuotes(prev => prev.map(q => ({
+                                  ...q,
+                                  messages: [...q.messages, {
+                                    id: `broadcast-${q.contractorId}-${Date.now()}`,
+                                    sender: "homeowner" as const,
+                                    message: broadcastMsg,
+                                    timestamp: new Date(),
+                                    isRead: true,
+                                  }]
+                                })));
+                              }
+                              
                               const mayaResponse: ChatMessage = {
                                 id: `maya-resp-${Date.now()}`,
                                 sender: "contractor",

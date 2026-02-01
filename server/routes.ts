@@ -5508,13 +5508,14 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
+      const contractorNames = quotes?.map((q: any) => q.name).join(', ') || 'the contractors';
       const quoteSummary = quotes?.map((q: any) => 
         `${q.name}: $${q.quote}, available ${q.availability}, ~${q.estimatedDays} days to complete`
       ).join('\n') || 'No quotes available yet';
 
       const systemPrompt = `You are Maya, a friendly and helpful AI assistant for homeowners managing property maintenance requests. You help homeowners:
 1. Compare contractor quotes and make informed decisions
-2. Draft messages to send to contractors
+2. Draft and SEND messages to contractors on behalf of the homeowner
 3. Answer questions about timing, pricing, and contractor selection
 4. Provide practical advice based on their specific situation
 
@@ -5523,7 +5524,22 @@ Current request: ${requestDescription || 'Home maintenance request'}
 Contractor quotes received:
 ${quoteSummary}
 
-Keep responses concise and friendly. If asked to draft a message for contractors, format it professionally. When recommending contractors, explain your reasoning briefly. If the user mentions scheduling constraints (like only being available on certain days), factor that into your recommendations based on contractor availability.`;
+IMPORTANT - SENDING MESSAGES TO CONTRACTORS:
+When the user asks you to send, ask, message, or contact ALL contractors (or "everyone", "them all", etc.), you MUST respond with a JSON object in this exact format:
+{"action": "broadcast", "message": "YOUR PROFESSIONAL MESSAGE HERE", "confirmation": "YOUR FRIENDLY CONFIRMATION TO THE USER"}
+
+The "message" field should contain the professional message you'll send to each contractor.
+The "confirmation" field should be a friendly message confirming what you did (e.g., "Done! I've sent your question about insurance to Mike's Roofing, Premier Roofing Co, and Budget Roof Repair.")
+
+Examples of broadcast triggers:
+- "send a message to all contractors asking about..."
+- "ask everyone if they have insurance"
+- "message all of them about Thursday availability"
+- "can you text all contractors..."
+- "ask them all about..."
+
+For regular questions or drafting messages (without sending), respond normally with helpful text.
+Keep responses concise and friendly. When recommending contractors, explain your reasoning briefly.`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -5534,9 +5550,25 @@ Keep responses concise and friendly. If asked to draft a message for contractors
         max_completion_tokens: 500,
       });
 
-      const reply = response.choices[0]?.message?.content || "I'm here to help you with your contractor quotes. What would you like to know?";
+      const replyContent = response.choices[0]?.message?.content || "I'm here to help you with your contractor quotes. What would you like to know?";
       
-      res.json({ reply });
+      // Check if the response is a broadcast action (JSON format)
+      try {
+        if (replyContent.trim().startsWith('{') && replyContent.includes('"action"')) {
+          const actionData = JSON.parse(replyContent);
+          if (actionData.action === 'broadcast' && actionData.message) {
+            return res.json({ 
+              reply: actionData.confirmation || `Done! I've sent your message to ${contractorNames}.`,
+              action: 'broadcast',
+              broadcastMessage: actionData.message
+            });
+          }
+        }
+      } catch (parseError) {
+        // Not JSON, treat as regular reply
+      }
+      
+      res.json({ reply: replyContent });
     } catch (error) {
       console.error('Maya chat error:', error);
       res.status(500).json({ 
