@@ -63,6 +63,7 @@ interface ChatMessage {
   sender: "homeowner" | "contractor" | "maya";
   message: string;
   timestamp: Date;
+  isRead?: boolean;
 }
 
 interface ContractorQuote {
@@ -98,9 +99,9 @@ const mockContractorQuotes: ContractorQuote[] = [
     estimatedDays: 2,
     status: "pending",
     messages: [
-      { id: "m1", sender: "contractor", message: "Hi Sarah! I've reviewed your roof leak issue. Based on your description, it sounds like the flashing around the chimney may need repair. I can come out Monday to take a closer look.", timestamp: new Date("2025-11-12T10:30:00") },
-      { id: "m2", sender: "homeowner", message: "That sounds great! What time works for you?", timestamp: new Date("2025-11-12T11:15:00") },
-      { id: "m3", sender: "contractor", message: "I can be there around 9 AM. The inspection is free, and I'll give you a detailed quote on the spot. If it's just the flashing, we're looking at around $850.", timestamp: new Date("2025-11-12T11:45:00") },
+      { id: "m1", sender: "contractor", message: "Hi Sarah! I've reviewed your roof leak issue. Based on your description, it sounds like the flashing around the chimney may need repair. I can come out Monday to take a closer look.", timestamp: new Date("2025-11-12T10:30:00"), isRead: true },
+      { id: "m2", sender: "homeowner", message: "That sounds great! What time works for you?", timestamp: new Date("2025-11-12T11:15:00"), isRead: true },
+      { id: "m3", sender: "contractor", message: "I can be there around 9 AM. The inspection is free, and I'll give you a detailed quote on the spot. If it's just the flashing, we're looking at around $850.", timestamp: new Date("2025-11-12T11:45:00"), isRead: false },
     ],
   },
   {
@@ -118,9 +119,9 @@ const mockContractorQuotes: ContractorQuote[] = [
     estimatedDays: 1,
     status: "pending",
     messages: [
-      { id: "m4", sender: "contractor", message: "Hello! Thanks for reaching out. We specialize in roof repairs and have 15 years of experience. For water stains appearing after rain, it could be a few things - damaged shingles, worn flashing, or gutter issues.", timestamp: new Date("2025-11-12T09:00:00") },
-      { id: "m5", sender: "homeowner", message: "What would repair typically cost?", timestamp: new Date("2025-11-12T09:30:00") },
-      { id: "m6", sender: "contractor", message: "For a typical flashing repair, we charge $1,200 which includes a 5-year warranty on our work. We use premium materials and can usually complete the work in one day.", timestamp: new Date("2025-11-12T10:00:00") },
+      { id: "m4", sender: "contractor", message: "Hello! Thanks for reaching out. We specialize in roof repairs and have 15 years of experience. For water stains appearing after rain, it could be a few things - damaged shingles, worn flashing, or gutter issues.", timestamp: new Date("2025-11-12T09:00:00"), isRead: true },
+      { id: "m5", sender: "homeowner", message: "What would repair typically cost?", timestamp: new Date("2025-11-12T09:30:00"), isRead: true },
+      { id: "m6", sender: "contractor", message: "For a typical flashing repair, we charge $1,200 which includes a 5-year warranty on our work. We use premium materials and can usually complete the work in one day.", timestamp: new Date("2025-11-12T10:00:00"), isRead: true },
     ],
   },
   {
@@ -138,9 +139,9 @@ const mockContractorQuotes: ContractorQuote[] = [
     estimatedDays: 3,
     status: "pending",
     messages: [
-      { id: "m7", sender: "contractor", message: "Hey! Saw your request. I can come by tomorrow to check out that leak. I'm the most affordable option in the area.", timestamp: new Date("2025-11-12T14:00:00") },
-      { id: "m8", sender: "homeowner", message: "What's your estimate looking like?", timestamp: new Date("2025-11-12T14:30:00") },
-      { id: "m9", sender: "contractor", message: "I can do it for $550. Might take a couple extra days since I work solo, but I'll get it done right.", timestamp: new Date("2025-11-12T15:00:00") },
+      { id: "m7", sender: "contractor", message: "Hey! Saw your request. I can come by tomorrow to check out that leak. I'm the most affordable option in the area.", timestamp: new Date("2025-11-12T14:00:00"), isRead: true },
+      { id: "m8", sender: "homeowner", message: "What's your estimate looking like?", timestamp: new Date("2025-11-12T14:30:00"), isRead: true },
+      { id: "m9", sender: "contractor", message: "I can do it for $550. Might take a couple extra days since I work solo, but I'll get it done right.", timestamp: new Date("2025-11-12T15:00:00"), isRead: true },
     ],
   },
 ];
@@ -1003,6 +1004,12 @@ export default function Homeowner() {
                       onClick={() => {
                         setSelectedContractorId(quote.contractorId);
                         setShowMayaPanel(false);
+                        // Mark all contractor messages as read when clicking on them
+                        setContractorQuotes(prev => prev.map(q => 
+                          q.contractorId === quote.contractorId 
+                            ? { ...q, messages: q.messages.map(m => ({ ...m, isRead: true })) }
+                            : q
+                        ));
                       }}
                       className="flex flex-col items-center min-w-[80px] group"
                     >
@@ -1024,9 +1031,9 @@ export default function Homeowner() {
                         <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? quote.textColor : "text-gray-500"}`}>
                           {quote.contractorInitials}
                         </span>
-                        {quote.messages.filter(m => m.sender === "contractor").length > 0 && (
+                        {quote.messages.filter(m => m.sender === "contractor" && !m.isRead).length > 0 && (
                           <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
-                            <span className="text-[10px] text-white font-medium">{quote.messages.filter(m => m.sender === "contractor").length}</span>
+                            <span className="text-[10px] text-white font-medium">{quote.messages.filter(m => m.sender === "contractor" && !m.isRead).length}</span>
                           </div>
                         )}
                       </div>
