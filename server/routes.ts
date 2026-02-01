@@ -5552,10 +5552,28 @@ Keep responses concise and friendly. When recommending contractors, explain your
 
       const replyContent = response.choices[0]?.message?.content || "I'm here to help you with your contractor quotes. What would you like to know?";
       
-      // Check if the response is a broadcast action (JSON format)
+      // Check if the response contains a broadcast action (JSON format)
+      // Try multiple extraction strategies for robustness
       try {
-        if (replyContent.trim().startsWith('{') && replyContent.includes('"action"')) {
-          const actionData = JSON.parse(replyContent);
+        let jsonToParse = replyContent.trim();
+        
+        // Strategy 1: Direct JSON parsing if it starts with {
+        if (!jsonToParse.startsWith('{')) {
+          // Strategy 2: Extract JSON from markdown code block
+          const codeBlockMatch = replyContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (codeBlockMatch) {
+            jsonToParse = codeBlockMatch[1];
+          } else {
+            // Strategy 3: Find JSON object anywhere in the response
+            const jsonMatch = replyContent.match(/\{[^{}]*"action"\s*:\s*"broadcast"[^{}]*\}/);
+            if (jsonMatch) {
+              jsonToParse = jsonMatch[0];
+            }
+          }
+        }
+        
+        if (jsonToParse.startsWith('{') && jsonToParse.includes('"action"')) {
+          const actionData = JSON.parse(jsonToParse);
           if (actionData.action === 'broadcast' && actionData.message) {
             return res.json({ 
               reply: actionData.confirmation || `Done! I've sent your message to ${contractorNames}.`,
@@ -5565,7 +5583,8 @@ Keep responses concise and friendly. When recommending contractors, explain your
           }
         }
       } catch (parseError) {
-        // Not JSON, treat as regular reply
+        // Not valid JSON, treat as regular reply
+        console.log('Maya response not JSON, treating as regular reply');
       }
       
       res.json({ reply: replyContent });

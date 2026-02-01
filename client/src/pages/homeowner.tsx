@@ -1330,19 +1330,17 @@ export default function Homeowner() {
                             setTimeout(() => mayaChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
                             
                             try {
-                              const response = await apiRequest("/api/homeowner/maya-chat", {
-                                method: "POST",
-                                body: JSON.stringify({
-                                  message: userMessage,
-                                  quotes: contractorQuotes.map(q => ({
-                                    name: q.contractorName,
-                                    quote: q.quote,
-                                    availability: q.availability,
-                                    estimatedDays: q.estimatedDays,
-                                  })),
-                                  requestDescription: selectedRequest?.description || "",
-                                }),
+                              const res = await apiRequest("POST", "/api/homeowner/maya-chat", {
+                                message: userMessage,
+                                quotes: contractorQuotes.map(q => ({
+                                  name: q.contractorName,
+                                  quote: q.quote,
+                                  availability: q.availability,
+                                  estimatedDays: q.estimatedDays,
+                                })),
+                                requestDescription: selectedRequest?.description || "",
                               });
+                              const response = await res.json();
                               
                               // Handle broadcast action - add message to all contractor threads
                               if (response.action === 'broadcast' && response.broadcastMessage) {
@@ -1400,19 +1398,17 @@ export default function Homeowner() {
                             setTimeout(() => mayaChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
                             
                             try {
-                              const response = await apiRequest("/api/homeowner/maya-chat", {
-                                method: "POST",
-                                body: JSON.stringify({
-                                  message: userMessage,
-                                  quotes: contractorQuotes.map(q => ({
-                                    name: q.contractorName,
-                                    quote: q.quote,
-                                    availability: q.availability,
-                                    estimatedDays: q.estimatedDays,
-                                  })),
-                                  requestDescription: selectedRequest?.description || "",
-                                }),
+                              const res = await apiRequest("POST", "/api/homeowner/maya-chat", {
+                                message: userMessage,
+                                quotes: contractorQuotes.map(q => ({
+                                  name: q.contractorName,
+                                  quote: q.quote,
+                                  availability: q.availability,
+                                  estimatedDays: q.estimatedDays,
+                                })),
+                                requestDescription: selectedRequest?.description || "",
                               });
+                              const response = await res.json();
                               
                               // Handle broadcast action - add message to all contractor threads
                               if (response.action === 'broadcast' && response.broadcastMessage) {
