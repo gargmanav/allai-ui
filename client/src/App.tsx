@@ -45,6 +45,7 @@ import QuoteForm from "@/pages/quote-form";
 import QuoteApproval from "@/pages/quote-approval";
 import FavoriteContractors from "@/pages/favorite-contractors";
 import Homeowner from "@/pages/homeowner";
+import Contractor from "@/pages/contractor";
 import NotFound from "@/pages/not-found";
 
 function RoleBasedHome() {
@@ -120,6 +121,7 @@ function Router() {
           <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
           <Route path="/favorite-contractors" component={FavoriteContractors} />
           <Route path="/homeowner" component={Homeowner} />
+          <Route path="/contractor" component={Contractor} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin-calendar" component={AdminCalendar} />
           <Route path="/expenses" component={Expenses} />
