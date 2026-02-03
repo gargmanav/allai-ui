@@ -164,20 +164,25 @@ export default function QuotesPage() {
                 Create and manage quotes for your customers
               </p>
             </div>
-            <Button onClick={() => setLocation('/quotes/new')} data-testid="button-create-quote">
+            <Button 
+              onClick={() => setLocation('/quotes/new')} 
+              data-testid="button-create-quote"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full px-6 hover:opacity-90 transition-opacity"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create Quote
             </Button>
           </div>
 
-          {/* Filter Controls */}
+          {/* Filter Controls - Pill style */}
           {quotes.length > 0 && (
-            <div className="mb-6 flex gap-2" data-testid="filter-controls">
+            <div className="mb-6 flex gap-2 flex-wrap" data-testid="filter-controls">
               <Button
                 variant={filterStatus === 'all' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setFilterStatus('all')}
                 data-testid="filter-all"
+                className="rounded-full"
               >
                 All ({quotes.length})
               </Button>
@@ -186,6 +191,7 @@ export default function QuotesPage() {
                 size="sm"
                 onClick={() => setFilterStatus('draft')}
                 data-testid="filter-draft"
+                className="rounded-full"
               >
                 Draft ({quotes.filter(q => q.status === 'draft').length})
               </Button>
@@ -194,6 +200,7 @@ export default function QuotesPage() {
                 size="sm"
                 onClick={() => setFilterStatus('awaiting_response')}
                 data-testid="filter-awaiting"
+                className="rounded-full"
               >
                 Awaiting ({quotes.filter(q => q.status === 'awaiting_response').length})
               </Button>
@@ -202,6 +209,7 @@ export default function QuotesPage() {
                 size="sm"
                 onClick={() => setFilterStatus('approved')}
                 data-testid="filter-approved"
+                className="rounded-full"
               >
                 Approved ({quotes.filter(q => q.status === 'approved').length})
               </Button>
@@ -210,6 +218,7 @@ export default function QuotesPage() {
                 size="sm"
                 onClick={() => setFilterStatus('declined')}
                 data-testid="filter-declined"
+                className="rounded-full"
               >
                 Declined ({quotes.filter(q => q.status === 'declined').length})
               </Button>
@@ -232,7 +241,11 @@ export default function QuotesPage() {
                 <p className="text-muted-foreground mb-4 text-center">
                   Start creating quotes for your customers to get paid faster
                 </p>
-                <Button onClick={() => setLocation('/quotes/new')} data-testid="button-create-first-quote">
+                <Button 
+                  onClick={() => setLocation('/quotes/new')} 
+                  data-testid="button-create-first-quote"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full px-6 hover:opacity-90 transition-opacity"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Quote
                 </Button>
@@ -240,67 +253,83 @@ export default function QuotesPage() {
             </Card>
           )}
 
-          {/* Quotes Grid */}
+          {/* Quotes Grid - Maya-style design */}
           {!isLoading && filteredQuotes.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredQuotes.map((quote) => (
-                <Card 
-                  key={quote.id} 
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => setLocation(`/quotes/${quote.id}`)}
-                  data-testid={`card-quote-${quote.id}`}
-                >
-                  <CardHeader>
-                    <div className="flex justify-between items-start mb-2">
-                      <CardTitle className="text-lg" data-testid={`text-title-${quote.id}`}>
-                        {quote.title}
-                      </CardTitle>
-                      <Badge className={getStatusColor(quote.status)} data-testid={`badge-status-${quote.id}`}>
-                        {getStatusLabel(quote.status)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <DollarSign className="h-4 w-4" />
-                          Total
-                        </span>
-                        <span className="font-semibold" data-testid={`text-total-${quote.id}`}>
-                          ${parseFloat(quote.total).toFixed(2)}
-                        </span>
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {filteredQuotes.map((quote, index) => {
+                const colors = [
+                  { accent: "from-blue-500 to-blue-600", light: "bg-blue-50 dark:bg-blue-900/20" },
+                  { accent: "from-emerald-500 to-emerald-600", light: "bg-emerald-50 dark:bg-emerald-900/20" },
+                  { accent: "from-violet-500 to-violet-600", light: "bg-violet-50 dark:bg-violet-900/20" },
+                  { accent: "from-amber-500 to-amber-600", light: "bg-amber-50 dark:bg-amber-900/20" },
+                  { accent: "from-rose-500 to-rose-600", light: "bg-rose-50 dark:bg-rose-900/20" },
+                ];
+                const color = colors[index % colors.length];
+                
+                return (
+                  <div
+                    key={quote.id}
+                    className="group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 50%, rgba(240,245,255,0.85) 100%)',
+                      backdropFilter: 'blur(20px) saturate(180%)',
+                      border: '1px solid rgba(255,255,255,0.8)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                    }}
+                    onClick={() => setLocation(`/quotes/${quote.id}`)}
+                    data-testid={`card-quote-${quote.id}`}
+                  >
+                    {/* Top accent bar */}
+                    <div className={`h-1.5 bg-gradient-to-r ${color.accent}`} />
+                    
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <h3 className="font-semibold text-lg text-gray-900 dark:text-white truncate" data-testid={`text-title-${quote.id}`}>
+                            {quote.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                            Created {format(new Date(quote.createdAt), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                        <Badge 
+                          className={`${getStatusColor(quote.status)} text-white px-3 py-1 text-xs font-medium rounded-full`}
+                          data-testid={`badge-status-${quote.id}`}
+                        >
+                          {getStatusLabel(quote.status)}
+                        </Badge>
                       </div>
-                      {parseFloat(quote.requiredDepositAmount) > 0 && (
+                      
+                      {/* Amount display */}
+                      <div className={`${color.light} rounded-xl p-4 mb-4`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Deposit</span>
-                          <span className="text-sm" data-testid={`text-deposit-${quote.id}`}>
-                            ${parseFloat(quote.requiredDepositAmount).toFixed(2)}
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Amount</span>
+                          <span className="text-2xl font-bold text-gray-900 dark:text-white" data-testid={`text-total-${quote.id}`}>
+                            ${parseFloat(quote.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </span>
                         </div>
-                      )}
+                        {parseFloat(quote.requiredDepositAmount) > 0 && (
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Required Deposit</span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300" data-testid={`text-deposit-${quote.id}`}>
+                              ${parseFloat(quote.requiredDepositAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
                       {quote.expiresAt && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            Expires
-                          </span>
-                          <span className="text-sm" data-testid={`text-expires-${quote.id}`}>
-                            {format(new Date(quote.expiresAt), 'MMM d, yyyy')}
-                          </span>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                          <Calendar className="h-4 w-4" />
+                          <span>Expires {format(new Date(quote.expiresAt), 'MMM d, yyyy')}</span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <span className="text-xs text-muted-foreground">Created</span>
-                        <span className="text-xs text-muted-foreground" data-testid={`text-created-${quote.id}`}>
-                          {format(new Date(quote.createdAt), 'MMM d, yyyy')}
-                        </span>
-                      </div>
+                      
                       {quote.status === 'draft' && (
-                        <div className="pt-3 border-t mt-3 flex gap-2">
+                        <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
                           <Button
                             size="sm"
-                            className="flex-1"
+                            className={`flex-1 bg-gradient-to-r ${color.accent} text-white rounded-full hover:opacity-90 transition-opacity`}
                             onClick={(e) => handleSendQuote(e, quote.id)}
                             disabled={sendMutation.isPending}
                             data-testid={`button-send-${quote.id}`}
@@ -311,6 +340,7 @@ export default function QuotesPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="rounded-full border-gray-200 dark:border-gray-700"
                             onClick={(e) => handleDeleteClick(e, quote.id)}
                             disabled={deleteMutation.isPending}
                             data-testid={`button-delete-${quote.id}`}
@@ -320,9 +350,9 @@ export default function QuotesPage() {
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
 

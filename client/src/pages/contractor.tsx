@@ -35,7 +35,7 @@ import {
   Building2
 } from "lucide-react";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "messages";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages";
 
 interface ChatMessage {
   id: string;
@@ -137,9 +137,14 @@ export default function Contractor() {
 
   const firstName = user?.firstName || user?.username?.split("@")[0] || "Contractor";
 
-  // Fetch real data from APIs
+  // Fetch real data from APIs - both direct assignments and marketplace offers
   const { data: cases = [], isLoading: casesLoading } = useQuery<ContractorCase[]>({
     queryKey: ['/api/contractor/cases'],
+    enabled: !!user
+  });
+
+  const { data: marketplaceCases = [], isLoading: marketplaceLoading } = useQuery<ContractorCase[]>({
+    queryKey: ['/api/marketplace/cases'],
     enabled: !!user
   });
 
@@ -158,24 +163,34 @@ export default function Contractor() {
     enabled: !!user
   });
 
-  // Transform cases to displayable jobs with colors
+  // Combine direct assignments and marketplace jobs, transform to displayable format
   const jobs = useMemo(() => {
-    return cases.map((c, index) => {
+    const allCases = [
+      ...cases.map(c => ({ ...c, source: 'direct' as const })),
+      ...marketplaceCases.map(c => ({ ...c, source: 'marketplace' as const }))
+    ];
+    
+    // Remove duplicates by ID
+    const uniqueCases = allCases.filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i);
+    
+    return uniqueCases.map((c, index) => {
       const color = getBubbleColor(index);
-      const customerName = c.customer?.name || "Unknown Customer";
+      const customerName = c.customer?.name || c.buildingName || "New Job";
       return {
         ...c,
         customerName,
         customerInitials: getInitials(customerName),
         color,
+        estimatedValue: c.estimatedCost || 0,
       };
     });
-  }, [cases]);
+  }, [cases, marketplaceCases]);
 
   const selectedCase = selectedCaseId ? jobs.find(j => j.id === selectedCaseId) : null;
 
   // Calculate counts
-  const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length;
+  const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).length;
+  const activeJobsCount = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).length;
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
@@ -186,6 +201,7 @@ export default function Contractor() {
   // Quick categories with real counts
   const quickCategories = [
     { id: "new-jobs", label: "New Jobs", icon: Briefcase, count: newJobsCount },
+    { id: "active-jobs", label: "Active", icon: CheckCircle, count: activeJobsCount },
     { id: "schedule", label: "Schedule", icon: Calendar, count: scheduledJobsCount },
     { id: "quotes", label: "Quotes", icon: Receipt, count: quotesCount },
     { id: "messages", label: "Messages", icon: MessageSquare, count: totalUnreadMessages },
@@ -557,13 +573,15 @@ export default function Contractor() {
             )}
 
             {/* Quick Categories */}
-            <div className="grid grid-cols-4 gap-4 max-w-md mt-6">
+            <div className="grid grid-cols-5 gap-3 max-w-lg mt-6">
               {quickCategories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => {
                     if (cat.id === "new-jobs") {
                       setView("newJobs" as ViewState);
+                    } else if (cat.id === "active-jobs") {
+                      setView("activeJobs" as ViewState);
                     } else if (cat.id === "schedule") {
                       navigate("/contractor-schedule");
                     } else if (cat.id === "quotes") {
@@ -632,6 +650,48 @@ export default function Contractor() {
                   <div className="text-center py-12 text-muted-foreground">
                     <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No new job requests</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Active Jobs View */}
+        {view === ("activeJobs" as ViewState) && (
+          <div className="flex-1 flex flex-col items-center pt-8">
+            <div className="w-full max-w-xl">
+              <h2 className="text-2xl font-semibold mb-2">Active Jobs</h2>
+              <p className="text-muted-foreground mb-6">Jobs currently in progress</p>
+              
+              <div className="space-y-4">
+                {jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).map((job) => (
+                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
+                            {job.customerInitials}
+                          </div>
+                          <div>
+                            <div className="font-medium">{job.title}</div>
+                            <div className="text-sm text-muted-foreground">{job.customerName}</div>
+                          </div>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">{job.status}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">{job.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-semibold text-green-600">${job.estimatedValue}</span>
+                        <Button size="sm" className="rounded-full">View Details</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No active jobs</p>
                   </div>
                 )}
               </div>
