@@ -175,7 +175,7 @@ export default function Contractor() {
   const selectedCase = selectedCaseId ? jobs.find(j => j.id === selectedCaseId) : null;
 
   // Calculate counts
-  const newJobsCount = jobs.filter(j => j.status === "New" || j.status === "In Review").length;
+  const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length;
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
@@ -565,9 +565,9 @@ export default function Contractor() {
                     if (cat.id === "new-jobs") {
                       setView("newJobs" as ViewState);
                     } else if (cat.id === "schedule") {
-                      setView("calendar" as ViewState);
+                      navigate("/contractor-schedule");
                     } else if (cat.id === "quotes") {
-                      setView("quotes" as ViewState);
+                      navigate("/quotes");
                     } else if (cat.id === "messages") {
                       setView("messages" as ViewState);
                     }
@@ -605,7 +605,7 @@ export default function Contractor() {
               <p className="text-muted-foreground mb-6">Jobs waiting for your response</p>
               
               <div className="space-y-4">
-                {jobs.filter(j => j.status === "New").map((job) => (
+                {jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).map((job) => (
                   <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
@@ -628,7 +628,7 @@ export default function Contractor() {
                     </CardContent>
                   </Card>
                 ))}
-                {jobs.filter(j => j.status === "New").length === 0 && (
+                {jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length === 0 && (
                   <div className="text-center py-12 text-muted-foreground">
                     <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No new job requests</p>
@@ -722,33 +722,25 @@ export default function Contractor() {
               <p className="text-muted-foreground mb-6">{totalUnreadMessages} unread messages</p>
               
               <div className="space-y-2">
-                {jobs.filter(j => j.messages.length > 0).map((job) => {
-                  const unread = getUnreadCount(job);
-                  const lastMessage = job.messages[job.messages.length - 1];
-                  return (
-                    <Card key={job.id} className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${unread > 0 ? "border-blue-200 bg-blue-50/30" : ""}`} onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
+                {jobs.length > 0 ? jobs.map((job) => (
+                    <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium relative`}>
+                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
                             {job.customerInitials}
-                            {unread > 0 && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
-                                {unread}
-                              </div>
-                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium">{job.customerName}</div>
-                            <p className="text-sm text-muted-foreground truncate">{lastMessage.message}</p>
+                            <p className="text-sm text-muted-foreground truncate">{job.title}</p>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {lastMessage.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
                         </div>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                  )) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      No messages yet
+                    </div>
+                  )}
               </div>
             </div>
           </div>
