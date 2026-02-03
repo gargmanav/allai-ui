@@ -35,7 +35,7 @@ import {
   Receipt
 } from "lucide-react";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "messages";
 
 interface ChatMessage {
   id: string;
@@ -322,8 +322,8 @@ export default function Contractor() {
                   className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
                   onClick={() => {
                     setSelectedJob(job);
-                    setSelectedCustomerId(job.customerId);
-                    setView("jobDetail");
+                    handleSelectCustomer(job.customerId);
+                    setView("landing");
                   }}
                 >
                   <div className={`w-8 h-8 rounded-full ${job.customerColor} flex items-center justify-center text-white text-xs font-medium`}>
@@ -383,12 +383,12 @@ export default function Contractor() {
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            {sidebarOpen && view !== "landing" && (
+            {(sidebarOpen && view !== "landing") || (!sidebarOpen && view !== "landing" && !selectedCustomerId) ? (
               <Button variant="ghost" size="sm" onClick={() => { setView("landing"); setSelectedJob(null); setSelectedCustomerId(null); }} className="absolute left-4 gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
-            )}
+            ) : null}
             
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-2">
@@ -521,13 +521,13 @@ export default function Contractor() {
                   key={cat.id}
                   onClick={() => {
                     if (cat.id === "new-jobs") {
-                      toast({ title: "New Jobs", description: `You have ${newJobsCount} new job requests` });
+                      setView("newJobs" as ViewState);
                     } else if (cat.id === "schedule") {
-                      toast({ title: "Schedule", description: "Calendar view coming soon" });
+                      setView("calendar" as ViewState);
                     } else if (cat.id === "quotes") {
-                      toast({ title: "Quotes", description: "Quote management coming soon" });
+                      setView("quotes" as ViewState);
                     } else if (cat.id === "messages") {
-                      toast({ title: "Messages", description: `You have ${totalUnreadMessages} unread messages` });
+                      setView("messages" as ViewState);
                     }
                   }}
                   className="relative flex flex-col items-center gap-2 p-2 transition-all"
@@ -551,6 +551,163 @@ export default function Contractor() {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* New Jobs View */}
+        {view === ("newJobs" as ViewState) && (
+          <div className="flex-1 flex flex-col items-center pt-8">
+            <div className="w-full max-w-xl">
+              <h2 className="text-2xl font-semibold mb-2">New Job Requests</h2>
+              <p className="text-muted-foreground mb-6">Jobs waiting for your response</p>
+              
+              <div className="space-y-4">
+                {jobs.filter(j => j.status === "New").map((job) => (
+                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCustomer(job.customerId); setView("landing"); }}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full ${job.customerColor} flex items-center justify-center text-white font-medium`}>
+                            {job.customerInitials}
+                          </div>
+                          <div>
+                            <div className="font-medium">{job.title}</div>
+                            <div className="text-sm text-muted-foreground">{job.customerName}</div>
+                          </div>
+                        </div>
+                        <Badge className={getPriorityColor(job.priority)}>{job.priority}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">{job.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-semibold text-green-600">${job.estimatedValue}</span>
+                        <Button size="sm" className="rounded-full">View Details</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {jobs.filter(j => j.status === "New").length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No new job requests</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Calendar/Schedule View */}
+        {view === "calendar" && (
+          <div className="flex-1 flex flex-col items-center pt-8">
+            <div className="w-full max-w-xl">
+              <h2 className="text-2xl font-semibold mb-2">Your Schedule</h2>
+              <p className="text-muted-foreground mb-6">Upcoming appointments</p>
+              
+              <div className="space-y-4">
+                {jobs.filter(j => j.status === "Scheduled").map((job) => (
+                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCustomer(job.customerId); setView("landing"); }}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-full ${job.customerColor} flex items-center justify-center text-white font-medium`}>
+                          {job.customerInitials}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{job.title}</div>
+                          <div className="text-sm text-muted-foreground">{job.customerName}</div>
+                        </div>
+                        <Badge className="bg-purple-100 text-purple-700">Scheduled</Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>{job.scheduledDate || "Date TBD"}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {jobs.filter(j => j.status === "Scheduled").length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No scheduled appointments</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quotes View */}
+        {view === "quotes" && (
+          <div className="flex-1 flex flex-col items-center pt-8">
+            <div className="w-full max-w-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-semibold mb-1">Quotes</h2>
+                  <p className="text-muted-foreground">Manage your quotes</p>
+                </div>
+                <Button className="rounded-full gap-2">
+                  <Receipt className="h-4 w-4" />
+                  New Quote
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                {jobs.map((job) => (
+                  <Card key={job.id} className="overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium">{job.title}</div>
+                        <Badge variant="outline">Draft</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-3">{job.customerName}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-semibold">${job.estimatedValue}</span>
+                        <Button size="sm" variant="outline" className="rounded-full">Send Quote</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Messages View */}
+        {view === ("messages" as ViewState) && (
+          <div className="flex-1 flex flex-col items-center pt-8">
+            <div className="w-full max-w-xl">
+              <h2 className="text-2xl font-semibold mb-2">Messages</h2>
+              <p className="text-muted-foreground mb-6">{totalUnreadMessages} unread messages</p>
+              
+              <div className="space-y-2">
+                {jobs.filter(j => j.messages.length > 0).map((job) => {
+                  const unread = getUnreadCount(job);
+                  const lastMessage = job.messages[job.messages.length - 1];
+                  return (
+                    <Card key={job.id} className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${unread > 0 ? "border-blue-200 bg-blue-50/30" : ""}`} onClick={() => { handleSelectCustomer(job.customerId); setView("landing"); }}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full ${job.customerColor} flex items-center justify-center text-white font-medium relative`}>
+                            {job.customerInitials}
+                            {unread > 0 && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                                {unread}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium">{job.customerName}</div>
+                            <p className="text-sm text-muted-foreground truncate">{lastMessage.message}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {lastMessage.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
