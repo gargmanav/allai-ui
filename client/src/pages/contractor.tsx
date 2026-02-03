@@ -1,16 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { 
   Menu, 
   Send, 
@@ -25,14 +25,14 @@ import {
   User,
   Briefcase,
   Calendar,
-  FileText,
   MessageSquare,
   CheckCircle,
   AlertTriangle,
-  MapPin,
-  Wrench,
   Users,
-  Receipt
+  Receipt,
+  Plus,
+  ExternalLink,
+  Building2
 } from "lucide-react";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "messages";
@@ -45,102 +45,77 @@ interface ChatMessage {
   isRead?: boolean;
 }
 
-interface Job {
+interface ContractorCase {
   id: string;
-  customerId: string;
-  customerName: string;
-  customerInitials: string;
-  customerColor: string;
-  glowColor: string;
-  ringColor: string;
-  bgColor: string;
-  textColor: string;
   title: string;
   description: string;
-  priority: "Low" | "Normal" | "High" | "Urgent";
-  status: "New" | "Scheduled" | "In Progress" | "Completed";
+  priority: string;
+  status: string;
   category: string;
-  estimatedValue: number;
-  scheduledDate?: string;
-  messages: ChatMessage[];
+  buildingName?: string;
+  roomNumber?: string;
+  locationText?: string;
+  estimatedCost?: number;
+  actualCost?: number;
+  assignedContractorId?: string;
+  createdAt: string;
+  updatedAt: string;
+  customerId?: string;
+  customer?: { id: string; name: string; email?: string; phone?: string };
 }
 
-const mockJobs: Job[] = [
-  {
-    id: "job-1",
-    customerId: "customer-1",
-    customerName: "Sarah Johnson",
-    customerInitials: "SJ",
-    customerColor: "bg-rose-500",
-    glowColor: "rgba(244, 63, 94, 0.5)",
-    ringColor: "ring-rose-400",
-    bgColor: "bg-rose-100 dark:bg-rose-900/30",
-    textColor: "text-rose-600 dark:text-rose-400",
-    title: "Roof Leak Repair",
-    description: "Small water stain appearing on ceiling in NE corner bedroom. Only shows up after heavy rain.",
-    priority: "High",
-    status: "New",
-    category: "Roofing",
-    estimatedValue: 850,
-    messages: [
-      { id: "m1", sender: "customer", message: "Hi! I noticed the water stain is getting bigger. Can you come take a look soon?", timestamp: new Date("2025-11-12T10:30:00"), isRead: false },
-      { id: "m2", sender: "contractor", message: "I can come by Monday morning. Does 9 AM work?", timestamp: new Date("2025-11-12T11:15:00"), isRead: true },
-      { id: "m3", sender: "customer", message: "Perfect! See you then.", timestamp: new Date("2025-11-12T11:45:00"), isRead: false },
-    ]
-  },
-  {
-    id: "job-2",
-    customerId: "customer-2",
-    customerName: "Michael Chen",
-    customerInitials: "MC",
-    customerColor: "bg-emerald-500",
-    glowColor: "rgba(16, 185, 129, 0.5)",
-    ringColor: "ring-emerald-400",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
-    textColor: "text-emerald-600 dark:text-emerald-400",
-    title: "HVAC Maintenance",
-    description: "Annual filter replacement and system check for office building.",
-    priority: "Normal",
-    status: "Scheduled",
-    category: "HVAC",
-    estimatedValue: 450,
-    scheduledDate: "2025-11-15",
-    messages: [
-      { id: "m4", sender: "customer", message: "Can we reschedule to the afternoon?", timestamp: new Date("2025-11-13T09:00:00"), isRead: false },
-    ]
-  },
-  {
-    id: "job-3",
-    customerId: "customer-3",
-    customerName: "Emily Rodriguez",
-    customerInitials: "ER",
-    customerColor: "bg-violet-500",
-    glowColor: "rgba(139, 92, 246, 0.5)",
-    ringColor: "ring-violet-400",
-    bgColor: "bg-violet-100 dark:bg-violet-900/30",
-    textColor: "text-violet-600 dark:text-violet-400",
-    title: "Electrical Outlet Repair",
-    description: "Two outlets in kitchen not working. May be tripped breaker or wiring issue.",
-    priority: "Urgent",
-    status: "New",
-    category: "Electrical",
-    estimatedValue: 200,
-    messages: [
-      { id: "m5", sender: "customer", message: "This is urgent - I can't use my kitchen appliances!", timestamp: new Date("2025-11-14T08:00:00"), isRead: false },
-    ]
-  },
+interface ContractorCustomer {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  notes?: string;
+}
+
+interface ContractorQuote {
+  id: string;
+  customerId?: string;
+  customer?: ContractorCustomer;
+  status: string;
+  subtotal: string;
+  taxAmount: string;
+  total: string;
+  expiresAt?: string;
+  createdAt: string;
+  depositType?: string;
+  depositAmount?: string;
+}
+
+interface ContractorAppointment {
+  id: string;
+  caseId?: string;
+  contractorId: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+  status: string;
+  notes?: string;
+}
+
+const BUBBLE_COLORS = [
+  { bg: "bg-rose-500", glow: "rgba(244, 63, 94, 0.5)", ring: "ring-rose-400", bgLight: "bg-rose-100 dark:bg-rose-900/30", text: "text-rose-600 dark:text-rose-400" },
+  { bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.5)", ring: "ring-emerald-400", bgLight: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-600 dark:text-emerald-400" },
+  { bg: "bg-violet-500", glow: "rgba(139, 92, 246, 0.5)", ring: "ring-violet-400", bgLight: "bg-violet-100 dark:bg-violet-900/30", text: "text-violet-600 dark:text-violet-400" },
+  { bg: "bg-blue-500", glow: "rgba(59, 130, 246, 0.5)", ring: "ring-blue-400", bgLight: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-600 dark:text-blue-400" },
+  { bg: "bg-amber-500", glow: "rgba(245, 158, 11, 0.5)", ring: "ring-amber-400", bgLight: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-600 dark:text-amber-400" },
+  { bg: "bg-cyan-500", glow: "rgba(6, 182, 212, 0.5)", ring: "ring-cyan-400", bgLight: "bg-cyan-100 dark:bg-cyan-900/30", text: "text-cyan-600 dark:text-cyan-400" },
 ];
 
-const quickCategories = [
-  { id: "new-jobs", label: "New Jobs", icon: Briefcase, count: 2 },
-  { id: "schedule", label: "Schedule", icon: Calendar, count: 5 },
-  { id: "quotes", label: "Quotes", icon: Receipt, count: 3 },
-  { id: "messages", label: "Messages", icon: MessageSquare, count: 4 },
-];
+const getInitials = (name: string) => {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+};
+
+const getBubbleColor = (index: number) => BUBBLE_COLORS[index % BUBBLE_COLORS.length];
 
 export default function Contractor() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
@@ -148,9 +123,7 @@ export default function Contractor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mayaInput, setMayaInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [jobs, setJobs] = useState<Job[]>(mockJobs);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const [mayaChatMessages, setMayaChatMessages] = useState<ChatMessage[]>([
@@ -164,45 +137,94 @@ export default function Contractor() {
 
   const firstName = user?.firstName || user?.username?.split("@")[0] || "Contractor";
 
-  const selectedCustomerJob = selectedCustomerId 
-    ? jobs.find(j => j.customerId === selectedCustomerId) 
-    : null;
+  // Fetch real data from APIs
+  const { data: cases = [], isLoading: casesLoading } = useQuery<ContractorCase[]>({
+    queryKey: ['/api/contractor/cases'],
+    enabled: !!user
+  });
 
-  const getUnreadCount = (job: Job) => {
-    return job.messages.filter(m => m.sender === "customer" && !m.isRead).length;
+  const { data: quotes = [], isLoading: quotesLoading } = useQuery<ContractorQuote[]>({
+    queryKey: ['/api/contractor/quotes'],
+    enabled: !!user
+  });
+
+  const { data: customers = [], isLoading: customersLoading } = useQuery<ContractorCustomer[]>({
+    queryKey: ['/api/contractor/customers'],
+    enabled: !!user
+  });
+
+  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<ContractorAppointment[]>({
+    queryKey: ['/api/contractor/appointments'],
+    enabled: !!user
+  });
+
+  // Transform cases to displayable jobs with colors
+  const jobs = useMemo(() => {
+    return cases.map((c, index) => {
+      const color = getBubbleColor(index);
+      const customerName = c.customer?.name || "Unknown Customer";
+      return {
+        ...c,
+        customerName,
+        customerInitials: getInitials(customerName),
+        color,
+      };
+    });
+  }, [cases]);
+
+  const selectedCase = selectedCaseId ? jobs.find(j => j.id === selectedCaseId) : null;
+
+  // Calculate counts
+  const newJobsCount = jobs.filter(j => j.status === "New" || j.status === "In Review").length;
+  const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
+  const quotesCount = quotes.length;
+  const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
+
+  // Placeholder for unread messages - would come from real messaging system
+  const totalUnreadMessages = 0;
+
+  // Quick categories with real counts
+  const quickCategories = [
+    { id: "new-jobs", label: "New Jobs", icon: Briefcase, count: newJobsCount },
+    { id: "schedule", label: "Schedule", icon: Calendar, count: scheduledJobsCount },
+    { id: "quotes", label: "Quotes", icon: Receipt, count: quotesCount },
+    { id: "messages", label: "Messages", icon: MessageSquare, count: totalUnreadMessages },
+  ];
+
+  const handleSelectCase = (caseId: string) => {
+    setSelectedCaseId(caseId);
   };
 
-  const totalUnreadMessages = jobs.reduce((acc, job) => acc + getUnreadCount(job), 0);
-  const newJobsCount = jobs.filter(j => j.status === "New").length;
-  const scheduledJobsCount = jobs.filter(j => j.status === "Scheduled").length;
-
-  const handleSelectCustomer = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    setJobs(prev => prev.map(j => 
-      j.customerId === customerId 
-        ? { ...j, messages: j.messages.map(m => ({ ...m, isRead: true })) }
-        : j
-    ));
+  // Placeholder for unread count - would come from real messaging system
+  const getUnreadCount = (job: any) => {
+    return 0; // TODO: Implement real unread message count from messaging API
   };
 
-  const handleSendMessage = () => {
-    if (!chatMessage.trim() || !selectedCustomerId) return;
-    
-    const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: "contractor",
-      message: chatMessage,
-      timestamp: new Date(),
-      isRead: true,
-    };
-    
-    setJobs(prev => prev.map(j => 
-      j.customerId === selectedCustomerId 
-        ? { ...j, messages: [...j.messages, newMessage] }
-        : j
-    ));
-    setChatMessage("");
-  };
+  // Accept case mutation
+  const acceptCaseMutation = useMutation({
+    mutationFn: async (caseId: string) => {
+      return await apiRequest("POST", `/api/contractor/accept-case`, { caseId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/appointments'] });
+      toast({ title: "Job Accepted", description: "You've accepted this job." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to accept job.", variant: "destructive" });
+    }
+  });
+
+  // Update case status mutation
+  const updateCaseStatus = useMutation({
+    mutationFn: async ({ caseId, status }: { caseId: string; status: string }) => {
+      return await apiRequest("PATCH", `/api/cases/${caseId}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
+      toast({ title: "Status Updated", description: "Job status has been updated." });
+    }
+  });
 
   const handleMayaSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -219,16 +241,36 @@ export default function Contractor() {
     };
     setMayaChatMessages(prev => [...prev, userChatMessage]);
     setIsMayaTyping(true);
-    
-    setTimeout(async () => {
+
+    // Real Maya AI call
+    try {
+      const res = await apiRequest("POST", "/api/contractor/maya-chat", {
+        message: userMessage,
+        context: {
+          newJobs: newJobsCount,
+          scheduledJobs: scheduledJobsCount,
+          totalQuotes: quotesCount,
+        }
+      });
+      const data = await res.json();
+      
+      const mayaResponse: ChatMessage = {
+        id: `maya-${Date.now()}`,
+        sender: "maya",
+        message: data.reply || "I'm here to help. What would you like to know about your jobs or schedule?",
+        timestamp: new Date(),
+      };
+      setMayaChatMessages(prev => [...prev, mayaResponse]);
+    } catch (error) {
+      // Fallback to simple responses
       let mayaResponse = "I'm here to help you manage your work. You can ask me about your schedule, create quotes, or get insights about your jobs.";
       
       if (userMessage.toLowerCase().includes("schedule") || userMessage.toLowerCase().includes("today")) {
-        mayaResponse = `You have ${scheduledJobsCount} jobs scheduled. Your next appointment is the HVAC Maintenance for Michael Chen tomorrow at 2 PM.`;
+        mayaResponse = `You have ${scheduledJobsCount} appointments scheduled.`;
       } else if (userMessage.toLowerCase().includes("new") || userMessage.toLowerCase().includes("jobs")) {
-        mayaResponse = `You have ${newJobsCount} new job requests waiting for your response. The most urgent is the Electrical Outlet Repair for Emily Rodriguez.`;
+        mayaResponse = `You have ${newJobsCount} new job requests waiting for your response.`;
       } else if (userMessage.toLowerCase().includes("quote") || userMessage.toLowerCase().includes("price")) {
-        mayaResponse = "I can help you create a quote. Which customer would you like to send it to?";
+        mayaResponse = `You have ${quotesCount} quotes. ${draftQuotesCount} are still drafts. Would you like to create a new quote?`;
       }
       
       const mayaChatResponse: ChatMessage = {
@@ -238,13 +280,14 @@ export default function Contractor() {
         timestamp: new Date(),
       };
       setMayaChatMessages(prev => [...prev, mayaChatResponse]);
+    } finally {
       setIsMayaTyping(false);
-    }, 1000);
+    }
   };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [mayaChatMessages, selectedCustomerJob?.messages]);
+  }, [mayaChatMessages, selectedCase]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -279,7 +322,7 @@ export default function Contractor() {
               <Button 
                 className="flex-1 justify-start gap-3 bg-primary/10 hover:bg-primary/20 text-primary"
                 variant="ghost"
-                onClick={() => { setView("landing"); setSelectedJob(null); setSelectedCustomerId(null); }}
+                onClick={() => { setView("landing"); setSelectedCaseId(null); }}
               >
                 <Briefcase className="h-4 w-4" />
                 Job Board
@@ -321,12 +364,11 @@ export default function Contractor() {
                   key={job.id}
                   className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
                   onClick={() => {
-                    setSelectedJob(job);
-                    handleSelectCustomer(job.customerId);
+                    handleSelectCase(job.id);
                     setView("landing");
                   }}
                 >
-                  <div className={`w-8 h-8 rounded-full ${job.customerColor} flex items-center justify-center text-white text-xs font-medium`}>
+                  <div className={`w-8 h-8 rounded-full ${job.color.bg} flex items-center justify-center text-white text-xs font-medium`}>
                     {job.customerInitials}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -383,8 +425,8 @@ export default function Contractor() {
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            {(sidebarOpen && view !== "landing") || (!sidebarOpen && view !== "landing" && !selectedCustomerId) ? (
-              <Button variant="ghost" size="sm" onClick={() => { setView("landing"); setSelectedJob(null); setSelectedCustomerId(null); }} className="absolute left-4 gap-2">
+            {(sidebarOpen && view !== "landing") || (!sidebarOpen && view !== "landing" && !selectedCaseId) ? (
+              <Button variant="ghost" size="sm" onClick={() => { setView("landing"); setSelectedCaseId(null); }} className="absolute left-4 gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
@@ -404,7 +446,7 @@ export default function Contractor() {
         <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
         {/* Landing View - AI-First with Job Bubbles */}
-        {view === "landing" && !selectedCustomerId && (
+        {view === "landing" && !selectedCaseId && (
           <div className="flex-1 flex flex-col items-center justify-center -mt-16">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-semibold mb-2">
@@ -446,8 +488,8 @@ export default function Contractor() {
                   {/* Maya AI Bubble */}
                   <button
                     onClick={() => {
-                      setSelectedCustomerId(null);
-                      setSelectedJob(null);
+                      setView("maya");
+                      setSelectedCaseId(null);
                     }}
                     className="flex flex-col items-center gap-2 transition-all group"
                   >
@@ -469,12 +511,12 @@ export default function Contractor() {
                   {/* Job Bubbles */}
                   {jobs.slice(0, 4).map((job) => {
                     const unread = getUnreadCount(job);
-                    const isSelected = selectedCustomerId === job.customerId;
+                    const isSelected = selectedCaseId === job.id;
                     
                     return (
                       <button
                         key={job.id}
-                        onClick={() => handleSelectCustomer(job.customerId)}
+                        onClick={() => handleSelectCase(job.id)}
                         className="flex flex-col items-center gap-2 transition-all"
                       >
                         <div 
@@ -564,11 +606,11 @@ export default function Contractor() {
               
               <div className="space-y-4">
                 {jobs.filter(j => j.status === "New").map((job) => (
-                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCustomer(job.customerId); setView("landing"); }}>
+                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full ${job.customerColor} flex items-center justify-center text-white font-medium`}>
+                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
                             {job.customerInitials}
                           </div>
                           <div>
@@ -606,10 +648,10 @@ export default function Contractor() {
               
               <div className="space-y-4">
                 {jobs.filter(j => j.status === "Scheduled").map((job) => (
-                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCustomer(job.customerId); setView("landing"); }}>
+                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-full ${job.customerColor} flex items-center justify-center text-white font-medium`}>
+                        <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
                           {job.customerInitials}
                         </div>
                         <div className="flex-1">
@@ -684,10 +726,10 @@ export default function Contractor() {
                   const unread = getUnreadCount(job);
                   const lastMessage = job.messages[job.messages.length - 1];
                   return (
-                    <Card key={job.id} className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${unread > 0 ? "border-blue-200 bg-blue-50/30" : ""}`} onClick={() => { handleSelectCustomer(job.customerId); setView("landing"); }}>
+                    <Card key={job.id} className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${unread > 0 ? "border-blue-200 bg-blue-50/30" : ""}`} onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full ${job.customerColor} flex items-center justify-center text-white font-medium relative`}>
+                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium relative`}>
                             {job.customerInitials}
                             {unread > 0 && (
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
@@ -713,12 +755,12 @@ export default function Contractor() {
         )}
 
         {/* Job Detail View - When customer bubble is selected */}
-        {view === "landing" && selectedCustomerId && selectedCustomerJob && (
+        {view === "landing" && selectedCaseId && selectedCase && (
           <div className="flex-1 flex flex-col">
             {/* Job Header */}
             <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-1">{selectedCustomerJob.title}</h2>
-              <p className="text-muted-foreground">{selectedCustomerJob.description}</p>
+              <h2 className="text-xl font-semibold mb-1">{selectedCase.title}</h2>
+              <p className="text-muted-foreground">{selectedCase.description}</p>
             </div>
 
             {/* Customer Bubbles Row */}
@@ -743,12 +785,12 @@ export default function Contractor() {
               {/* Job Bubbles */}
               {jobs.map((job) => {
                 const unread = getUnreadCount(job);
-                const isSelected = selectedCustomerId === job.customerId;
+                const isSelected = selectedCaseId === job.id;
                 
                 return (
                   <button
                     key={job.id}
-                    onClick={() => handleSelectCustomer(job.customerId)}
+                    onClick={() => handleSelectCase(job.id)}
                     className="flex flex-col items-center gap-1 flex-shrink-0"
                   >
                     <div 
@@ -784,27 +826,31 @@ export default function Contractor() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full ${selectedCustomerJob.customerColor} flex items-center justify-center text-white font-medium`}>
-                      {selectedCustomerJob.customerInitials}
+                    <div className={`w-10 h-10 rounded-full ${selectedCase.color.bg} flex items-center justify-center text-white font-medium`}>
+                      {selectedCase.customerInitials}
                     </div>
                     <div>
-                      <div className="font-medium">{selectedCustomerJob.customerName}</div>
-                      <div className="text-sm text-muted-foreground">{selectedCustomerJob.category}</div>
+                      <div className="font-medium">{selectedCase.customerName}</div>
+                      <div className="text-sm text-muted-foreground">{selectedCase.category}</div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Badge className={getPriorityColor(selectedCustomerJob.priority)}>
-                      {selectedCustomerJob.priority}
+                    <Badge className={getPriorityColor(selectedCase.priority || "Normal")}>
+                      {selectedCase.priority || "Normal"}
                     </Badge>
-                    <Badge className={getStatusColor(selectedCustomerJob.status)}>
-                      {selectedCustomerJob.status}
+                    <Badge className={getStatusColor(selectedCase.status)}>
+                      {selectedCase.status}
                     </Badge>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Button className="flex-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600">
+                  <Button 
+                    className="flex-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                    onClick={() => acceptCaseMutation.mutate(selectedCase.id)}
+                    disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
+                  >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Accept Job
+                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept Job"}
                   </Button>
                   <Button variant="outline" className="rounded-full">
                     Send Quote
@@ -816,50 +862,26 @@ export default function Contractor() {
               </CardContent>
             </Card>
 
-            {/* Chat Messages */}
-            <Card className="flex-1 flex flex-col min-h-[300px]">
-              <CardContent className="flex-1 flex flex-col p-4">
-                <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-4">
-                    {selectedCustomerJob.messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`flex ${msg.sender === "contractor" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                            msg.sender === "contractor"
-                              ? "bg-blue-500 text-white"
-                              : "bg-muted"
-                          }`}
-                        >
-                          <p className="text-sm">{msg.message}</p>
-                          <p className={`text-[10px] mt-1 ${msg.sender === "contractor" ? "text-blue-100" : "text-muted-foreground"}`}>
-                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={chatEndRef} />
-                  </div>
-                </ScrollArea>
-                
-                <div className="mt-4 flex gap-2">
-                  <Input
-                    placeholder="Type a message..."
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                    className="rounded-full"
-                  />
-                  <Button 
-                    size="icon" 
-                    className="rounded-full"
-                    onClick={handleSendMessage}
-                    disabled={!chatMessage.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
+            {/* Job Details */}
+            <Card className="flex-1 flex flex-col min-h-[200px]">
+              <CardContent className="p-4">
+                <h3 className="font-medium mb-3">Job Details</h3>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  {selectedCase.property && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      <span>{selectedCase.property.address}</span>
+                    </div>
+                  )}
+                  {selectedCase.createdAt && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Created: {new Date(selectedCase.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {selectedCase.description && (
+                    <p className="mt-3 text-foreground">{selectedCase.description}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
