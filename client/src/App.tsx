@@ -55,7 +55,7 @@ function RoleBasedHome() {
   if (user?.primaryRole === 'tenant') {
     return <Redirect to="/tenant-dashboard" />;
   } else if (user?.primaryRole === 'contractor') {
-    return <Redirect to="/contractor-dashboard" />;
+    return <Redirect to="/contractor" />;
   } else if (user?.primaryRole === 'platform_super_admin') {
     return <Redirect to="/admin-dashboard" />;
   }

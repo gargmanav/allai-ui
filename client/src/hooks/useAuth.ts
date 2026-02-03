@@ -10,14 +10,19 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await fetch("/api/logout", { 
-        method: "GET",
+      const response = await fetch("/api/auth/logout", { 
+        method: "POST",
         credentials: "include" 
       });
-      queryClient.clear();
-      window.location.href = "/";
+      if (!response.ok) {
+        await fetch("/api/logout", { method: "GET", credentials: "include" });
+      }
     } catch (error) {
-      console.error("Logout failed:", error);
+      try {
+        await fetch("/api/logout", { method: "GET", credentials: "include" });
+      } catch {}
+    } finally {
+      queryClient.clear();
       window.location.href = "/";
     }
   };
