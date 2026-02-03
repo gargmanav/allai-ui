@@ -32,7 +32,9 @@ import {
   Receipt,
   Plus,
   ExternalLink,
-  Building2
+  Building2,
+  Mail,
+  Bell
 } from "lucide-react";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages";
@@ -198,12 +200,15 @@ export default function Contractor() {
   // Placeholder for unread messages - would come from real messaging system
   const totalUnreadMessages = 0;
 
-  // Quick categories with real counts
+  // Quick categories with real counts - 8 items in 2 rows of 4
   const quickCategories = [
     { id: "new-jobs", label: "New Jobs", icon: Briefcase, count: newJobsCount },
     { id: "active-jobs", label: "Active", icon: CheckCircle, count: activeJobsCount },
     { id: "schedule", label: "Schedule", icon: Calendar, count: scheduledJobsCount },
     { id: "quotes", label: "Quotes", icon: Receipt, count: quotesCount },
+    { id: "inbox", label: "Inbox", icon: Mail, count: 0 },
+    { id: "customers", label: "Customers", icon: Users, count: customers.length },
+    { id: "reminders", label: "Reminders", icon: Bell, count: 0 },
     { id: "messages", label: "Messages", icon: MessageSquare, count: totalUnreadMessages },
   ];
 
@@ -572,8 +577,8 @@ export default function Contractor() {
               </div>
             )}
 
-            {/* Quick Categories */}
-            <div className="grid grid-cols-5 gap-3 max-w-lg mt-6">
+            {/* Quick Categories - 2 rows of 4 */}
+            <div className="grid grid-cols-4 gap-3 max-w-md mt-6">
               {quickCategories.map((cat) => (
                 <button
                   key={cat.id}
@@ -586,6 +591,12 @@ export default function Contractor() {
                       navigate("/contractor-schedule");
                     } else if (cat.id === "quotes") {
                       navigate("/quotes");
+                    } else if (cat.id === "inbox") {
+                      navigate("/inbox");
+                    } else if (cat.id === "customers") {
+                      navigate("/customers");
+                    } else if (cat.id === "reminders") {
+                      navigate("/reminders");
                     } else if (cat.id === "messages") {
                       setView("messages" as ViewState);
                     }
