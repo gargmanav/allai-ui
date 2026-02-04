@@ -273,7 +273,7 @@
     rgba(30, 58, 138, 0.4) 100%
   );
   background-size: 300% 100%;
-  animation: sweepLight 3s ease-in-out infinite;
+  animation: sweepLight 12s ease-in-out infinite;
 }
 
 .running-light-bar-orange {
@@ -288,7 +288,7 @@
     rgba(154, 52, 18, 0.4) 100%
   );
   background-size: 300% 100%;
-  animation: sweepLight 3s ease-in-out infinite;
+  animation: sweepLight 12s ease-in-out infinite;
 }
 
 .running-light-bar-green {
@@ -303,7 +303,7 @@
     rgba(6, 78, 59, 0.4) 100%
   );
   background-size: 300% 100%;
-  animation: sweepLight 3s ease-in-out infinite;
+  animation: sweepLight 12s ease-in-out infinite;
 }
 
 .running-light-bar-purple {
@@ -318,7 +318,7 @@
     rgba(76, 29, 149, 0.4) 100%
   );
   background-size: 300% 100%;
-  animation: sweepLight 3s ease-in-out infinite;
+  animation: sweepLight 12s ease-in-out infinite;
 }
 
 @keyframes sweepLight {
