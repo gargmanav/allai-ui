@@ -241,10 +241,10 @@
 /* Running light animation for card top bars - AllAI pyramid colors */
 @keyframes runningLight {
   0% {
-    background-position: 0% 50%;
+    background-position: 200% 50%;
   }
   100% {
-    background-position: 200% 50%;
+    background-position: 0% 50%;
   }
 }
 
@@ -258,5 +258,5 @@
     rgba(16, 185, 129, 0.7) 100%
   );
   background-size: 200% 100%;
-  animation: runningLight 3.5s linear infinite;
+  animation: runningLight 5.5s linear infinite;
 }
