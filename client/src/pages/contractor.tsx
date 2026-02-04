@@ -94,6 +94,7 @@ interface ContractorAppointment {
   id: string;
   caseId?: string;
   contractorId: string;
+  title?: string;
   scheduledStartAt: string;
   scheduledEndAt: string;
   status: string;
@@ -200,16 +201,15 @@ export default function Contractor() {
 
   // Today's appointments - for the schedule view
   const todaysAppointments = useMemo(() => {
-    const today = new Date();
     return appointments
       .filter(apt => {
-        if (!apt.scheduledAt) return false;
-        const aptDate = typeof apt.scheduledAt === 'string' ? parseISO(apt.scheduledAt) : apt.scheduledAt;
+        if (!apt.scheduledStartAt) return false;
+        const aptDate = typeof apt.scheduledStartAt === 'string' ? parseISO(apt.scheduledStartAt) : apt.scheduledStartAt;
         return isToday(aptDate);
       })
       .sort((a, b) => {
-        const dateA = typeof a.scheduledAt === 'string' ? parseISO(a.scheduledAt) : a.scheduledAt;
-        const dateB = typeof b.scheduledAt === 'string' ? parseISO(b.scheduledAt) : b.scheduledAt;
+        const dateA = typeof a.scheduledStartAt === 'string' ? parseISO(a.scheduledStartAt) : a.scheduledStartAt;
+        const dateB = typeof b.scheduledStartAt === 'string' ? parseISO(b.scheduledStartAt) : b.scheduledStartAt;
         return new Date(dateA).getTime() - new Date(dateB).getTime();
       });
   }, [appointments]);
@@ -355,20 +355,19 @@ export default function Contractor() {
         } overflow-hidden`}
       >
         <div className="w-72 h-full flex flex-col">
-          <div className="p-4 border-b space-y-3">
-            <div className="flex items-center justify-between">
-              <Button 
-                className="flex-1 justify-start gap-3 bg-primary/10 hover:bg-primary/20 text-primary"
-                variant="ghost"
-                onClick={() => { setView("landing"); setSelectedCaseId(null); }}
-              >
-                <Briefcase className="h-4 w-4" />
-                Job Board
-              </Button>
+          {/* Header with Search */}
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+                  <Home className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-semibold text-sm">Contractor Hub</span>
+              </div>
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="ml-2"
+                className="h-8 w-8"
                 onClick={() => setSidebarOpen(false)}
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -377,144 +376,117 @@ export default function Contractor() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search jobs..." 
-                className="pl-9 h-9 text-sm rounded-lg bg-background"
+                placeholder="Search..." 
+                className="pl-9 h-9 text-sm rounded-lg bg-background/50 border-muted"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-              Active Jobs
-            </div>
-            <div className="space-y-1">
-              {jobs
-                .filter(job => {
-                  if (!searchQuery.trim()) return true;
-                  const query = searchQuery.toLowerCase();
-                  return job.title.toLowerCase().includes(query) || 
-                         job.customerName.toLowerCase().includes(query);
-                })
-                .map((job) => (
-                <div 
-                  key={job.id}
-                  className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                  onClick={() => {
-                    handleSelectCase(job.id);
-                    setView("landing");
-                  }}
-                >
-                  <div className={`w-8 h-8 rounded-full ${job.color.bg} flex items-center justify-center text-white text-xs font-medium`}>
-                    {job.customerInitials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm truncate block">{job.title}</span>
-                    <span className="text-xs text-muted-foreground truncate block">{job.customerName}</span>
-                  </div>
-                  {getUnreadCount(job) > 0 && (
-                    <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                      {getUnreadCount(job)}
-                    </Badge>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
 
-          <div className="mt-auto border-t p-4 space-y-1">
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {/* WORK Section */}
-            <div className="px-2 py-1">
-              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Work</span>
+            <div className="px-3 py-2">
+              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Work</span>
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => setView("landing")}
             >
-              <Home className="h-4 w-4" />
-              Home
+              <Home className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Home</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => navigate("/contractor-schedule")}
             >
-              <Calendar className="h-4 w-4" />
-              Schedule
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Schedule</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => setView("newJobs" as ViewState)}
             >
-              <Briefcase className="h-4 w-4" />
-              Job Board
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Job Board</span>
               {newJobsCount > 0 && (
-                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">{newJobsCount}</Badge>
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">{newJobsCount}</Badge>
               )}
             </Button>
+            
+            {/* Separator */}
+            <div className="my-3 mx-3 border-t border-muted/50" />
             
             {/* FINANCE Section */}
-            <div className="px-2 py-1 pt-4">
-              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Finance</span>
+            <div className="px-3 py-2">
+              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Finance</span>
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => navigate("/quotes")}
             >
-              <Receipt className="h-4 w-4" />
-              Quotes
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Quotes</span>
               {quotesCount > 0 && (
-                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">{quotesCount}</Badge>
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">{quotesCount}</Badge>
               )}
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => navigate("/customers")}
             >
-              <Users className="h-4 w-4" />
-              Customers
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Customers</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => navigate("/inbox")}
             >
-              <Mail className="h-4 w-4" />
-              Inbox
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Inbox</span>
             </Button>
             
+            {/* Separator */}
+            <div className="my-3 mx-3 border-t border-muted/50" />
+            
             {/* ACCOUNT Section */}
-            <div className="px-2 py-1 pt-4">
-              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Account</span>
+            <div className="px-3 py-2">
+              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Account</span>
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => navigate("/reminders")}
             >
-              <Bell className="h-4 w-4" />
-              Reminders
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Reminders</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
               onClick={() => toast({ title: "Profile", description: "Profile settings coming soon" })}
             >
-              <User className="h-4 w-4" />
-              Profile
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Profile</span>
             </Button>
+          </div>
+
+          {/* Sign Out at Bottom */}
+          <div className="p-3 border-t">
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 text-muted-foreground"
+              className="w-full justify-start gap-3 h-10 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
               onClick={() => logout?.()}
             >
               <LogOut className="h-4 w-4" />
-              Sign Out
+              <span className="font-medium">Sign Out</span>
             </Button>
           </div>
         </div>
@@ -583,7 +555,7 @@ export default function Contractor() {
               const nextJob = jobs.find(j => ["Scheduled", "Confirmed"].includes(j.status));
               
               if (nextAppointment) {
-                const aptTime = typeof nextAppointment.scheduledAt === 'string' ? parseISO(nextAppointment.scheduledAt) : nextAppointment.scheduledAt;
+                const aptTime = typeof nextAppointment.scheduledStartAt === 'string' ? parseISO(nextAppointment.scheduledStartAt) : nextAppointment.scheduledStartAt;
                 const timeStr = format(aptTime, 'h:mm a');
                 const now = new Date();
                 const diffMs = new Date(aptTime).getTime() - now.getTime();
@@ -683,7 +655,7 @@ export default function Contractor() {
               }
             })()}
 
-            {/* Jobber-Style 4-Column Dashboard Grid */}
+            {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
             {(() => {
               const requestsCount = newJobsCount;
               const requestsValue = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).reduce((sum, j) => sum + j.estimatedValue, 0);
@@ -700,97 +672,125 @@ export default function Contractor() {
               
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                  {/* Requests Column */}
+                  {/* Requests Column - Frosted Glass with Blue Hue */}
                   <button
                     onClick={() => setView("newJobs" as ViewState)}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-blue-300 group"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(239,246,255,0.85) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(59, 130, 246, 0.15)',
+                      boxShadow: '0 4px 24px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                    }}
                   >
-                    <div className="h-1 bg-blue-500" />
-                    <div className="p-4">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 group-hover:from-blue-500/5 group-hover:to-blue-500/15 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-blue-400 to-blue-600" />
+                    <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Requests</span>
-                        <Briefcase className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Requests</span>
+                        <Briefcase className="h-4 w-4 text-blue-400 group-hover:text-blue-600 transition-colors" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">New</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{requestsCount}</span>
+                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{requestsCount}</span>
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Value</span>
-                          <span className="text-sm font-medium text-blue-600">${requestsValue.toLocaleString()}</span>
+                          <span className="text-sm font-semibold text-blue-600">${requestsValue.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </button>
 
-                  {/* Quotes Column */}
+                  {/* Quotes Column - Frosted Glass with Amber Hue */}
                   <button
                     onClick={() => navigate("/quotes")}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-amber-300 group"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(254,249,239,0.85) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(245, 158, 11, 0.15)',
+                      boxShadow: '0 4px 24px rgba(245, 158, 11, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                    }}
                   >
-                    <div className="h-1 bg-amber-500" />
-                    <div className="p-4">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 group-hover:from-amber-500/5 group-hover:to-amber-500/15 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600" />
+                    <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Quotes</span>
-                        <Receipt className="h-4 w-4 text-gray-400 group-hover:text-amber-500 transition-colors" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Quotes</span>
+                        <Receipt className="h-4 w-4 text-amber-400 group-hover:text-amber-600 transition-colors" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Draft</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{draftQuotes.length}</span>
+                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{draftQuotes.length}</span>
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Awaiting</span>
-                          <span className="text-sm font-medium text-amber-600">${sentQuotesValue.toLocaleString()}</span>
+                          <span className="text-sm font-semibold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </button>
 
-                  {/* Jobs Column */}
+                  {/* Jobs Column - Frosted Glass with Green Hue */}
                   <button
                     onClick={() => setView("activeJobs" as ViewState)}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-green-300 group"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,253,244,0.85) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(34, 197, 94, 0.15)',
+                      boxShadow: '0 4px 24px rgba(34, 197, 94, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                    }}
                   >
-                    <div className="h-1 bg-green-500" />
-                    <div className="p-4">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/5 group-hover:from-green-500/5 group-hover:to-green-500/15 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-green-400 to-green-600" />
+                    <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Jobs</span>
-                        <CheckCircle className="h-4 w-4 text-gray-400 group-hover:text-green-500 transition-colors" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Jobs</span>
+                        <CheckCircle className="h-4 w-4 text-green-400 group-hover:text-green-600 transition-colors" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Active</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{activeJobs.length}</span>
+                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{activeJobs.length}</span>
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Value</span>
-                          <span className="text-sm font-medium text-green-600">${activeJobsValue.toLocaleString()}</span>
+                          <span className="text-sm font-semibold text-green-600">${activeJobsValue.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </button>
 
-                  {/* Invoices Column */}
+                  {/* Invoices Column - Frosted Glass with Violet Hue */}
                   <button
                     onClick={() => navigate("/quotes")}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-violet-300 group"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(245,243,255,0.85) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(139, 92, 246, 0.15)',
+                      boxShadow: '0 4px 24px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                    }}
                   >
-                    <div className="h-1 bg-violet-500" />
-                    <div className="p-4">
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 to-violet-500/5 group-hover:from-violet-500/5 group-hover:to-violet-500/15 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-violet-400 to-violet-600" />
+                    <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Invoices</span>
-                        <DollarSign className="h-4 w-4 text-gray-400 group-hover:text-violet-500 transition-colors" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Invoices</span>
+                        <DollarSign className="h-4 w-4 text-violet-400 group-hover:text-violet-600 transition-colors" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Owed</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{approvedQuotes.length}</span>
+                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{approvedQuotes.length}</span>
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs text-gray-500">Total</span>
-                          <span className="text-sm font-medium text-violet-600">${totalOwed.toLocaleString()}</span>
+                          <span className="text-sm font-semibold text-violet-600">${totalOwed.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -799,78 +799,121 @@ export default function Contractor() {
               );
             })()}
 
-            {/* Today's Schedule - Compact */}
+            {/* Today's Schedule - Mini Calendar with Time Slots */}
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                  Today's Schedule
-                </h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                    Today's Schedule
+                  </h3>
+                  {/* Status Pills */}
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
+                      {todaysAppointments.length} Total
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-600">
+                      {todaysAppointments.filter(a => a.status === 'Confirmed' || a.status === 'Pending').length} To Go
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-600">
+                      {todaysAppointments.filter(a => a.status === 'In Progress').length} Active
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-600">
+                      {todaysAppointments.filter(a => a.status === 'Completed').length} Done
+                    </span>
+                  </div>
+                </div>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="text-blue-600 hover:text-blue-700 h-7 text-xs"
+                  className="text-blue-600 hover:text-blue-700 h-7 text-xs font-medium"
                   onClick={() => navigate("/contractor-schedule")}
                 >
-                  View All
+                  View Calendar
                 </Button>
               </div>
               
-              {todaysAppointments.length === 0 ? (
-                <div 
-                  className="rounded-xl p-6 text-center"
-                  style={{
-                    background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
-                    border: '1px solid rgba(0,0,0,0.05)'
-                  }}
-                >
-                  <p className="text-gray-400 text-sm">No appointments today</p>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="mt-1 text-blue-600 h-7 text-xs"
-                    onClick={() => navigate("/contractor-schedule")}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Schedule Job
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {todaysAppointments.map((apt, index) => {
-                    const aptTime = typeof apt.scheduledAt === 'string' ? parseISO(apt.scheduledAt) : apt.scheduledAt;
-                    const timeStr = format(aptTime, 'h:mm a');
-                    const colors = [
-                      { bg: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200' },
-                      { bg: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200' },
-                      { bg: 'bg-violet-500', light: 'bg-violet-50', border: 'border-violet-200' },
-                      { bg: 'bg-amber-500', light: 'bg-amber-50', border: 'border-amber-200' },
-                    ];
-                    const color = colors[index % colors.length];
+              {/* Mini Calendar Timeline */}
+              <div 
+                className="rounded-xl overflow-hidden"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.03)'
+                }}
+              >
+                {todaysAppointments.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 text-sm mb-2">No appointments scheduled for today</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      onClick={() => navigate("/contractor-schedule")}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Schedule Job
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {/* Time Header */}
+                    <div className="px-4 py-2 bg-gray-50/50 flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-xs font-medium text-gray-500">{format(new Date(), 'EEEE, MMMM d')}</span>
+                    </div>
                     
-                    return (
-                      <div 
-                        key={apt.id}
-                        className={`flex items-center gap-4 p-4 rounded-xl ${color.light} ${color.border} border cursor-pointer hover:shadow-md transition-all`}
-                        onClick={() => navigate("/contractor-schedule")}
-                      >
-                        <div className="text-center min-w-[60px]">
-                          <div className="text-lg font-bold text-gray-800">{timeStr}</div>
-                        </div>
-                        <div className={`w-1 h-12 ${color.bg} rounded-full`} />
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-800">{apt.title || 'Appointment'}</div>
-                          <div className="text-sm text-gray-500">
-                            {apt.address || apt.notes || 'No location specified'}
+                    {/* Appointment List */}
+                    {todaysAppointments.map((apt, index) => {
+                      const startTime = apt.scheduledStartAt ? (typeof apt.scheduledStartAt === 'string' ? parseISO(apt.scheduledStartAt) : apt.scheduledStartAt) : null;
+                      const endTime = apt.scheduledEndAt ? (typeof apt.scheduledEndAt === 'string' ? parseISO(apt.scheduledEndAt) : apt.scheduledEndAt) : null;
+                      const timeStr = startTime ? format(startTime, 'h:mm a') : 'TBD';
+                      const endStr = endTime ? format(endTime, 'h:mm a') : '';
+                      
+                      const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
+                        'Confirmed': { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
+                        'Pending': { bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500' },
+                        'In Progress': { bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-500' },
+                        'Completed': { bg: 'bg-green-50', text: 'text-green-600', dot: 'bg-green-500' },
+                      };
+                      const colors = statusColors[apt.status] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-500' };
+                      
+                      return (
+                        <div 
+                          key={apt.id}
+                          className="flex items-stretch hover:bg-gray-50/50 cursor-pointer transition-colors"
+                          onClick={() => navigate("/contractor-schedule")}
+                        >
+                          {/* Time Column */}
+                          <div className="w-24 flex-shrink-0 p-4 border-r border-gray-100 flex flex-col justify-center">
+                            <div className="text-sm font-bold text-gray-800">{timeStr}</div>
+                            {endStr && <div className="text-xs text-gray-400">{endStr}</div>}
+                          </div>
+                          
+                          {/* Color Bar */}
+                          <div className={`w-1 ${colors.dot}`} />
+                          
+                          {/* Content */}
+                          <div className="flex-1 p-4 flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-gray-800">{apt.title || 'Appointment'}</div>
+                              <div className="text-sm text-gray-500 mt-0.5">
+                                {apt.notes || 'No details'}
+                              </div>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                              {apt.status}
+                            </span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          {apt.status}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
