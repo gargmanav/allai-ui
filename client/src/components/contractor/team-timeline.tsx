@@ -35,7 +35,7 @@ interface TeamTimelineProps {
 
 const HOUR_WIDTH = 60;
 const TIMELINE_START = 6;
-const TIMELINE_END = 20;
+const TIMELINE_END = 23;
 const TOTAL_HOURS = TIMELINE_END - TIMELINE_START;
 
 const TEAM_COLORS = [
