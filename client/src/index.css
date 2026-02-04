@@ -264,13 +264,13 @@
 .running-light-bar-blue {
   background: linear-gradient(
     90deg,
-    rgba(30, 58, 138, 0.4) 0%,
-    rgba(30, 58, 138, 0.4) 40%,
-    rgba(59, 130, 246, 0.7) 45%,
-    rgba(147, 197, 253, 1) 50%,
-    rgba(59, 130, 246, 0.7) 55%,
-    rgba(30, 58, 138, 0.4) 60%,
-    rgba(30, 58, 138, 0.4) 100%
+    rgba(37, 99, 235, 0.6) 0%,
+    rgba(37, 99, 235, 0.6) 40%,
+    rgba(59, 130, 246, 0.9) 45%,
+    rgba(96, 165, 250, 1) 50%,
+    rgba(59, 130, 246, 0.9) 55%,
+    rgba(37, 99, 235, 0.6) 60%,
+    rgba(37, 99, 235, 0.6) 100%
   );
   background-size: 300% 100%;
   animation: sweepLight 12s ease-in-out infinite;
@@ -279,13 +279,13 @@
 .running-light-bar-orange {
   background: linear-gradient(
     90deg,
-    rgba(154, 52, 18, 0.4) 0%,
-    rgba(154, 52, 18, 0.4) 40%,
-    rgba(249, 115, 22, 0.7) 45%,
-    rgba(253, 186, 116, 1) 50%,
-    rgba(249, 115, 22, 0.7) 55%,
-    rgba(154, 52, 18, 0.4) 60%,
-    rgba(154, 52, 18, 0.4) 100%
+    rgba(234, 88, 12, 0.6) 0%,
+    rgba(234, 88, 12, 0.6) 40%,
+    rgba(249, 115, 22, 0.9) 45%,
+    rgba(251, 146, 60, 1) 50%,
+    rgba(249, 115, 22, 0.9) 55%,
+    rgba(234, 88, 12, 0.6) 60%,
+    rgba(234, 88, 12, 0.6) 100%
   );
   background-size: 300% 100%;
   animation: sweepLight 12s ease-in-out infinite;
@@ -294,13 +294,13 @@
 .running-light-bar-green {
   background: linear-gradient(
     90deg,
-    rgba(6, 78, 59, 0.4) 0%,
-    rgba(6, 78, 59, 0.4) 40%,
-    rgba(16, 185, 129, 0.7) 45%,
-    rgba(110, 231, 183, 1) 50%,
-    rgba(16, 185, 129, 0.7) 55%,
-    rgba(6, 78, 59, 0.4) 60%,
-    rgba(6, 78, 59, 0.4) 100%
+    rgba(5, 150, 105, 0.6) 0%,
+    rgba(5, 150, 105, 0.6) 40%,
+    rgba(16, 185, 129, 0.9) 45%,
+    rgba(52, 211, 153, 1) 50%,
+    rgba(16, 185, 129, 0.9) 55%,
+    rgba(5, 150, 105, 0.6) 60%,
+    rgba(5, 150, 105, 0.6) 100%
   );
   background-size: 300% 100%;
   animation: sweepLight 12s ease-in-out infinite;
@@ -309,13 +309,13 @@
 .running-light-bar-purple {
   background: linear-gradient(
     90deg,
-    rgba(76, 29, 149, 0.4) 0%,
-    rgba(76, 29, 149, 0.4) 40%,
-    rgba(139, 92, 246, 0.7) 45%,
-    rgba(196, 181, 253, 1) 50%,
-    rgba(139, 92, 246, 0.7) 55%,
-    rgba(76, 29, 149, 0.4) 60%,
-    rgba(76, 29, 149, 0.4) 100%
+    rgba(124, 58, 237, 0.6) 0%,
+    rgba(124, 58, 237, 0.6) 40%,
+    rgba(139, 92, 246, 0.9) 45%,
+    rgba(167, 139, 250, 1) 50%,
+    rgba(139, 92, 246, 0.9) 55%,
+    rgba(124, 58, 237, 0.6) 60%,
+    rgba(124, 58, 237, 0.6) 100%
   );
   background-size: 300% 100%;
   animation: sweepLight 12s ease-in-out infinite;
