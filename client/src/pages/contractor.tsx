@@ -224,6 +224,18 @@ export default function Contractor() {
     enabled: !!user
   });
 
+  // Dashboard metrics for sparklines (real historical data)
+  const { data: dashboardMetrics } = useQuery<{
+    requests: { received: number[]; converted: number[] };
+    quotes: { sent: number[]; approved: number[] };
+    jobs: { started: number[]; completed: number[] };
+    invoices: { sent: number[]; paid: number[] };
+    days: string[];
+  }>({
+    queryKey: ['/api/contractor/dashboard-metrics'],
+    enabled: !!user
+  });
+
   // Team members query
   const { data: teamData } = useQuery<{
     allMembers: Array<{
@@ -746,12 +758,11 @@ export default function Contractor() {
               const pastDueInvoices = 0; // Would come from invoices API
               const awaitingPayment = approvedQuotes.length;
               
-              // Mock sparkline data for "Last 7 days" trend visualization
-              // In production, this would come from historical data API
-              const requestsSparkline = { received: [3, 5, 2, 8, 4, 6, requestsCount], converted: [1, 2, 1, 4, 3, 3, assessmentCompleted] };
-              const quotesSparkline = { sent: [2, 1, 3, 4, 2, 5, sentQuotes.length], converted: [1, 1, 2, 2, 1, 3, approvedQuotes.length] };
-              const jobsSparkline = { started: [2, 3, 1, 4, 5, 2, activeJobs.length], completed: [1, 2, 1, 3, 4, 2, requiresInvoicing] };
-              const invoicesSparkline = { sent: [3, 2, 4, 1, 5, 3, awaitingPayment], paid: [2, 1, 3, 1, 4, 2, 0] };
+              // Sparkline data from real historical metrics API (with fallback to current values only)
+              const requestsSparkline = dashboardMetrics?.requests ?? { received: [requestsCount], converted: [assessmentCompleted] };
+              const quotesSparkline = dashboardMetrics?.quotes ?? { sent: [sentQuotes.length], approved: [approvedQuotes.length] };
+              const jobsSparkline = dashboardMetrics?.jobs ?? { started: [activeJobs.length], completed: [requiresInvoicing] };
+              const invoicesSparkline = dashboardMetrics?.invoices ?? { sent: [awaitingPayment], paid: [0] };
               
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
@@ -817,7 +828,7 @@ export default function Contractor() {
                           data={requestsSparkline.received}
                           color="#3b82f6"
                           secondaryData={requestsSparkline.converted}
-                          secondaryColor="#10b981"
+                          secondaryColor="#6b7280"
                           labels={{ primary: "Received", secondary: "Converted" }}
                         />
                       </div>
@@ -882,9 +893,9 @@ export default function Contractor() {
                         <Sparkline 
                           data={quotesSparkline.sent}
                           color="#f59e0b"
-                          secondaryData={quotesSparkline.converted}
-                          secondaryColor="#10b981"
-                          labels={{ primary: "Sent", secondary: "Converted" }}
+                          secondaryData={quotesSparkline.approved}
+                          secondaryColor="#6b7280"
+                          labels={{ primary: "Sent", secondary: "Approved" }}
                         />
                       </div>
                     </div>
@@ -947,9 +958,9 @@ export default function Contractor() {
                         <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
                         <Sparkline 
                           data={jobsSparkline.started}
-                          color="#f97316"
+                          color="#10b981"
                           secondaryData={jobsSparkline.completed}
-                          secondaryColor="#14b8a6"
+                          secondaryColor="#6b7280"
                           labels={{ primary: "Started", secondary: "Completed" }}
                         />
                       </div>
@@ -1015,7 +1026,7 @@ export default function Contractor() {
                           data={invoicesSparkline.sent}
                           color="#8b5cf6"
                           secondaryData={invoicesSparkline.paid}
-                          secondaryColor="#10b981"
+                          secondaryColor="#6b7280"
                           labels={{ primary: "Sent", secondary: "Paid" }}
                         />
                       </div>

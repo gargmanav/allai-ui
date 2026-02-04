@@ -1242,6 +1242,105 @@ router.post('/customers/geocode-all', requireAuth, requireRole('contractor'), as
   }
 });
 
+// Get historical dashboard metrics for sparkline graphs (last 7 days)
+router.get('/dashboard-metrics', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    
+    // Get contractor's vendor ID for quote queries
+    const vendorRecord = await db.query.vendors.findFirst({
+      where: eq(vendors.userId, contractorUserId),
+    });
+    
+    const vendorId = vendorRecord?.id;
+    
+    // Calculate date range for last 7 days
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Include today + 6 previous days
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    
+    // Query smart_cases (requests) assigned to this contractor, grouped by day
+    const requestsData = await db.execute(sql`
+      SELECT 
+        DATE(created_at) as day,
+        COUNT(*) as count,
+        SUM(CASE WHEN status = 'Completed' OR status = 'In Progress' THEN 1 ELSE 0 END) as converted
+      FROM smart_cases 
+      WHERE assigned_contractor_id = ${contractorUserId}
+        AND created_at >= ${sevenDaysAgo.toISOString()}
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `);
+    
+    // Query quotes by this contractor, grouped by day
+    const quotesData = vendorId ? await db.execute(sql`
+      SELECT 
+        DATE(created_at) as day,
+        COUNT(*) as sent,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved
+      FROM quotes 
+      WHERE contractor_id = ${vendorId}
+        AND created_at >= ${sevenDaysAgo.toISOString()}
+        AND archived_at IS NULL
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `) : { rows: [] };
+    
+    // Query scheduled_jobs for this contractor, grouped by day
+    const jobsData = await db.execute(sql`
+      SELECT 
+        DATE(created_at) as day,
+        COUNT(*) as started,
+        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
+      FROM scheduled_jobs 
+      WHERE contractor_id = ${contractorUserId}
+        AND created_at >= ${sevenDaysAgo.toISOString()}
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `);
+    
+    // Build arrays for each day (fill in zeros for missing days)
+    const days: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sevenDaysAgo);
+      d.setDate(d.getDate() + i);
+      days.push(d.toISOString().split('T')[0]);
+    }
+    
+    // Map database results to daily arrays
+    const requestsMap = new Map((requestsData.rows as any[]).map(r => [r.day, r]));
+    const quotesMap = new Map((quotesData.rows as any[]).map(r => [r.day, r]));
+    const jobsMap = new Map((jobsData.rows as any[]).map(r => [r.day, r]));
+    
+    const metrics = {
+      requests: {
+        received: days.map(d => Number(requestsMap.get(d)?.count || 0)),
+        converted: days.map(d => Number(requestsMap.get(d)?.converted || 0)),
+      },
+      quotes: {
+        sent: days.map(d => Number(quotesMap.get(d)?.sent || 0)),
+        approved: days.map(d => Number(quotesMap.get(d)?.approved || 0)),
+      },
+      jobs: {
+        started: days.map(d => Number(jobsMap.get(d)?.started || 0)),
+        completed: days.map(d => Number(jobsMap.get(d)?.completed || 0)),
+      },
+      invoices: {
+        // Placeholder - would need invoices table
+        sent: days.map(() => 0),
+        paid: days.map(() => 0),
+      },
+      days,
+    };
+    
+    res.json(metrics);
+  } catch (error) {
+    console.error('Error fetching dashboard metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard metrics' });
+  }
+});
+
 // Helper function to generate consistent colors from IDs
 function generateColorFromId(id: string): string {
   const colors = [
