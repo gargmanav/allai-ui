@@ -20,6 +20,7 @@ interface Appointment {
   scheduledEndAt: string;
   status?: string;
   contractorId: string;
+  teamId?: string;
   address?: string;
   customerName?: string;
   urgency?: string;
@@ -66,6 +67,8 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
 
   const getAppointmentsForMember = (member: TeamMember) => {
     return todaysAppointments.filter(apt => 
+      apt.teamId === member.id || // Match by teamId for team-based jobs
+      apt.teamId === member.memberId ||
       apt.contractorId === member.memberId || 
       apt.contractorId === member.id
     );
@@ -271,9 +274,12 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                       const isUrgent = apt.urgency === 'High' || apt.urgency === 'Emergent';
                       const isHovered = hoveredAppointment === apt.id;
 
+                      // Only remaining cards get frost gradient; completed and active are solid
                       const cardBackground = category === 'complete' 
-                        ? 'linear-gradient(135deg, rgba(134, 239, 172, 0.4) 0%, rgba(187, 247, 208, 0.3) 100%)'
-                        : 'linear-gradient(135deg, rgba(241, 245, 249, 0.95) 0%, rgba(226, 232, 240, 0.85) 100%)';
+                        ? 'rgba(220, 252, 231, 0.7)' // solid light green
+                        : category === 'active'
+                        ? 'rgba(254, 243, 199, 0.7)' // solid light amber
+                        : 'linear-gradient(135deg, rgba(241, 245, 249, 0.95) 0%, rgba(226, 232, 240, 0.85) 100%)'; // frost gradient for remaining
 
                       return (
                         <div

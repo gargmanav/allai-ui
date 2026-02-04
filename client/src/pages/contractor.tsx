@@ -1008,6 +1008,7 @@ export default function Contractor() {
                   scheduledEndAt: apt.scheduledEndAt,
                   status: apt.status,
                   contractorId: apt.contractorId,
+                  teamId: apt.teamId,
                   address: apt.address,
                   customerName: apt.customerName,
                   urgency: apt.urgency,

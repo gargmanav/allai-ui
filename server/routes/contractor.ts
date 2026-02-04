@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs } from '@shared/schema';
+import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -875,10 +875,45 @@ router.get('/team-members', requireAuth, requireRole('contractor'), async (req: 
       notes: m.notes,
     }));
     
+    // Get vendor ID for this contractor
+    const contractorVendor = await db.query.vendors.findFirst({
+      where: eq(vendors.userId, contractorUserId),
+    });
+    
+    // Get teams that have scheduled jobs for this contractor
+    const teamIdsWithJobs = contractorVendor 
+      ? await db.selectDistinct({ teamId: scheduledJobs.teamId })
+          .from(scheduledJobs)
+          .where(eq(scheduledJobs.contractorId, contractorVendor.id))
+      : [];
+    const teamIdList = teamIdsWithJobs.map(t => t.teamId).filter((id): id is string => id !== null);
+    
+    // Get teams from teams table for timeline display
+    const contractorTeams = teamIdList.length > 0 
+      ? await db.query.teams.findMany({
+          where: inArray(teams.id, teamIdList),
+        })
+      : [];
+    
+    const formattedTeams = contractorTeams.map((t: any) => ({
+      id: t.id,
+      memberId: t.id, // Use team ID as memberId for filtering
+      name: t.name,
+      email: null,
+      phone: null,
+      role: t.specialty || 'Team',
+      canManageJobs: true,
+      hasLogin: false,
+      isOwner: false,
+      isTeam: true,
+      color: t.color || generateColorFromId(t.id),
+    }));
+    
     res.json({
       loginMembers: formattedLoginMembers,
       contactMembers: formattedContactMembers,
-      allMembers: [ownerMember, ...formattedLoginMembers, ...formattedContactMembers],
+      teams: formattedTeams,
+      allMembers: [...formattedTeams, ownerMember, ...formattedLoginMembers, ...formattedContactMembers],
     });
   } catch (error) {
     console.error('Error fetching team members:', error);
@@ -928,16 +963,25 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
       orderBy: (appts, { asc }) => [asc(appts.scheduledStartAt)],
     });
     
-    // Also get scheduled jobs from the schedule calendar
-    const allScheduledJobs = vendorIds.length > 0 
-      ? await db.query.scheduledJobs.findMany({
-          where: inArray(scheduledJobs.contractorId, vendorIds),
-          with: {
-            property: true,
-          },
-          orderBy: (jobs, { asc }) => [asc(jobs.scheduledStartAt)],
-        })
+    // Get team IDs that have jobs for this contractor
+    const teamIdsFromJobs = vendorIds.length > 0 
+      ? await db.selectDistinct({ teamId: scheduledJobs.teamId })
+          .from(scheduledJobs)
+          .where(inArray(scheduledJobs.contractorId, vendorIds))
       : [];
+    const teamIds = teamIdsFromJobs.map(t => t.teamId).filter((id): id is string => id !== null);
+    
+    // Get scheduled jobs by contractor_id OR team_id
+    const allScheduledJobs = await db.query.scheduledJobs.findMany({
+      where: or(
+        vendorIds.length > 0 ? inArray(scheduledJobs.contractorId, vendorIds) : undefined,
+        teamIds.length > 0 ? inArray(scheduledJobs.teamId, teamIds) : undefined
+      ),
+      with: {
+        property: true,
+      },
+      orderBy: (jobs, { asc }) => [asc(jobs.scheduledStartAt)],
+    });
     
     // Format appointments
     const formattedAppointments = allAppointments.map((apt: any) => ({
@@ -974,7 +1018,8 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
         scheduledStartAt: job.scheduledStartAt,
         scheduledEndAt: job.scheduledEndAt,
         status: timelineStatus,
-        contractorId: vendorToUserMap.get(job.contractorId) || job.contractorId,
+        contractorId: job.teamId || vendorToUserMap.get(job.contractorId) || job.contractorId, // Use teamId as primary identifier for team-based jobs
+        teamId: job.teamId,
         address: job.address || (job.property?.streetAddress 
           ? `${job.property.streetAddress}, ${job.property.city || ''}`
           : null),
