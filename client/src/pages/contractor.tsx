@@ -409,15 +409,20 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className={`w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 ${
+                view === "landing" 
+                  ? "bg-gradient-to-r from-violet-500/15 to-blue-500/15 text-violet-700 dark:text-violet-400 shadow-sm" 
+                  : "hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10"
+              }`}
+              style={view === "landing" ? { boxShadow: '0 0 12px rgba(139, 92, 246, 0.15)' } : {}}
               onClick={() => setView("landing")}
             >
-              <Home className="h-4 w-4 text-muted-foreground" />
+              <Home className={`h-4 w-4 ${view === "landing" ? "text-violet-500" : "text-muted-foreground"}`} />
               <span className="font-medium">Home</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
               onClick={() => navigate("/contractor-schedule")}
             >
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -425,18 +430,23 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className={`w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 ${
+                view === "newJobs" 
+                  ? "bg-gradient-to-r from-violet-500/15 to-blue-500/15 text-violet-700 dark:text-violet-400 shadow-sm" 
+                  : "hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10"
+              }`}
+              style={view === "newJobs" ? { boxShadow: '0 0 12px rgba(139, 92, 246, 0.15)' } : {}}
               onClick={() => setView("newJobs" as ViewState)}
             >
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <Briefcase className={`h-4 w-4 ${view === "newJobs" ? "text-violet-500" : "text-muted-foreground"}`} />
               <span className="font-medium">Job Board</span>
               {newJobsCount > 0 && (
                 <Badge className="ml-auto h-5 px-1.5 text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">{newJobsCount}</Badge>
               )}
             </Button>
             
-            {/* Separator */}
-            <div className="my-3 mx-3 border-t border-muted/50" />
+            {/* Separator - Purple-Blue Gradient */}
+            <div className="my-3 mx-3 h-[1px] bg-gradient-to-r from-violet-400/40 via-blue-400/40 to-transparent" />
             
             {/* FINANCE Section */}
             <div className="px-3 py-2">
@@ -444,7 +454,7 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
               onClick={() => navigate("/quotes")}
             >
               <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -455,7 +465,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
               onClick={() => navigate("/customers")}
             >
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -463,15 +473,15 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
               onClick={() => navigate("/inbox")}
             >
               <Mail className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Inbox</span>
             </Button>
             
-            {/* Separator */}
-            <div className="my-3 mx-3 border-t border-muted/50" />
+            {/* Separator - Purple-Blue Gradient */}
+            <div className="my-3 mx-3 h-[1px] bg-gradient-to-r from-violet-400/40 via-blue-400/40 to-transparent" />
             
             {/* ACCOUNT Section */}
             <div className="px-3 py-2">
@@ -479,7 +489,7 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
               onClick={() => navigate("/reminders")}
             >
               <Bell className="h-4 w-4 text-muted-foreground" />
@@ -487,7 +497,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg hover:bg-primary/10 transition-colors"
+              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
               onClick={() => toast({ title: "Profile", description: "Profile settings coming soon" })}
             >
               <User className="h-4 w-4 text-muted-foreground" />
@@ -702,7 +712,7 @@ export default function Contractor() {
                   {/* Requests Column - Frosted Glass with Blue Hue */}
                   <button
                     onClick={() => setView("newJobs" as ViewState)}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(239,246,255,0.85) 100%)',
                       backdropFilter: 'blur(20px)',
@@ -710,8 +720,8 @@ export default function Contractor() {
                       boxShadow: '0 4px 24px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 group-hover:from-blue-500/5 group-hover:to-blue-500/15 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-blue-400 to-blue-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 group-hover:from-violet-500/10 group-hover:to-blue-500/20 group-active:from-violet-500/20 group-active:to-blue-500/30 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-blue-400 to-blue-600 group-active:from-violet-500 group-active:to-blue-600" />
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Requests</span>
@@ -733,7 +743,7 @@ export default function Contractor() {
                   {/* Quotes Column - Frosted Glass with Amber Hue */}
                   <button
                     onClick={() => navigate("/quotes")}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(254,249,239,0.85) 100%)',
                       backdropFilter: 'blur(20px)',
@@ -741,8 +751,8 @@ export default function Contractor() {
                       boxShadow: '0 4px 24px rgba(245, 158, 11, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 group-hover:from-amber-500/5 group-hover:to-amber-500/15 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 group-hover:from-violet-500/10 group-hover:to-amber-500/20 group-active:from-violet-500/20 group-active:to-amber-500/30 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600 group-active:from-violet-500 group-active:to-amber-600" />
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Quotes</span>
@@ -764,7 +774,7 @@ export default function Contractor() {
                   {/* Jobs Column - Frosted Glass with Green Hue */}
                   <button
                     onClick={() => setView("activeJobs" as ViewState)}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,253,244,0.85) 100%)',
                       backdropFilter: 'blur(20px)',
@@ -772,8 +782,8 @@ export default function Contractor() {
                       boxShadow: '0 4px 24px rgba(34, 197, 94, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/5 group-hover:from-green-500/5 group-hover:to-green-500/15 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-green-400 to-green-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/5 group-hover:from-violet-500/10 group-hover:to-green-500/20 group-active:from-violet-500/20 group-active:to-green-500/30 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-green-400 to-green-600 group-active:from-violet-500 group-active:to-green-600" />
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Jobs</span>
@@ -795,7 +805,7 @@ export default function Contractor() {
                   {/* Invoices Column - Frosted Glass with Violet Hue */}
                   <button
                     onClick={() => navigate("/quotes")}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(245,243,255,0.85) 100%)',
                       backdropFilter: 'blur(20px)',
@@ -803,8 +813,8 @@ export default function Contractor() {
                       boxShadow: '0 4px 24px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 to-violet-500/5 group-hover:from-violet-500/5 group-hover:to-violet-500/15 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-violet-400 to-violet-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 to-violet-500/5 group-hover:from-violet-500/15 group-hover:to-blue-500/20 group-active:from-violet-500/25 group-active:to-blue-500/35 transition-all duration-300" />
+                    <div className="h-1.5 bg-gradient-to-r from-violet-400 to-violet-600 group-active:from-violet-500 group-active:to-blue-600" />
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Invoices</span>
