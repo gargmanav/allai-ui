@@ -520,7 +520,7 @@ export function CustomersContent({ embedded = false }: { embedded?: boolean }) {
   );
 
   const mainContent = (
-    <main className={`flex-1 ${embedded ? 'p-4' : 'p-6'} overflow-hidden flex flex-col`}>
+    <main className={`flex-1 ${embedded ? 'p-4' : 'p-6'} overflow-hidden flex flex-col min-h-0`}>
       <div className="mb-4 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className={`${embedded ? 'text-2xl' : 'text-3xl'} font-bold mb-2`} data-testid="text-page-title">
@@ -809,9 +809,9 @@ export function CustomersContent({ embedded = false }: { embedded?: boolean }) {
           )}
 
           {/* Main Content - Split Layout */}
-          <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
-            {/* Customer List Panel */}
-            <div className="w-1/2 overflow-auto pr-2">
+          <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
+            {/* Customer List Panel - scrollable */}
+            <div className="w-1/2 h-full overflow-y-auto pr-2 custom-scrollbar">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
@@ -885,8 +885,8 @@ export function CustomersContent({ embedded = false }: { embedded?: boolean }) {
               )}
             </div>
 
-            {/* Map Panel */}
-            <div className="w-1/2 rounded-xl overflow-hidden border border-white/20 shadow-lg">
+            {/* Map Panel - constrained to viewport height */}
+            <div className="w-1/2 h-full rounded-xl overflow-hidden border border-white/20 shadow-lg">
               <MapContainer
                 center={mapCenter}
                 zoom={customersWithCoords.length > 0 ? 10 : 4}

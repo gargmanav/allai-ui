@@ -593,10 +593,10 @@ export default function Contractor() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"}`}>
+      {/* Main Content Area - uses grid for customers view */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className="fixed top-0 right-0 z-50 bg-background/80 backdrop-blur-sm transition-all duration-300" style={{ left: sidebarOpen ? "288px" : "0" }}>
+        <header className={`${view === "customers" ? "row-start-1" : "fixed top-0 right-0"} z-50 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-6 py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-4">
@@ -620,7 +620,8 @@ export default function Contractor() {
           </div>
         </header>
 
-        {/* Main Content */}
+        {/* Main Content - different layout for customers view */}
+        {view !== "customers" ? (
         <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
         {/* Landing View - Action-Focused Dashboard */}
@@ -1518,12 +1519,13 @@ export default function Contractor() {
           </div>
         )}
 
-        {/* Customers View */}
-        {view === "customers" && (
-          <CustomersContent embedded={true} />
-        )}
-
         </main>
+        ) : (
+        /* Customers View - uses grid row-start-2 to fill remaining space */
+        <div className="row-start-2 flex flex-col overflow-hidden min-h-0">
+          <CustomersContent embedded={true} />
+        </div>
+        )}
       </div>
     </div>
   );
