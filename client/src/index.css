@@ -258,5 +258,5 @@
     rgba(16, 185, 129, 0.7) 100%
   );
   background-size: 200% 100%;
-  animation: runningLight 5.5s linear infinite;
+  animation: runningLight 12s linear infinite;
 }

@@ -767,11 +767,10 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with purple gradient hue matching sidebar */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-violet-400/0 group-hover:from-violet-500/35 group-hover:via-purple-400/28 group-hover:to-violet-500/40 transition-all duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-tl from-purple-300/0 via-transparent to-violet-300/0 group-hover:from-purple-300/20 group-hover:to-violet-300/25 transition-all duration-500" />
-                    {/* Strong multi-layer glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(139, 92, 246, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.2), inset 0 0 30px rgba(196, 181, 253, 0.15)' }} />
+                    {/* Hover overlay matching sidebar style - lighter gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover matching sidebar */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
@@ -837,11 +836,10 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with purple gradient hue matching sidebar */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-violet-400/0 group-hover:from-violet-500/35 group-hover:via-purple-400/28 group-hover:to-violet-500/40 transition-all duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-tl from-purple-300/0 via-transparent to-violet-300/0 group-hover:from-purple-300/20 group-hover:to-violet-300/25 transition-all duration-500" />
-                    {/* Strong multi-layer glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(139, 92, 246, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.2), inset 0 0 30px rgba(196, 181, 253, 0.15)' }} />
+                    {/* Hover overlay matching sidebar style - lighter gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover matching sidebar */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
@@ -904,11 +902,10 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with purple gradient hue matching sidebar */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-violet-400/0 group-hover:from-violet-500/35 group-hover:via-purple-400/28 group-hover:to-violet-500/40 transition-all duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-tl from-purple-300/0 via-transparent to-violet-300/0 group-hover:from-purple-300/20 group-hover:to-violet-300/25 transition-all duration-500" />
-                    {/* Strong multi-layer glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(139, 92, 246, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.2), inset 0 0 30px rgba(196, 181, 253, 0.15)' }} />
+                    {/* Hover overlay matching sidebar style - lighter gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover matching sidebar */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
@@ -971,11 +968,10 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with purple gradient hue matching sidebar */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-violet-400/0 group-hover:from-violet-500/35 group-hover:via-purple-400/28 group-hover:to-violet-500/40 transition-all duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-tl from-purple-300/0 via-transparent to-violet-300/0 group-hover:from-purple-300/20 group-hover:to-violet-300/25 transition-all duration-500" />
-                    {/* Strong multi-layer glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(139, 92, 246, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.2), inset 0 0 30px rgba(196, 181, 253, 0.15)' }} />
+                    {/* Hover overlay matching sidebar style - lighter gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover matching sidebar */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
