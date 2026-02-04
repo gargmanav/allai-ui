@@ -172,16 +172,19 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
               <span className="text-sm font-bold text-gray-800">{summaryStats.total}</span>
               <span className="text-[9px] text-gray-500 uppercase tracking-wide">Total</span>
             </div>
-            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-blue-50 border border-blue-100">
+            <div 
+              className="flex flex-col items-center px-3 py-1 rounded-lg border border-blue-200"
+              style={{ background: 'linear-gradient(135deg, rgba(219, 234, 254, 0.9) 0%, rgba(191, 219, 254, 0.8) 100%)' }}
+            >
               <span className="text-sm font-bold text-blue-700">{summaryStats.remaining}</span>
               <span className="text-[9px] text-blue-500 uppercase tracking-wide">Remaining</span>
             </div>
-            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-amber-50 border border-amber-100">
-              <span className="text-sm font-bold text-amber-700">{summaryStats.active}</span>
-              <span className="text-[9px] text-amber-500 uppercase tracking-wide">Active</span>
+            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-orange-50 border border-orange-200">
+              <span className="text-sm font-bold text-orange-600">{summaryStats.active}</span>
+              <span className="text-[9px] text-orange-500 uppercase tracking-wide">Active</span>
             </div>
-            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-green-50 border border-green-100">
-              <span className="text-sm font-bold text-green-700">{summaryStats.complete}</span>
+            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-green-50 border border-green-200">
+              <span className="text-sm font-bold text-green-600">{summaryStats.complete}</span>
               <span className="text-[9px] text-green-500 uppercase tracking-wide">Complete</span>
             </div>
           </div>
@@ -274,12 +277,12 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                       const isUrgent = apt.urgency === 'High' || apt.urgency === 'Emergent';
                       const isHovered = hoveredAppointment === apt.id;
 
-                      // Only remaining cards get frost gradient; completed and active are solid
+                      // Colors match legend: Complete=light green, Active=orange, Remaining=blue gradient
                       const cardBackground = category === 'complete' 
-                        ? 'rgba(220, 252, 231, 0.7)' // solid light green
+                        ? 'rgba(220, 252, 231, 0.85)' // solid light green (matches bg-green-50)
                         : category === 'active'
-                        ? 'rgba(254, 243, 199, 0.7)' // solid light amber
-                        : 'linear-gradient(135deg, rgba(241, 245, 249, 0.95) 0%, rgba(226, 232, 240, 0.85) 100%)'; // frost gradient for remaining
+                        ? 'rgba(255, 237, 213, 0.85)' // solid light orange (matches bg-orange-50)
+                        : 'linear-gradient(135deg, rgba(219, 234, 254, 0.9) 0%, rgba(191, 219, 254, 0.8) 100%)'; // blue gradient for remaining
 
                       return (
                         <div
@@ -299,8 +302,10 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                               background: cardBackground,
                               backdropFilter: 'blur(8px)',
                               border: category === 'active' 
-                                ? '2px solid rgba(251, 191, 36, 0.6)' 
-                                : '1px solid rgba(0,0,0,0.08)',
+                                ? '2px solid rgba(251, 146, 60, 0.7)' // orange-400
+                                : category === 'complete'
+                                ? '1px solid rgba(134, 239, 172, 0.6)' // green-300
+                                : '1px solid rgba(147, 197, 253, 0.7)', // blue-300 for remaining
                               boxShadow: isHovered 
                                 ? '0 4px 12px rgba(0,0,0,0.15)' 
                                 : '0 1px 3px rgba(0,0,0,0.05)'
