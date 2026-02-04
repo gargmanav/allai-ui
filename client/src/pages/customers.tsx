@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +9,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Briefcase, Plus, Mail, Phone, Building2, Trash2, Edit, ArrowUpDown, Filter, LayoutGrid, List } from "lucide-react";
+import { User, Briefcase, Plus, Mail, Phone, Building2, Trash2, Edit, ArrowUpDown, Filter, LayoutGrid, List, MapPin, Navigation } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 type Customer = {
   id: string;
@@ -29,6 +32,9 @@ type Customer = {
   state: string | null;
   zipCode: string | null;
   notes: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  geocodedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   activeJobCount: number;
@@ -55,17 +61,38 @@ const customerFormSchema = z.object({
 
 type CustomerFormData = z.infer<typeof customerFormSchema>;
 
+// Custom marker icons
+const defaultIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const selectedIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41">
+      <path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 21.9 12.5 41 12.5 41S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z" fill="#8b5cf6"/>
+      <circle cx="12.5" cy="12.5" r="6" fill="white"/>
+    </svg>
+  `),
+  iconSize: [35, 57],
+  iconAnchor: [17, 57],
+  popupAnchor: [1, -48],
+});
+
 // Helper function to extract error message from API error
 function extractErrorMessage(error: any): string {
   if (!error?.message) return "";
   
-  // Error message format: "400: {\"error\":\"message\", \"details\": [...]}"
   const match = error.message.match(/\d+:\s*(\{.*\})/);
   if (match) {
     try {
       const errorObj = JSON.parse(match[1]);
       
-      // If there are validation details, format them nicely
       if (errorObj.details && Array.isArray(errorObj.details)) {
         const detailMessages = errorObj.details.map((d: any) => {
           if (d.path && d.message) {
@@ -86,6 +113,35 @@ function extractErrorMessage(error: any): string {
   return error.message || "";
 }
 
+// Helper to parse coordinates safely
+function parseCoord(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+  return isNaN(num) ? null : num;
+}
+
+// Component to fly to selected customer - only triggers on customer change
+function FlyToCustomer({ customerId, customers }: { customerId: string | null; customers: Customer[] }) {
+  const map = useMap();
+  const prevCustomerId = useRef<string | null>(null);
+  
+  useEffect(() => {
+    if (customerId && customerId !== prevCustomerId.current) {
+      const customer = customers.find(c => c.id === customerId);
+      if (customer) {
+        const lat = parseCoord(customer.latitude);
+        const lng = parseCoord(customer.longitude);
+        if (lat !== null && lng !== null) {
+          map.flyTo([lat, lng], 15, { duration: 0.8 });
+        }
+      }
+    }
+    prevCustomerId.current = customerId;
+  }, [customerId, customers, map]);
+  
+  return null;
+}
+
 export default function CustomersPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -93,6 +149,7 @@ export default function CustomersPage() {
   const [filterCity, setFilterCity] = useState<string>('');
   const [filterActiveJobs, setFilterActiveJobs] = useState<'all' | 'with-jobs' | 'no-jobs'>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
@@ -167,6 +224,7 @@ export default function CustomersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/customers'] });
+      setSelectedCustomerId(null);
       toast({
         title: "Customer deleted",
         description: "The customer has been deleted successfully.",
@@ -179,6 +237,19 @@ export default function CustomersPage() {
         description: errorMessage || "Failed to delete customer. They may have existing work orders.",
         variant: "destructive",
       });
+    },
+  });
+
+  const geocodeMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      return await apiRequest('POST', `/api/contractor/customers/${customerId}/geocode`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/customers'] });
+      toast({ title: 'Address geocoded successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to geocode address', variant: 'destructive' });
     },
   });
 
@@ -212,6 +283,10 @@ export default function CustomersPage() {
     }
   };
 
+  const handleCardClick = (customer: Customer) => {
+    setSelectedCustomerId(selectedCustomerId === customer.id ? null : customer.id);
+  };
+
   const getCustomerDisplayName = (customer: Customer) => {
     if (customer.companyName && !customer.firstName && !customer.lastName) {
       return customer.companyName;
@@ -237,19 +312,15 @@ export default function CustomersPage() {
   // Apply filters and sorting
   const filteredAndSortedCustomers = customers
     .filter(customer => {
-      // Filter by city
       if (filterCity && customer.city !== filterCity) {
         return false;
       }
-      
-      // Filter by active jobs
       if (filterActiveJobs === 'with-jobs' && customer.activeJobCount === 0) {
         return false;
       }
       if (filterActiveJobs === 'no-jobs' && customer.activeJobCount > 0) {
         return false;
       }
-      
       return true;
     })
     .sort((a, b) => {
@@ -271,6 +342,28 @@ export default function CustomersPage() {
       return 0;
     });
 
+  // Customers with valid coordinates for map
+  const customersWithCoords = useMemo(() => 
+    filteredAndSortedCustomers.filter(c => {
+      const lat = parseCoord(c.latitude);
+      const lng = parseCoord(c.longitude);
+      return lat !== null && lng !== null;
+    }), [filteredAndSortedCustomers]
+  );
+
+  // Calculate map center using parsed coordinates
+  const mapCenter = useMemo(() => {
+    if (customersWithCoords.length === 0) return [40.7128, -74.006] as [number, number];
+    const coords = customersWithCoords.map(c => ({
+      lat: parseCoord(c.latitude)!,
+      lng: parseCoord(c.longitude)!
+    }));
+    return [
+      coords.reduce((a, c) => a + c.lat, 0) / coords.length,
+      coords.reduce((a, c) => a + c.lng, 0) / coords.length
+    ] as [number, number];
+  }, [customersWithCoords]);
+
   // Group customers alphabetically by first letter (for list view)
   const groupedCustomers = filteredAndSortedCustomers.reduce((groups, customer) => {
     const displayName = getCustomerDisplayName(customer);
@@ -282,19 +375,118 @@ export default function CustomersPage() {
     return groups;
   }, {} as Record<string, Customer[]>);
 
+  // Customer card component with frosted glass styling
+  const CustomerCard = ({ customer, isSelected }: { customer: Customer; isSelected: boolean }) => (
+    <button
+      onClick={() => handleCardClick(customer)}
+      className={`
+        w-full text-left rounded-xl p-4 transition-all duration-500 ease-out
+        backdrop-blur-xl backdrop-saturate-[180%]
+        border border-white/20 dark:border-white/10
+        focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2 focus:ring-offset-transparent
+        ${isSelected 
+          ? 'bg-gradient-to-br from-violet-500/30 via-purple-500/25 to-blue-500/30 shadow-xl shadow-violet-500/20 scale-[1.02] border-violet-400/40' 
+          : 'bg-white/60 dark:bg-slate-900/60 hover:bg-gradient-to-br hover:from-violet-500/20 hover:via-purple-500/15 hover:to-blue-500/20 hover:shadow-lg hover:shadow-violet-500/10 hover:scale-[1.01]'
+        }
+      `}
+      data-testid={`card-customer-${customer.id}`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <div className={`
+              p-1.5 rounded-lg transition-colors duration-300
+              ${isSelected ? 'bg-violet-500/30' : 'bg-primary/10'}
+            `}>
+              <User className={`h-4 w-4 ${isSelected ? 'text-violet-300' : 'text-primary'}`} />
+            </div>
+            <h3 className="font-semibold truncate" data-testid={`text-customer-name-${customer.id}`}>
+              {getCustomerDisplayName(customer)}
+            </h3>
+          </div>
+          {customer.companyName && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 ml-8 truncate">
+              <Building2 className="h-3 w-3 flex-shrink-0" />
+              {customer.companyName}
+            </p>
+          )}
+        </div>
+        <div className="flex gap-1 ml-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-white/30 dark:hover:bg-white/10"
+            onClick={(e) => { e.stopPropagation(); handleEdit(customer); }}
+            data-testid={`button-edit-${customer.id}`}
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-red-500/20"
+            onClick={(e) => { e.stopPropagation(); handleDelete(customer.id); }}
+            data-testid={`button-delete-${customer.id}`}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        </div>
+      </div>
+      
+      <div className="space-y-1.5 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Briefcase className="h-3.5 w-3.5" />
+          <span>{customer.activeJobCount} active {customer.activeJobCount === 1 ? 'job' : 'jobs'}</span>
+        </div>
+        {customer.email && (
+          <div className="flex items-center gap-2 text-muted-foreground truncate">
+            <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="truncate">{customer.email}</span>
+          </div>
+        )}
+        {customer.phone && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Phone className="h-3.5 w-3.5" />
+            {customer.phone}
+          </div>
+        )}
+        {customer.streetAddress && (
+          <div className="flex items-center gap-2 text-muted-foreground truncate">
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="truncate">
+              {customer.streetAddress}{customer.city ? `, ${customer.city}` : ''}
+            </span>
+            {!customer.latitude && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 text-xs ml-auto"
+                onClick={(e) => { e.stopPropagation(); geocodeMutation.mutate(customer.id); }}
+                disabled={geocodeMutation.isPending}
+              >
+                <Navigation className="h-3 w-3 mr-1" />
+                Locate
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title="Customers" />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="mb-4 flex items-center justify-between">
+        <main className="flex-1 p-6 overflow-hidden flex flex-col">
+          <div className="mb-4 flex items-center justify-between flex-shrink-0">
             <div>
               <h1 className="text-3xl font-bold mb-2" data-testid="text-page-title">
                 Customers
               </h1>
               <p className="text-muted-foreground">
-                Manage your clients and view their work orders
+                Manage your clients and view their locations
               </p>
             </div>
             <Dialog open={isAddDialogOpen || !!editingCustomer} onOpenChange={(open) => {
@@ -482,11 +674,11 @@ export default function CustomersPage() {
 
           {/* Filter and Sort Controls */}
           {customers.length > 0 && (
-            <div className="mb-6 flex flex-wrap gap-4 items-center" data-testid="filter-sort-controls">
+            <div className="mb-4 flex flex-wrap gap-4 items-center flex-shrink-0" data-testid="filter-sort-controls">
               <div className="flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
                 <Select value={sortBy} onValueChange={(value: 'name' | 'company' | 'city') => setSortBy(value)}>
-                  <SelectTrigger className="w-40" data-testid="select-sort">
+                  <SelectTrigger className="w-32" data-testid="select-sort">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
@@ -500,11 +692,11 @@ export default function CustomersPage() {
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <Select value={filterActiveJobs} onValueChange={(value: 'all' | 'with-jobs' | 'no-jobs') => setFilterActiveJobs(value)}>
-                  <SelectTrigger className="w-40" data-testid="select-active-jobs">
+                  <SelectTrigger className="w-32" data-testid="select-active-jobs">
                     <SelectValue placeholder="Active Jobs" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="with-jobs">With Jobs</SelectItem>
                     <SelectItem value="no-jobs">No Jobs</SelectItem>
                   </SelectContent>
@@ -513,7 +705,7 @@ export default function CustomersPage() {
 
               {uniqueCities.length > 0 && (
                 <Select value={filterCity || "all-cities"} onValueChange={(value) => setFilterCity(value === "all-cities" ? "" : value)}>
-                  <SelectTrigger className="w-40" data-testid="select-city">
+                  <SelectTrigger className="w-32" data-testid="select-city">
                     <SelectValue placeholder="All Cities" />
                   </SelectTrigger>
                   <SelectContent>
@@ -543,7 +735,12 @@ export default function CustomersPage() {
 
               <div className="ml-auto flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  Showing {filteredAndSortedCustomers.length} of {customers.length} customers
+                  {filteredAndSortedCustomers.length} of {customers.length} customers
+                  {customersWithCoords.length > 0 && (
+                    <span className="ml-2 text-violet-500">
+                      ({customersWithCoords.length} on map)
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-1 border rounded-md p-1">
                   <Button
@@ -569,198 +766,159 @@ export default function CustomersPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading customers...</p>
-              </div>
-            </div>
-          ) : customers.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <User className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No customers yet</h3>
-                <p className="text-muted-foreground text-center max-w-md mb-4">
-                  Add your first customer to start tracking work orders and managing client relationships.
-                </p>
-                <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-first-customer">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Customer
-                </Button>
-              </CardContent>
-            </Card>
-          ) : filteredAndSortedCustomers.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Filter className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No customers match your filters</h3>
-                <p className="text-muted-foreground text-center max-w-md mb-4">
-                  Try adjusting your filters to see more results.
-                </p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setFilterCity('');
-                    setFilterActiveJobs('all');
-                  }}
-                  data-testid="button-clear-all-filters"
-                >
-                  Clear All Filters
-                </Button>
-              </CardContent>
-            </Card>
-          ) : viewMode === 'cards' ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredAndSortedCustomers.map((customer) => (
-                <Card key={customer.id} className="hover:shadow-lg transition-shadow" data-testid={`card-customer-${customer.id}`}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="flex items-center gap-2">
-                          <User className="h-5 w-5 text-primary" />
-                          <span data-testid={`text-customer-name-${customer.id}`}>
-                            {getCustomerDisplayName(customer)}
-                          </span>
-                        </CardTitle>
-                        {customer.companyName && (
-                          <CardDescription className="flex items-center gap-1 mt-1" data-testid={`text-company-name-${customer.id}`}>
-                            <Building2 className="h-3 w-3" />
-                            {customer.companyName}
-                          </CardDescription>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(customer)}
-                          data-testid={`button-edit-${customer.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(customer.id)}
-                          data-testid={`button-delete-${customer.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Briefcase className="h-4 w-4" />
-                        <span data-testid={`text-active-jobs-${customer.id}`}>
-                          {customer.activeJobCount} active {customer.activeJobCount === 1 ? 'job' : 'jobs'}
-                        </span>
-                      </div>
-                      {customer.email && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground truncate" data-testid={`text-customer-email-${customer.id}`}>
-                          <Mail className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{customer.email}</span>
-                        </div>
-                      )}
-                      {customer.phone && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid={`text-customer-phone-${customer.id}`}>
-                          <Phone className="h-4 w-4" />
-                          {customer.phone}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {Object.keys(groupedCustomers).sort().map((letter) => (
-                <div key={letter} data-testid={`group-letter-${letter}`}>
-                  <h2 className="text-2xl font-bold mb-4 text-primary sticky top-0 bg-background py-2 border-b">
-                    {letter}
-                  </h2>
-                  <div className="space-y-2">
-                    {groupedCustomers[letter].map((customer) => (
-                      <Card key={customer.id} className="hover:shadow-md transition-shadow" data-testid={`list-customer-${customer.id}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3">
-                                <User className="h-5 w-5 text-primary flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold truncate" data-testid={`list-customer-name-${customer.id}`}>
-                                    {getCustomerDisplayName(customer)}
-                                  </h3>
-                                  {customer.companyName && (
-                                    <p className="text-sm text-muted-foreground flex items-center gap-1 truncate" data-testid={`list-company-name-${customer.id}`}>
-                                      <Building2 className="h-3 w-3 flex-shrink-0" />
-                                      {customer.companyName}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-6 flex-shrink-0">
-                              {customer.city && (
-                                <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
-                                  <span className="font-medium">{customer.city}</span>
-                                  {customer.state && <span>, {customer.state}</span>}
-                                </div>
-                              )}
-                              
-                              {customer.email && (
-                                <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground truncate max-w-xs" data-testid={`list-customer-email-${customer.id}`}>
-                                  <Mail className="h-4 w-4 flex-shrink-0" />
-                                  <span className="truncate">{customer.email}</span>
-                                </div>
-                              )}
-                              
-                              {customer.phone && (
-                                <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground" data-testid={`list-customer-phone-${customer.id}`}>
-                                  <Phone className="h-4 w-4 flex-shrink-0" />
-                                  <span>{customer.phone}</span>
-                                </div>
-                              )}
-                              
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Briefcase className="h-4 w-4" />
-                                <span data-testid={`list-active-jobs-${customer.id}`}>
-                                  {customer.activeJobCount}
-                                </span>
-                              </div>
-                              
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleEdit(customer)}
-                                  data-testid={`list-button-edit-${customer.id}`}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDelete(customer.id)}
-                                  data-testid={`list-button-delete-${customer.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+          {/* Main Content - Split Layout */}
+          <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
+            {/* Customer List Panel */}
+            <div className="w-1/2 overflow-auto pr-2">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading customers...</p>
                   </div>
                 </div>
-              ))}
+              ) : customers.length === 0 ? (
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20">
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <User className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No customers yet</h3>
+                    <p className="text-muted-foreground text-center max-w-md mb-4">
+                      Add your first customer to start tracking work orders and viewing them on the map.
+                    </p>
+                    <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-first-customer">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Customer
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : filteredAndSortedCustomers.length === 0 ? (
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20">
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Filter className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No customers match your filters</h3>
+                    <p className="text-muted-foreground text-center max-w-md mb-4">
+                      Try adjusting your filters to see more results.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setFilterCity('');
+                        setFilterActiveJobs('all');
+                      }}
+                      data-testid="button-clear-all-filters"
+                    >
+                      Clear All Filters
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : viewMode === 'cards' ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {filteredAndSortedCustomers.map((customer) => (
+                    <CustomerCard 
+                      key={customer.id} 
+                      customer={customer} 
+                      isSelected={selectedCustomerId === customer.id}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.keys(groupedCustomers).sort().map((letter) => (
+                    <div key={letter} data-testid={`group-letter-${letter}`}>
+                      <h2 className="text-lg font-bold mb-2 text-primary sticky top-0 bg-background/80 backdrop-blur-sm py-1 border-b">
+                        {letter}
+                      </h2>
+                      <div className="space-y-2">
+                        {groupedCustomers[letter].map((customer) => (
+                          <CustomerCard 
+                            key={customer.id} 
+                            customer={customer} 
+                            isSelected={selectedCustomerId === customer.id}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Map Panel */}
+            <div className="w-1/2 rounded-xl overflow-hidden border border-white/20 shadow-lg">
+              <MapContainer
+                center={mapCenter}
+                zoom={customersWithCoords.length > 0 ? 10 : 4}
+                className="h-full w-full"
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <FlyToCustomer customerId={selectedCustomerId} customers={filteredAndSortedCustomers} />
+                {customersWithCoords.map((customer) => {
+                  const lat = parseCoord(customer.latitude)!;
+                  const lng = parseCoord(customer.longitude)!;
+                  const isSelected = selectedCustomerId === customer.id;
+                  
+                  return (
+                    <Marker
+                      key={customer.id}
+                      position={[lat, lng]}
+                      icon={isSelected ? selectedIcon : defaultIcon}
+                      eventHandlers={{
+                        click: () => setSelectedCustomerId(customer.id),
+                      }}
+                    >
+                      <Popup>
+                        <div className="min-w-[200px]">
+                          <h3 className="font-semibold text-base">{getCustomerDisplayName(customer)}</h3>
+                          {customer.companyName && (
+                            <p className="text-sm text-gray-600">{customer.companyName}</p>
+                          )}
+                          <p className="text-sm mt-1">
+                            {customer.streetAddress}
+                            {customer.city && `, ${customer.city}`}
+                            {customer.state && ` ${customer.state}`}
+                          </p>
+                          {customer.phone && (
+                            <p className="text-sm mt-1">{customer.phone}</p>
+                          )}
+                          <div className="mt-2 pt-2 border-t flex justify-between items-center">
+                            <span className="text-xs text-gray-500">
+                              {customer.activeJobCount} active job{customer.activeJobCount !== 1 ? 's' : ''}
+                            </span>
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              <Navigation className="h-3 w-3" />
+                              Directions
+                            </a>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MapContainer>
+              
+              {/* Map overlay for no coordinates */}
+              {customers.length > 0 && customersWithCoords.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-6 text-center max-w-sm mx-4 shadow-xl">
+                    <MapPin className="h-10 w-10 text-violet-500 mx-auto mb-3" />
+                    <h3 className="font-semibold mb-2">No Locations Available</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Add addresses to your customers and click "Locate" to see them on the map.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </main>
       </div>
     </div>
