@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema } from '@shared/schema';
-import { eq, and, inArray, or, sql } from 'drizzle-orm';
+import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments } from '@shared/schema';
+import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
 
@@ -786,5 +786,352 @@ router.post('/counter-proposals/:id/counter', requireAuth, requireRole('contract
     res.status(500).json({ error: 'Failed to create counter-proposal' });
   }
 });
+
+// ============================================================================
+// TEAM MANAGEMENT
+// ============================================================================
+
+// Get all team members (both login-enabled and contact-only)
+router.get('/team-members', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    
+    // Get team members with login capability
+    const loginMembers = await db.query.contractorTeamMembers.findMany({
+      where: and(
+        eq(contractorTeamMembers.leadContractorUserId, contractorUserId),
+        eq(contractorTeamMembers.isActive, true)
+      ),
+      with: {
+        memberUser: true,
+      },
+    });
+    
+    // Get contact-only team members
+    const contactMembers = await db.query.contactTeamMembers.findMany({
+      where: eq(contactTeamMembers.contractorUserId, contractorUserId),
+    });
+    
+    // Format response
+    const formattedLoginMembers = loginMembers.map((m: any) => ({
+      id: m.id,
+      memberId: m.memberUserId,
+      name: [m.memberUser?.firstName, m.memberUser?.lastName].filter(Boolean).join(' ') || m.memberUser?.email || 'Unknown',
+      email: m.memberUser?.email,
+      phone: m.memberUser?.phone,
+      role: m.role,
+      canManageJobs: m.canManageJobs,
+      hasLogin: true,
+      color: generateColorFromId(m.memberUserId),
+      joinedAt: m.joinedAt,
+    }));
+    
+    const formattedContactMembers = contactMembers.map((m: any) => ({
+      id: m.id,
+      memberId: m.id,
+      name: m.name,
+      email: m.email,
+      phone: m.phone,
+      role: m.role,
+      canManageJobs: false,
+      hasLogin: false,
+      color: generateColorFromId(m.id),
+      notes: m.notes,
+    }));
+    
+    res.json({
+      loginMembers: formattedLoginMembers,
+      contactMembers: formattedContactMembers,
+      allMembers: [...formattedLoginMembers, ...formattedContactMembers],
+    });
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
+  }
+});
+
+// Get team calendar - all appointments for contractor and their team
+router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { startDate, endDate } = req.query;
+    
+    // Get all team member IDs
+    const teamMembers = await db.query.contractorTeamMembers.findMany({
+      where: and(
+        eq(contractorTeamMembers.leadContractorUserId, contractorUserId),
+        eq(contractorTeamMembers.isActive, true)
+      ),
+    });
+    
+    const teamMemberUserIds = teamMembers.map(m => m.memberUserId);
+    const allUserIds = [contractorUserId, ...teamMemberUserIds];
+    
+    // Get vendor IDs for all team members
+    const vendorResults = await db.select().from(vendors).where(
+      inArray(vendors.userId, allUserIds)
+    );
+    const vendorIds = vendorResults.map(v => v.id);
+    
+    // Get appointments for all team vendors
+    let appointmentsQuery = db.query.appointments.findMany({
+      where: vendorIds.length > 0 ? inArray(appointments.contractorId, vendorIds) : undefined,
+      with: {
+        smartCase: {
+          with: {
+            property: true,
+          },
+        },
+      },
+      orderBy: (appts, { asc }) => [asc(appts.scheduledStartAt)],
+    });
+    
+    const allAppointments = await appointmentsQuery;
+    
+    // Map vendor IDs back to user IDs
+    const vendorToUserMap = new Map(vendorResults.map(v => [v.id, v.userId]));
+    
+    const formattedAppointments = allAppointments.map((apt: any) => ({
+      id: apt.id,
+      title: apt.title || apt.smartCase?.title || 'Appointment',
+      scheduledStartAt: apt.scheduledStartAt,
+      scheduledEndAt: apt.scheduledEndAt,
+      status: apt.status,
+      contractorId: vendorToUserMap.get(apt.contractorId) || apt.contractorId,
+      address: apt.smartCase?.property?.streetAddress 
+        ? `${apt.smartCase.property.streetAddress}, ${apt.smartCase.property.city || ''}`
+        : null,
+      customerName: apt.smartCase?.property?.name,
+    }));
+    
+    res.json(formattedAppointments);
+  } catch (error) {
+    console.error('Error fetching team calendar:', error);
+    res.status(500).json({ error: 'Failed to fetch team calendar' });
+  }
+});
+
+// Get customers with geocoded locations for map view
+router.get('/customers-map', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    
+    const customers = await db.query.contractorCustomers.findMany({
+      where: and(
+        eq(contractorCustomers.contractorId, contractorUserId),
+        isNotNull(contractorCustomers.latitude),
+        isNotNull(contractorCustomers.longitude)
+      ),
+    });
+    
+    res.json(customers);
+  } catch (error) {
+    console.error('Error fetching customers for map:', error);
+    res.status(500).json({ error: 'Failed to fetch customer locations' });
+  }
+});
+
+// Geocode a customer address (using free Nominatim API)
+router.post('/customers/:customerId/geocode', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { customerId } = req.params;
+    
+    // Verify ownership
+    const customer = await db.query.contractorCustomers.findFirst({
+      where: and(
+        eq(contractorCustomers.id, customerId),
+        eq(contractorCustomers.contractorId, contractorUserId)
+      ),
+    });
+    
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    
+    // Build address string
+    const addressParts = [
+      customer.streetAddress,
+      customer.city,
+      customer.state,
+      customer.zipCode,
+    ].filter(Boolean);
+    
+    if (addressParts.length === 0) {
+      return res.status(400).json({ error: 'No address to geocode' });
+    }
+    
+    const address = addressParts.join(', ');
+    
+    // Call Nominatim API (free OpenStreetMap geocoding)
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+      {
+        headers: {
+          'User-Agent': 'AllAI-Property-Management/1.0',
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Geocoding service unavailable');
+    }
+    
+    const results = await response.json();
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Address not found' });
+    }
+    
+    // Parse and validate lat/lon as numbers
+    const lat = parseFloat(results[0].lat);
+    const lon = parseFloat(results[0].lon);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: 'Invalid coordinates returned' });
+    }
+    
+    // Update customer with coordinates (stored as decimal strings)
+    const [updated] = await db.update(contractorCustomers)
+      .set({
+        latitude: String(lat),
+        longitude: String(lon),
+        geocodedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(contractorCustomers.id, customerId))
+      .returning();
+    
+    res.json({
+      success: true,
+      latitude: lat,
+      longitude: lon,
+      customer: updated,
+    });
+  } catch (error) {
+    console.error('Error geocoding customer:', error);
+    res.status(500).json({ error: 'Failed to geocode address' });
+  }
+});
+
+// Batch geocode all customers without coordinates (limited to 5 at a time)
+router.post('/customers/geocode-all', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    
+    // Get customers without coordinates but with addresses - limit to 5 per batch
+    const customersToGeocode = await db.select().from(contractorCustomers).where(
+      and(
+        eq(contractorCustomers.contractorId, contractorUserId),
+        sql`${contractorCustomers.latitude} IS NULL`,
+        sql`${contractorCustomers.streetAddress} IS NOT NULL`
+      )
+    ).limit(5);
+    
+    const results = {
+      total: customersToGeocode.length,
+      success: 0,
+      failed: 0,
+      errors: [] as string[],
+      remaining: 0,
+    };
+    
+    // Count remaining for user feedback
+    const [countResult] = await db.select({ count: sql`count(*)` }).from(contractorCustomers).where(
+      and(
+        eq(contractorCustomers.contractorId, contractorUserId),
+        sql`${contractorCustomers.latitude} IS NULL`,
+        sql`${contractorCustomers.streetAddress} IS NOT NULL`
+      )
+    );
+    results.remaining = Math.max(0, Number(countResult?.count || 0) - 5);
+    
+    // Rate limit: 1 request per second for Nominatim
+    for (const customer of customersToGeocode) {
+      try {
+        const addressParts = [
+          customer.streetAddress,
+          customer.city,
+          customer.state,
+          customer.zipCode,
+        ].filter(Boolean);
+        
+        if (addressParts.length === 0) continue;
+        
+        const address = addressParts.join(', ');
+        
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+          {
+            headers: {
+              'User-Agent': 'AllAI-Property-Management/1.0',
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.length > 0) {
+            // Parse and validate lat/lon as numbers
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            
+            if (!isNaN(lat) && !isNaN(lon)) {
+              await db.update(contractorCustomers)
+                .set({
+                  latitude: String(lat),
+                  longitude: String(lon),
+                  geocodedAt: new Date(),
+                  updatedAt: new Date(),
+                })
+                .where(eq(contractorCustomers.id, customer.id));
+              results.success++;
+            } else {
+              results.failed++;
+              results.errors.push(`${customer.id}: Invalid coordinates`);
+            }
+          } else {
+            results.failed++;
+            results.errors.push(`${customer.id}: Address not found`);
+          }
+        } else {
+          results.failed++;
+        }
+        
+        // Wait 1.1 seconds between requests (Nominatim rate limit with buffer)
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      } catch (err) {
+        results.failed++;
+      }
+    }
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error batch geocoding customers:', error);
+    res.status(500).json({ error: 'Failed to geocode customers' });
+  }
+});
+
+// Helper function to generate consistent colors from IDs
+function generateColorFromId(id: string): string {
+  const colors = [
+    '#3B82F6', // Blue
+    '#10B981', // Green
+    '#8B5CF6', // Purple
+    '#F59E0B', // Amber
+    '#EF4444', // Red
+    '#06B6D4', // Cyan
+    '#EC4899', // Pink
+    '#84CC16', // Lime
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  
+  return colors[Math.abs(hash) % colors.length];
+}
 
 export default router;

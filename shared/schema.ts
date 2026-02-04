@@ -156,6 +156,10 @@ export const contractorCustomers = pgTable("contractor_customers", {
   state: varchar("state"),
   zipCode: varchar("zip_code"),
   notes: text("notes"),
+  // Geocoding for map display
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  geocodedAt: timestamp("geocoded_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1784,6 +1788,26 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
     references: [organizations.id],
   }),
   scheduledJobs: many(scheduledJobs),
+}));
+
+export const contractorTeamMembersRelations = relations(contractorTeamMembers, ({ one }) => ({
+  leadContractor: one(users, {
+    fields: [contractorTeamMembers.leadContractorUserId],
+    references: [users.id],
+    relationName: 'leadContractor',
+  }),
+  memberUser: one(users, {
+    fields: [contractorTeamMembers.memberUserId],
+    references: [users.id],
+    relationName: 'teamMemberUser',
+  }),
+}));
+
+export const contactTeamMembersRelations = relations(contactTeamMembers, ({ one }) => ({
+  contractor: one(users, {
+    fields: [contactTeamMembers.contractorUserId],
+    references: [users.id],
+  }),
 }));
 
 export const scheduledJobsRelations = relations(scheduledJobs, ({ one }) => ({
