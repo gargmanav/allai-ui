@@ -265,8 +265,8 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                         className="absolute top-0 bottom-0 z-20 pointer-events-none"
                         style={{ 
                           left: currentTimePos,
-                          width: '2px',
-                          backgroundColor: '#EF4444'
+                          width: '1px',
+                          backgroundImage: 'repeating-linear-gradient(to bottom, rgba(239, 68, 68, 0.5) 0px, rgba(239, 68, 68, 0.5) 4px, transparent 4px, transparent 8px)'
                         }}
                       />
                     )}
