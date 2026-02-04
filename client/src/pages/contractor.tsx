@@ -554,15 +554,28 @@ export default function Contractor() {
               </div>
               <button
                 onClick={() => setView("maya" as ViewState)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:scale-105"
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 hover:scale-105"
                 style={{
                   background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
                   border: '1px solid rgba(139, 92, 246, 0.3)',
                   boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(59, 130, 246, 0.35) 100%)';
+                  e.currentTarget.style.boxShadow = '0 6px 24px rgba(139, 92, 246, 0.4)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.15)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                }}
               >
-                <Sparkles className="h-4 w-4 text-violet-500" />
-                <span className="text-sm font-medium text-violet-700 dark:text-violet-400">Ask Maya</span>
+                <Sparkles className="h-4 w-4 text-violet-500 group-hover:text-violet-400 transition-colors" />
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium text-violet-700 dark:text-violet-400 group-hover:text-violet-600 dark:group-hover:text-violet-300 transition-colors">Ask Maya</span>
+                  <span className="text-[10px] text-violet-500/70 group-hover:text-violet-500 transition-colors">"Which job is most promising?"</span>
+                </div>
               </button>
             </div>
 
