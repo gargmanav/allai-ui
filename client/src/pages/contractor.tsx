@@ -209,12 +209,16 @@ export default function Contractor() {
     return uniqueCases.map((c, index) => {
       const color = getBubbleColor(index);
       const customerName = c.customer?.name || c.buildingName || "New Job";
+      // Parse estimatedCost as number to prevent string concatenation
+      const parsedCost = typeof c.estimatedCost === 'string' 
+        ? parseFloat(c.estimatedCost) || 0 
+        : (c.estimatedCost || 0);
       return {
         ...c,
         customerName,
         customerInitials: getInitials(customerName),
         color,
-        estimatedValue: c.estimatedCost || 0,
+        estimatedValue: parsedCost,
       };
     });
   }, [cases, marketplaceCases]);
@@ -735,17 +739,19 @@ export default function Contractor() {
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
             {(() => {
               const requestsCount = newJobsCount;
-              const requestsValue = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).reduce((sum, j) => sum + j.estimatedValue, 0);
+              const requestsValue = jobs
+                .filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status))
+                .reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
               
               const draftQuotes = quotes.filter(q => q.status === 'draft');
               const sentQuotes = quotes.filter(q => q.status === 'sent');
-              const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + parseFloat(q.total || '0'), 0);
+              const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
               
               const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
-              const activeJobsValue = activeJobs.reduce((sum, j) => sum + j.estimatedValue, 0);
+              const activeJobsValue = activeJobs.reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
               
               const approvedQuotes = quotes.filter(q => q.status === 'approved');
-              const totalOwed = approvedQuotes.reduce((sum, q) => sum + parseFloat(q.total || '0'), 0);
+              const totalOwed = approvedQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
               
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
