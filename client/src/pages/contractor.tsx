@@ -753,127 +753,201 @@ export default function Contractor() {
               const approvedQuotes = quotes.filter(q => q.status === 'approved');
               const totalOwed = approvedQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
               
+              // Additional metrics for Jobber-like sub-rows
+              const assessmentCompleted = jobs.filter(j => j.status === 'Assessed').length;
+              const overdueRequests = jobs.filter(j => {
+                const created = new Date(j.createdAt);
+                const daysSince = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+                return ["New", "Pending"].includes(j.status) && daysSince > 7;
+              }).length;
+              const changesRequested = quotes.filter(q => q.status === 'changes_requested').length;
+              const requiresInvoicing = jobs.filter(j => j.status === 'Completed').length;
+              const pastDueInvoices = 0; // Would come from invoices API
+              const awaitingPayment = approvedQuotes.length;
+              
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                  {/* Requests Column - Frosted Glass with Blue Hue */}
+                  {/* Requests Column - Enhanced Frosted Glass */}
                   <button
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(239,246,255,0.85) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(59, 130, 246, 0.15)',
-                      boxShadow: '0 4px 24px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                      background: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 group-hover:from-violet-500/10 group-hover:to-blue-500/20 group-active:from-violet-500/20 group-active:to-blue-500/30 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-blue-400 to-blue-600 group-active:from-violet-500 group-active:to-blue-600" />
+                    {/* Hover overlay with purple-blue gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    {/* Glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
+                    
+                    {/* Top accent bar */}
+                    <div className="h-1 bg-gradient-to-r from-blue-400 to-blue-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
+                    
                     <div className="relative p-4">
+                      {/* Header with icon */}
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Requests</span>
-                        <Briefcase className="h-4 w-4 text-blue-400 group-hover:text-blue-600 transition-colors" />
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Requests</span>
+                        <Briefcase className="h-4 w-4 text-blue-500 group-hover:text-violet-500 transition-colors duration-300" />
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">New</span>
-                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{requestsCount}</span>
+                      
+                      {/* Primary metric */}
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">New</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{requestsCount}</span>
+                      </div>
+                      
+                      {/* Sub-metrics */}
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Assessed</span>
+                          <span className="text-xs font-semibold text-gray-700">{assessmentCompleted}</span>
                         </div>
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Value</span>
-                          <span className="text-sm font-semibold text-blue-600">${requestsValue.toLocaleString()}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Overdue</span>
+                          <span className={`text-xs font-semibold ${overdueRequests > 0 ? 'text-red-500' : 'text-gray-700'}`}>{overdueRequests}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Value</span>
+                          <span className="text-sm font-bold text-blue-600">${requestsValue.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </button>
 
-                  {/* Quotes Column - Frosted Glass with Amber Hue */}
+                  {/* Quotes Column - Enhanced Frosted Glass */}
                   <button
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(254,249,239,0.85) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(245, 158, 11, 0.15)',
-                      boxShadow: '0 4px 24px rgba(245, 158, 11, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                      background: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 group-hover:from-violet-500/10 group-hover:to-amber-500/20 group-active:from-violet-500/20 group-active:to-amber-500/30 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600 group-active:from-violet-500 group-active:to-amber-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
+                    
+                    <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
+                    
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Quotes</span>
-                        <Receipt className="h-4 w-4 text-amber-400 group-hover:text-amber-600 transition-colors" />
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Quotes</span>
+                        <Receipt className="h-4 w-4 text-amber-500 group-hover:text-violet-500 transition-colors duration-300" />
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Draft</span>
-                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{draftQuotes.length}</span>
+                      
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Draft</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{draftQuotes.length}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Sent</span>
+                          <span className="text-xs font-semibold text-gray-700">{sentQuotes.length}</span>
                         </div>
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Awaiting</span>
-                          <span className="text-sm font-semibold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Changes</span>
+                          <span className={`text-xs font-semibold ${changesRequested > 0 ? 'text-orange-500' : 'text-gray-700'}`}>{changesRequested}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Awaiting</span>
+                          <span className="text-sm font-bold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </button>
 
-                  {/* Jobs Column - Frosted Glass with Green Hue */}
+                  {/* Jobs Column - Enhanced Frosted Glass */}
                   <button
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("activeJobs" as ViewState)}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,253,244,0.85) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(34, 197, 94, 0.15)',
-                      boxShadow: '0 4px 24px rgba(34, 197, 94, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                      background: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/5 group-hover:from-violet-500/10 group-hover:to-green-500/20 group-active:from-violet-500/20 group-active:to-green-500/30 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-green-400 to-green-600 group-active:from-violet-500 group-active:to-green-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
+                    
+                    <div className="h-1 bg-gradient-to-r from-green-400 to-green-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
+                    
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Jobs</span>
-                        <CheckCircle className="h-4 w-4 text-green-400 group-hover:text-green-600 transition-colors" />
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Jobs</span>
+                        <CheckCircle className="h-4 w-4 text-green-500 group-hover:text-violet-500 transition-colors duration-300" />
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Active</span>
-                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{activeJobs.length}</span>
+                      
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Active</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeJobs.length}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Requires Invoice</span>
+                          <span className={`text-xs font-semibold ${requiresInvoicing > 0 ? 'text-blue-500' : 'text-gray-700'}`}>{requiresInvoicing}</span>
                         </div>
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Value</span>
-                          <span className="text-sm font-semibold text-green-600">${activeJobsValue.toLocaleString()}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Scheduled</span>
+                          <span className="text-xs font-semibold text-gray-700">{scheduledJobsCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Value</span>
+                          <span className="text-sm font-bold text-green-600">${activeJobsValue.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </button>
 
-                  {/* Invoices Column - Frosted Glass with Violet Hue */}
+                  {/* Invoices Column - Enhanced Frosted Glass */}
                   <button
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
-                    className="group relative rounded-xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-violet-400/50"
                     style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(245,243,255,0.85) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(139, 92, 246, 0.15)',
-                      boxShadow: '0 4px 24px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
+                      background: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 to-violet-500/5 group-hover:from-violet-500/15 group-hover:to-blue-500/20 group-active:from-violet-500/25 group-active:to-blue-500/35 transition-all duration-300" />
-                    <div className="h-1.5 bg-gradient-to-r from-violet-400 to-violet-600 group-active:from-violet-500 group-active:to-blue-600" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
+                    
+                    <div className="h-1 bg-gradient-to-r from-violet-400 to-violet-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
+                    
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Invoices</span>
-                        <DollarSign className="h-4 w-4 text-violet-400 group-hover:text-violet-600 transition-colors" />
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Invoices</span>
+                        <DollarSign className="h-4 w-4 text-violet-500 group-hover:text-violet-600 transition-colors duration-300" />
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Owed</span>
-                          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{approvedQuotes.length}</span>
+                      
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Owed</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{approvedQuotes.length}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Past Due</span>
+                          <span className={`text-xs font-semibold ${pastDueInvoices > 0 ? 'text-red-500' : 'text-gray-700'}`}>{pastDueInvoices}</span>
                         </div>
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-xs text-gray-500">Total</span>
-                          <span className="text-sm font-semibold text-violet-600">${totalOwed.toLocaleString()}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Awaiting</span>
+                          <span className="text-xs font-semibold text-gray-700">{awaitingPayment}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Total</span>
+                          <span className="text-sm font-bold text-violet-600">${totalOwed.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -882,38 +956,68 @@ export default function Contractor() {
               );
             })()}
 
-            {/* Today's Schedule - Mini Calendar with Time Slots */}
+            {/* Today's Schedule - Jobber-Style with Dollar Values */}
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                    Today's Schedule
-                  </h3>
-                  {/* Status Pills */}
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
-                      {todaysAppointments.length} Total
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-600">
-                      {todaysAppointments.filter(a => a.status === 'Confirmed' || a.status === 'Pending').length} To Go
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-600">
-                      {todaysAppointments.filter(a => a.status === 'In Progress').length} Active
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-600">
-                      {todaysAppointments.filter(a => a.status === 'Completed').length} Done
-                    </span>
-                  </div>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-blue-600 hover:text-blue-700 h-7 text-xs font-medium"
-                  onClick={() => navigate("/contractor-schedule")}
-                >
-                  View Calendar
-                </Button>
-              </div>
+              {(() => {
+                // Calculate job values for today's appointments
+                const toGoAppts = todaysAppointments.filter(a => a.status === 'Confirmed' || a.status === 'Pending');
+                const activeAppts = todaysAppointments.filter(a => a.status === 'In Progress');
+                const completedAppts = todaysAppointments.filter(a => a.status === 'Completed');
+                
+                // Link appointments to jobs to get values
+                const getApptValue = (apt: typeof todaysAppointments[0]) => {
+                  const linkedJob = jobs.find(j => j.id === apt.caseId);
+                  return linkedJob?.estimatedValue || 0;
+                };
+                
+                const totalValue = todaysAppointments.reduce((sum, a) => sum + getApptValue(a), 0);
+                const toGoValue = toGoAppts.reduce((sum, a) => sum + getApptValue(a), 0);
+                const activeValue = activeAppts.reduce((sum, a) => sum + getApptValue(a), 0);
+                const completedValue = completedAppts.reduce((sum, a) => sum + getApptValue(a), 0);
+                
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                          Today's Appointments
+                        </h3>
+                        {/* Enhanced Status Pills with Values */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-gray-50 border border-gray-100">
+                            <span className="text-sm font-bold text-gray-800">{todaysAppointments.length}</span>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-wide">Total</span>
+                            <span className="text-[10px] font-semibold text-gray-600">${totalValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-blue-50 border border-blue-100">
+                            <span className="text-sm font-bold text-blue-700">{toGoAppts.length}</span>
+                            <span className="text-[9px] text-blue-500 uppercase tracking-wide">To Go</span>
+                            <span className="text-[10px] font-semibold text-blue-600">${toGoValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-amber-50 border border-amber-100">
+                            <span className="text-sm font-bold text-amber-700">{activeAppts.length}</span>
+                            <span className="text-[9px] text-amber-500 uppercase tracking-wide">Active</span>
+                            <span className="text-[10px] font-semibold text-amber-600">${activeValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-green-50 border border-green-100">
+                            <span className="text-sm font-bold text-green-700">{completedAppts.length}</span>
+                            <span className="text-[9px] text-green-500 uppercase tracking-wide">Done</span>
+                            <span className="text-[10px] font-semibold text-green-600">${completedValue.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-blue-600 hover:text-blue-700 h-7 text-xs font-medium"
+                        onClick={() => navigate("/contractor-schedule")}
+                      >
+                        View Calendar
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
               
               {/* Mini Calendar Timeline */}
               <div 
