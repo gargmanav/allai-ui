@@ -519,184 +519,285 @@ export default function Contractor() {
         {/* Main Content */}
         <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
-        {/* Landing View - AI-First with Job Bubbles */}
+        {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
-          <div className="flex-1 flex flex-col items-center justify-center -mt-16">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-semibold mb-2">
-                Hi, {firstName}
-              </h1>
-              <p className="text-muted-foreground">
-                {newJobsCount} new jobs waiting • {totalUnreadMessages} unread messages
-              </p>
+          <div className="flex-1 flex flex-col pt-4">
+            {/* Top Row - Greeting + Maya Button */}
+            <div className="flex items-start justify-between mb-8">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {firstName}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {format(new Date(), 'EEEE, MMMM d')}
+                </p>
+              </div>
+              <button
+                onClick={() => setView("maya" as ViewState)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
+                }}
+              >
+                <Sparkles className="h-4 w-4 text-violet-500" />
+                <span className="text-sm font-medium text-violet-700 dark:text-violet-400">Ask Maya</span>
+              </button>
             </div>
 
-            {/* Maya AI Input */}
-            <form onSubmit={handleMayaSubmit} className="w-full max-w-xl mb-8">
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 rounded-full opacity-30 blur-lg group-hover:opacity-50 group-focus-within:opacity-60 transition-opacity duration-300" />
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Ask Maya about your schedule, jobs, quotes..."
-                  value={mayaInput}
-                  onChange={(e) => setMayaInput(e.target.value)}
-                  className="relative h-14 pl-5 pr-24 text-lg rounded-full border-2 border-muted-foreground/20 focus:border-primary/50 shadow-lg bg-background"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <Button type="button" variant="ghost" size="icon" className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground">
-                    <Mic className="h-5 w-5" />
-                  </Button>
-                  <Button type="submit" size="icon" className="h-10 w-10 rounded-full" disabled={!mayaInput.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </form>
-
-            {/* Job Bubbles - Like Contractor Bubbles for Homeowners */}
-            {jobs.length > 0 && (
-              <div className="w-full max-w-xl mb-8">
-                <div className="text-sm text-muted-foreground mb-4 text-center">Your Jobs</div>
-                <div className="flex items-center justify-center gap-6 flex-wrap">
-                  {/* Maya AI Bubble */}
-                  <button
-                    onClick={() => {
-                      setView("maya");
-                      setSelectedCaseId(null);
+            {/* What's Next - Hero Card */}
+            {(() => {
+              const nextAppointment = todaysAppointments[0];
+              const nextJob = jobs.find(j => ["Scheduled", "Confirmed"].includes(j.status));
+              
+              if (nextAppointment) {
+                const aptTime = typeof nextAppointment.scheduledAt === 'string' ? parseISO(nextAppointment.scheduledAt) : nextAppointment.scheduledAt;
+                const timeStr = format(aptTime, 'h:mm a');
+                const now = new Date();
+                const diffMs = new Date(aptTime).getTime() - now.getTime();
+                const diffMins = Math.round(diffMs / 60000);
+                const timeUntil = diffMins > 60 
+                  ? `in ${Math.round(diffMins / 60)}h ${diffMins % 60}m`
+                  : diffMins > 0 
+                    ? `in ${diffMins} min` 
+                    : 'now';
+                
+                return (
+                  <div 
+                    className="mb-8 p-6 rounded-2xl cursor-pointer hover:shadow-lg transition-all"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(59, 130, 246, 0.2)',
+                      boxShadow: '0 8px 32px rgba(59, 130, 246, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)'
                     }}
-                    className="flex flex-col items-center gap-2 transition-all group"
+                    onClick={() => navigate("/contractor-schedule")}
                   >
-                    <div 
-                      className="relative w-16 h-16 rounded-full flex items-center justify-center transition-all group-hover:scale-105"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
-                        backdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
-                        border: '2.5px solid rgba(139, 92, 246, 0.4)',
-                        boxShadow: 'inset 0 8px 20px rgba(255,255,255,0.8), 0 8px 24px rgba(139, 92, 246, 0.25)'
-                      }}
-                    >
-                      <Sparkles className="h-7 w-7 text-violet-500 animate-pulse" />
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Next Up</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Maya</span>
-                    <span className="text-xs text-muted-foreground">AI Assistant</span>
-                  </button>
-
-                  {/* Job Bubbles */}
-                  {jobs.slice(0, 4).map((job) => {
-                    const unread = getUnreadCount(job);
-                    const isSelected = selectedCaseId === job.id;
-                    
-                    return (
-                      <button
-                        key={job.id}
-                        onClick={() => handleSelectCase(job.id)}
-                        className="flex flex-col items-center gap-2 transition-all"
-                      >
-                        <div 
-                          className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all ${
-                            isSelected ? `${job.bgColor} ring-2 ${job.ringColor} ring-offset-2 ring-offset-background` : ""
-                          }`}
-                          style={isSelected 
-                            ? { 
-                                boxShadow: `0 0 28px ${job.glowColor}, inset 0 3px 6px rgba(255,255,255,0.5), 0 8px 20px rgba(0,0,0,0.2)`,
-                                border: '1.5px solid rgba(255,255,255,0.7)'
-                              } 
-                            : { 
-                                background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.8) 25%, rgba(220,230,250,0.6) 50%, rgba(200,215,245,0.45) 75%, rgba(180,200,235,0.35) 100%)',
-                                backdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
-                                border: '2.5px solid rgba(255,255,255,0.9)',
-                                boxShadow: 'inset 0 8px 20px rgba(255,255,255,1), inset 0 -6px 12px rgba(100,130,200,0.1), 0 16px 48px rgba(0,0,0,0.15)'
-                              }
-                          }
-                        >
-                          {unread > 0 && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-lg">
-                              {unread}
-                            </div>
-                          )}
-                          <span className={`text-lg font-semibold ${isSelected ? job.textColor : "text-gray-600 dark:text-gray-400"}`}>
-                            {job.customerInitials}
-                          </span>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      {nextAppointment.title || 'Scheduled Appointment'}
+                    </h2>
+                    <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">{timeStr}</span>
+                        <span className="text-blue-600 font-medium">({timeUntil})</span>
+                      </div>
+                      {nextAppointment.address && (
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="h-4 w-4" />
+                          <span>{nextAppointment.address}</span>
                         </div>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[80px] truncate">
-                          {job.customerName.split(" ")[0]}
-                        </span>
-                        <span className="text-xs text-muted-foreground">${job.estimatedValue}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      )}
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button size="sm" className="rounded-full">
+                        View Details
+                        <ExternalLink className="h-3 w-3 ml-1.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              } else if (nextJob) {
+                return (
+                  <div 
+                    className="mb-8 p-6 rounded-2xl cursor-pointer hover:shadow-lg transition-all"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,255,250,0.95) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      boxShadow: '0 8px 32px rgba(34, 197, 94, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)'
+                    }}
+                    onClick={() => handleSelectCase(nextJob.id)}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Active Job</span>
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      {nextJob.title}
+                    </h2>
+                    <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
+                      <span>{nextJob.customerName}</span>
+                      <span className="text-green-600 font-semibold">${nextJob.estimatedValue}</span>
+                    </div>
+                  </div>
+                );
+              } else {
+                return (
+                  <div 
+                    className="mb-8 p-6 rounded-2xl text-center"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
+                      border: '1px solid rgba(0,0,0,0.05)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+                    }}
+                  >
+                    <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-gray-500">No upcoming appointments</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="mt-2 text-blue-600"
+                      onClick={() => navigate("/contractor-schedule")}
+                    >
+                      Schedule a job
+                    </Button>
+                  </div>
+                );
+              }
+            })()}
 
-            {/* Status Badges - Compact row for New Jobs and Active */}
-            <div className="flex items-center gap-3 mt-6 mb-6">
+            {/* Needs Action - Three Cards */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              {/* New Jobs Card */}
               <button
                 onClick={() => setView("newJobs" as ViewState)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:scale-105"
+                className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] hover:shadow-md"
                 style={{
                   background: newJobsCount > 0 
-                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)'
-                    : 'rgba(0,0,0,0.05)',
-                  border: newJobsCount > 0 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(0,0,0,0.1)'
+                    ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(239,246,255,0.95) 100%)'
+                    : 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                  backdropFilter: 'blur(12px)',
+                  border: newJobsCount > 0 ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(0,0,0,0.05)',
+                  boxShadow: newJobsCount > 0 
+                    ? '0 4px 16px rgba(59, 130, 246, 0.08)' 
+                    : '0 2px 8px rgba(0,0,0,0.02)'
                 }}
               >
-                <Briefcase className={`h-4 w-4 ${newJobsCount > 0 ? 'text-blue-600' : 'text-gray-400'}`} />
-                <span className={`text-sm font-medium ${newJobsCount > 0 ? 'text-blue-700' : 'text-gray-500'}`}>
-                  {newJobsCount} New
-                </span>
+                <div className="flex items-center justify-between mb-2">
+                  <Briefcase className={`h-5 w-5 ${newJobsCount > 0 ? 'text-blue-500' : 'text-gray-300'}`} />
+                  {newJobsCount > 0 && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                      {newJobsCount}
+                    </span>
+                  )}
+                </div>
+                <div className={`text-lg font-semibold ${newJobsCount > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {newJobsCount > 0 ? `${newJobsCount} New Jobs` : 'No new jobs'}
+                </div>
+                <div className={`text-sm ${newJobsCount > 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+                  {newJobsCount > 0 ? `$${jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).reduce((sum, j) => sum + j.estimatedValue, 0).toLocaleString()} value` : 'Check job board'}
+                </div>
               </button>
-              
-              <button
-                onClick={() => setView("activeJobs" as ViewState)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:scale-105"
-                style={{
-                  background: activeJobsCount > 0 
-                    ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.1) 100%)'
-                    : 'rgba(0,0,0,0.05)',
-                  border: activeJobsCount > 0 ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(0,0,0,0.1)'
-                }}
-              >
-                <CheckCircle className={`h-4 w-4 ${activeJobsCount > 0 ? 'text-green-600' : 'text-gray-400'}`} />
-                <span className={`text-sm font-medium ${activeJobsCount > 0 ? 'text-green-700' : 'text-gray-500'}`}>
-                  {activeJobsCount} Active
-                </span>
-              </button>
+
+              {/* Quotes Expiring Card */}
+              {(() => {
+                const expiringQuotes = quotes.filter(q => {
+                  if (!q.expiresAt || q.status !== 'sent') return false;
+                  const expiry = typeof q.expiresAt === 'string' ? parseISO(q.expiresAt) : q.expiresAt;
+                  const daysUntil = Math.ceil((new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  return daysUntil <= 7 && daysUntil >= 0;
+                });
+                const hasExpiring = expiringQuotes.length > 0;
+                
+                return (
+                  <button
+                    onClick={() => navigate("/quotes")}
+                    className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] hover:shadow-md"
+                    style={{
+                      background: hasExpiring 
+                        ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(254,249,239,0.95) 100%)'
+                        : 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                      backdropFilter: 'blur(12px)',
+                      border: hasExpiring ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(0,0,0,0.05)',
+                      boxShadow: hasExpiring 
+                        ? '0 4px 16px rgba(245, 158, 11, 0.08)' 
+                        : '0 2px 8px rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <Receipt className={`h-5 w-5 ${hasExpiring ? 'text-amber-500' : 'text-gray-300'}`} />
+                      {hasExpiring && (
+                        <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                          {expiringQuotes.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-lg font-semibold ${hasExpiring ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {hasExpiring ? `${expiringQuotes.length} Expiring` : 'Quotes OK'}
+                    </div>
+                    <div className={`text-sm ${hasExpiring ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                      {hasExpiring ? 'Review this week' : 'All up to date'}
+                    </div>
+                  </button>
+                );
+              })()}
+
+              {/* Money Owed Card */}
+              {(() => {
+                // Calculate outstanding from approved quotes that aren't fully paid
+                const pendingPayments = quotes.filter(q => q.status === 'approved');
+                const totalOwed = pendingPayments.reduce((sum, q) => sum + parseFloat(q.total || '0'), 0);
+                const hasOwed = totalOwed > 0;
+                
+                return (
+                  <button
+                    onClick={() => navigate("/quotes")}
+                    className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] hover:shadow-md"
+                    style={{
+                      background: hasOwed 
+                        ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,253,244,0.95) 100%)'
+                        : 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                      backdropFilter: 'blur(12px)',
+                      border: hasOwed ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(0,0,0,0.05)',
+                      boxShadow: hasOwed 
+                        ? '0 4px 16px rgba(34, 197, 94, 0.08)' 
+                        : '0 2px 8px rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <DollarSign className={`h-5 w-5 ${hasOwed ? 'text-green-500' : 'text-gray-300'}`} />
+                      {hasOwed && (
+                        <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                          {pendingPayments.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-lg font-semibold ${hasOwed ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {hasOwed ? `$${totalOwed.toLocaleString()}` : 'All collected'}
+                    </div>
+                    <div className={`text-sm ${hasOwed ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
+                      {hasOwed ? 'Awaiting payment' : 'No outstanding'}
+                    </div>
+                  </button>
+                );
+              })()}
             </div>
 
-            {/* Today's Schedule - Main Focus */}
-            <div className="w-full max-w-xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            {/* Today's Schedule - Compact */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
                   Today's Schedule
-                </h2>
+                </h3>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="text-blue-600 hover:text-blue-700"
+                  className="text-blue-600 hover:text-blue-700 h-7 text-xs"
                   onClick={() => navigate("/contractor-schedule")}
                 >
                   View All
-                  <ExternalLink className="h-3 w-3 ml-1" />
                 </Button>
               </div>
               
               {todaysAppointments.length === 0 ? (
                 <div 
-                  className="rounded-2xl p-8 text-center"
+                  className="rounded-xl p-6 text-center"
                   style={{
                     background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
-                    border: '1px solid rgba(0,0,0,0.05)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                    border: '1px solid rgba(0,0,0,0.05)'
                   }}
                 >
-                  <Calendar className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                  <p className="text-gray-500 mb-3">No appointments scheduled for today</p>
+                  <p className="text-gray-400 text-sm">No appointments today</p>
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm" 
-                    className="rounded-full"
+                    className="mt-1 text-blue-600 h-7 text-xs"
                     onClick={() => navigate("/contractor-schedule")}
                   >
                     <Plus className="h-4 w-4 mr-1" />
