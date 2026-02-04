@@ -144,8 +144,8 @@ export default function Contractor() {
       setTimeout(() => {
         setMayaSuggestionIndex((prev) => (prev + 1) % mayaSuggestions.length);
         setShowMayaBubble(true);
-      }, 200);
-    }, 3000);
+      }, 150);
+    }, 2000);
     return () => clearInterval(interval);
   }, [mayaHovered]);
   
