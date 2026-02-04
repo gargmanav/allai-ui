@@ -72,15 +72,26 @@ const customerFormSchema = z.object({
 type CustomerFormData = z.infer<typeof customerFormSchema>;
 
 // Custom marker icons
-// Modern AI-style map pins - using solid fills to avoid SVG ID collisions
+// Modern AI-style map pins - vibrant teal-to-purple gradient hue matching the Contractor Hub logo
+// Using unique static IDs since these are module-level constants
+const defaultPinGradId = `pinGrad_default_${Math.random().toString(36).slice(2)}`;
+const selectedPinGradId = `pinGrad_selected_${Math.random().toString(36).slice(2)}`;
+
 const defaultIcon = new L.DivIcon({
   className: 'custom-pin-marker',
   html: `
     <div style="position: relative; width: 32px; height: 44px;">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" width="32" height="44" style="filter: drop-shadow(0 3px 4px rgba(99, 102, 241, 0.5));">
-        <path d="M16 1C8 1 2 7 2 15C2 26 16 43 16 43S30 26 30 15C30 7 24 1 16 1Z" fill="#8b5cf6"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" width="32" height="44" style="filter: drop-shadow(0 3px 6px rgba(20, 184, 166, 0.5));">
+        <defs>
+          <linearGradient id="${defaultPinGradId}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#14b8a6"/>
+            <stop offset="50%" stop-color="#8b5cf6"/>
+            <stop offset="100%" stop-color="#6366f1"/>
+          </linearGradient>
+        </defs>
+        <path d="M16 1C8 1 2 7 2 15C2 26 16 43 16 43S30 26 30 15C30 7 24 1 16 1Z" fill="url(#${defaultPinGradId})"/>
         <circle cx="16" cy="15" r="6" fill="white"/>
-        <circle cx="16" cy="15" r="3" fill="#6366f1"/>
+        <circle cx="16" cy="15" r="3" fill="#14b8a6"/>
       </svg>
     </div>
   `,
@@ -93,11 +104,18 @@ const selectedIcon = new L.DivIcon({
   className: 'custom-pin-marker selected-pin',
   html: `
     <div style="position: relative; width: 44px; height: 56px;">
-      <div style="position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; background: rgba(139, 92, 246, 0.3); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 56" width="44" height="56" style="position: relative; z-index: 2; filter: drop-shadow(0 4px 6px rgba(139, 92, 246, 0.6));">
-        <path d="M22 2C12 2 4 10 4 20C4 34 22 54 22 54S40 34 40 20C40 10 32 2 22 2Z" fill="#a855f7"/>
+      <div style="position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(139, 92, 246, 0.4)); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 56" width="44" height="56" style="position: relative; z-index: 2; filter: drop-shadow(0 4px 8px rgba(20, 184, 166, 0.6));">
+        <defs>
+          <linearGradient id="${selectedPinGradId}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#2dd4bf"/>
+            <stop offset="40%" stop-color="#8b5cf6"/>
+            <stop offset="100%" stop-color="#6366f1"/>
+          </linearGradient>
+        </defs>
+        <path d="M22 2C12 2 4 10 4 20C4 34 22 54 22 54S40 34 40 20C40 10 32 2 22 2Z" fill="url(#${selectedPinGradId})"/>
         <circle cx="22" cy="20" r="8" fill="white"/>
-        <circle cx="22" cy="20" r="4" fill="#7c3aed"/>
+        <circle cx="22" cy="20" r="4" fill="#14b8a6"/>
         <circle cx="20" cy="18" r="1.5" fill="white" opacity="0.7"/>
       </svg>
     </div>
