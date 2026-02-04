@@ -755,22 +755,31 @@ export default function Contractor() {
               
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                  {/* Requests Column - Frosted Glass with Blue Hue on Hover */}
+                  {/* Requests Column - Enhanced Frosted Glass with Blue Hue on Hover */}
                   <button
                     className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(59,130,246,0.2)] focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 255, 0.75) 100%)',
-                      backdropFilter: 'blur(24px) saturate(180%)',
-                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: '1px solid rgba(255, 255, 255, 0.5)',
-                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                      background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.85) 25%, rgba(225,235,252,0.7) 50%, rgba(210,225,250,0.55) 75%, rgba(195,215,245,0.45) 100%)',
+                      backdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.7)',
+                      boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.8), inset 0 -3px 8px rgba(100,130,200,0.08), 0 8px 32px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.3)'
                     }}
                   >
                     {/* Hover overlay with blue gradient hue */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 via-blue-300/0 to-sky-400/0 group-hover:from-blue-400/15 group-hover:via-blue-300/10 group-hover:to-sky-400/20 transition-all duration-500" />
                     {/* Glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 50px rgba(59, 130, 246, 0.12)' }} />
+                    
+                    {/* Frosted blue-gray top bar */}
+                    <div 
+                      className="h-1.5" 
+                      style={{ 
+                        background: 'linear-gradient(90deg, rgba(180,195,220,0.6) 0%, rgba(160,180,210,0.5) 50%, rgba(180,195,220,0.6) 100%)',
+                        backdropFilter: 'blur(8px)'
+                      }} 
+                    />
                     
                     <div className="relative p-4">
                       {/* Header with icon */}
@@ -815,22 +824,31 @@ export default function Contractor() {
                     </div>
                   </button>
 
-                  {/* Quotes Column - Frosted Glass with Amber Hue on Hover */}
+                  {/* Quotes Column - Enhanced Frosted Glass with Amber Hue on Hover */}
                   <button
                     className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(245,158,11,0.2)] focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 252, 248, 0.75) 100%)',
-                      backdropFilter: 'blur(24px) saturate(180%)',
-                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: '1px solid rgba(255, 255, 255, 0.5)',
-                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                      background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.85) 25%, rgba(225,235,252,0.7) 50%, rgba(210,225,250,0.55) 75%, rgba(195,215,245,0.45) 100%)',
+                      backdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.7)',
+                      boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.8), inset 0 -3px 8px rgba(100,130,200,0.08), 0 8px 32px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.3)'
                     }}
                   >
                     {/* Hover overlay with amber gradient hue */}
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-400/0 via-yellow-300/0 to-orange-400/0 group-hover:from-amber-400/15 group-hover:via-yellow-300/10 group-hover:to-orange-400/18 transition-all duration-500" />
                     {/* Glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 50px rgba(245, 158, 11, 0.12)' }} />
+                    
+                    {/* Frosted blue-gray top bar */}
+                    <div 
+                      className="h-1.5" 
+                      style={{ 
+                        background: 'linear-gradient(90deg, rgba(180,195,220,0.6) 0%, rgba(160,180,210,0.5) 50%, rgba(180,195,220,0.6) 100%)',
+                        backdropFilter: 'blur(8px)'
+                      }} 
+                    />
                     
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -872,22 +890,31 @@ export default function Contractor() {
                     </div>
                   </button>
 
-                  {/* Jobs Column - Frosted Glass with Teal/Green Hue on Hover */}
+                  {/* Jobs Column - Enhanced Frosted Glass with Teal/Green Hue on Hover */}
                   <button
                     className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(20,184,166,0.2)] focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:ring-offset-2"
                     onClick={() => setView("activeJobs" as ViewState)}
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 255, 252, 0.75) 100%)',
-                      backdropFilter: 'blur(24px) saturate(180%)',
-                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: '1px solid rgba(255, 255, 255, 0.5)',
-                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                      background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.85) 25%, rgba(225,235,252,0.7) 50%, rgba(210,225,250,0.55) 75%, rgba(195,215,245,0.45) 100%)',
+                      backdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.7)',
+                      boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.8), inset 0 -3px 8px rgba(100,130,200,0.08), 0 8px 32px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.3)'
                     }}
                   >
                     {/* Hover overlay with teal/green gradient hue */}
                     <div className="absolute inset-0 bg-gradient-to-br from-teal-400/0 via-emerald-300/0 to-green-400/0 group-hover:from-teal-400/15 group-hover:via-emerald-300/10 group-hover:to-green-400/18 transition-all duration-500" />
                     {/* Glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 50px rgba(20, 184, 166, 0.12)' }} />
+                    
+                    {/* Frosted blue-gray top bar */}
+                    <div 
+                      className="h-1.5" 
+                      style={{ 
+                        background: 'linear-gradient(90deg, rgba(180,195,220,0.6) 0%, rgba(160,180,210,0.5) 50%, rgba(180,195,220,0.6) 100%)',
+                        backdropFilter: 'blur(8px)'
+                      }} 
+                    />
                     
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -929,22 +956,31 @@ export default function Contractor() {
                     </div>
                   </button>
 
-                  {/* Invoices Column - Frosted Glass with Violet Hue on Hover */}
+                  {/* Invoices Column - Enhanced Frosted Glass with Violet Hue on Hover */}
                   <button
                     className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.2)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(252, 248, 255, 0.75) 100%)',
-                      backdropFilter: 'blur(24px) saturate(180%)',
-                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: '1px solid rgba(255, 255, 255, 0.5)',
-                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                      background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.85) 25%, rgba(225,235,252,0.7) 50%, rgba(210,225,250,0.55) 75%, rgba(195,215,245,0.45) 100%)',
+                      backdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(1.02)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.7)',
+                      boxShadow: 'inset 0 4px 12px rgba(255,255,255,0.8), inset 0 -3px 8px rgba(100,130,200,0.08), 0 8px 32px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.3)'
                     }}
                   >
                     {/* Hover overlay with violet gradient hue */}
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-fuchsia-400/0 group-hover:from-violet-400/15 group-hover:via-purple-300/10 group-hover:to-fuchsia-400/18 transition-all duration-500" />
                     {/* Glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 50px rgba(139, 92, 246, 0.12)' }} />
+                    
+                    {/* Frosted blue-gray top bar */}
+                    <div 
+                      className="h-1.5" 
+                      style={{ 
+                        background: 'linear-gradient(90deg, rgba(180,195,220,0.6) 0%, rgba(160,180,210,0.5) 50%, rgba(180,195,220,0.6) 100%)',
+                        backdropFilter: 'blur(8px)'
+                      }} 
+                    />
                     
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
