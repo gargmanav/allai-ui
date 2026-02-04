@@ -54,6 +54,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { TeamCalendar } from "@/components/contractor/team-calendar";
+import { TeamTimeline } from "@/components/contractor/team-timeline";
+import { Sparkline } from "@/components/contractor/sparkline";
 import { CustomersContent } from "@/pages/customers";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
@@ -740,6 +742,13 @@ export default function Contractor() {
               const pastDueInvoices = 0; // Would come from invoices API
               const awaitingPayment = approvedQuotes.length;
               
+              // Mock sparkline data for "Last 7 days" trend visualization
+              // In production, this would come from historical data API
+              const requestsSparkline = { received: [3, 5, 2, 8, 4, 6, requestsCount], converted: [1, 2, 1, 4, 3, 3, assessmentCompleted] };
+              const quotesSparkline = { sent: [2, 1, 3, 4, 2, 5, sentQuotes.length], converted: [1, 1, 2, 2, 1, 3, approvedQuotes.length] };
+              const jobsSparkline = { created: [2, 3, 1, 4, 5, 2, activeJobs.length], completed: [1, 2, 1, 3, 4, 2, requiresInvoicing] };
+              const invoicesSparkline = { sent: [3, 2, 4, 1, 5, 3, awaitingPayment], paid: [2, 1, 3, 1, 4, 2, 0] };
+              
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
                   {/* Requests Column - Enhanced Frosted Glass */}
@@ -778,8 +787,8 @@ export default function Contractor() {
                       {/* Sub-metrics */}
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-gray-500">Assessed</span>
-                          <span className="text-xs font-semibold text-gray-700">{assessmentCompleted}</span>
+                          <span className="text-[11px] text-gray-500">Converted</span>
+                          <span className="text-xs font-semibold text-emerald-600">{assessmentCompleted}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Overdue</span>
@@ -789,6 +798,18 @@ export default function Contractor() {
                           <span className="text-[11px] text-gray-500">Value</span>
                           <span className="text-sm font-bold text-blue-600">${requestsValue.toLocaleString()}</span>
                         </div>
+                      </div>
+                      
+                      {/* Last 7 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
+                        <Sparkline 
+                          data={requestsSparkline.received}
+                          color="#3b82f6"
+                          secondaryData={requestsSparkline.converted}
+                          secondaryColor="#10b981"
+                          labels={{ primary: "Received", secondary: "Converted" }}
+                        />
                       </div>
                     </div>
                   </button>
@@ -823,8 +844,8 @@ export default function Contractor() {
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-gray-500">Sent</span>
-                          <span className="text-xs font-semibold text-gray-700">{sentQuotes.length}</span>
+                          <span className="text-[11px] text-gray-500">Approved</span>
+                          <span className="text-xs font-semibold text-emerald-600">{approvedQuotes.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Changes</span>
@@ -834,6 +855,18 @@ export default function Contractor() {
                           <span className="text-[11px] text-gray-500">Awaiting</span>
                           <span className="text-sm font-bold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
                         </div>
+                      </div>
+                      
+                      {/* Last 7 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
+                        <Sparkline 
+                          data={quotesSparkline.sent}
+                          color="#f59e0b"
+                          secondaryData={quotesSparkline.converted}
+                          secondaryColor="#10b981"
+                          labels={{ primary: "Sent", secondary: "Converted" }}
+                        />
                       </div>
                     </div>
                   </button>
@@ -868,8 +901,8 @@ export default function Contractor() {
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-gray-500">Requires Invoice</span>
-                          <span className={`text-xs font-semibold ${requiresInvoicing > 0 ? 'text-blue-500' : 'text-gray-700'}`}>{requiresInvoicing}</span>
+                          <span className="text-[11px] text-gray-500">Completed</span>
+                          <span className="text-xs font-semibold text-emerald-600">{requiresInvoicing}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Scheduled</span>
@@ -879,6 +912,18 @@ export default function Contractor() {
                           <span className="text-[11px] text-gray-500">Value</span>
                           <span className="text-sm font-bold text-green-600">${activeJobsValue.toLocaleString()}</span>
                         </div>
+                      </div>
+                      
+                      {/* Last 7 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
+                        <Sparkline 
+                          data={jobsSparkline.created}
+                          color="#22c55e"
+                          secondaryData={jobsSparkline.completed}
+                          secondaryColor="#10b981"
+                          labels={{ primary: "Created", secondary: "Completed" }}
+                        />
                       </div>
                     </div>
                   </button>
@@ -913,17 +958,29 @@ export default function Contractor() {
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-gray-500">Past Due</span>
-                          <span className={`text-xs font-semibold ${pastDueInvoices > 0 ? 'text-red-500' : 'text-gray-700'}`}>{pastDueInvoices}</span>
+                          <span className="text-[11px] text-gray-500">Paid</span>
+                          <span className="text-xs font-semibold text-emerald-600">0</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-gray-500">Awaiting</span>
-                          <span className="text-xs font-semibold text-gray-700">{awaitingPayment}</span>
+                          <span className="text-[11px] text-gray-500">Past Due</span>
+                          <span className={`text-xs font-semibold ${pastDueInvoices > 0 ? 'text-red-500' : 'text-gray-700'}`}>{pastDueInvoices}</span>
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Total</span>
                           <span className="text-sm font-bold text-violet-600">${totalOwed.toLocaleString()}</span>
                         </div>
+                      </div>
+                      
+                      {/* Last 30 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 30 days</span>
+                        <Sparkline 
+                          data={invoicesSparkline.sent}
+                          color="#8b5cf6"
+                          secondaryData={invoicesSparkline.paid}
+                          secondaryColor="#10b981"
+                          labels={{ primary: "Sent", secondary: "Paid" }}
+                        />
                       </div>
                     </div>
                   </button>
@@ -931,151 +988,27 @@ export default function Contractor() {
               );
             })()}
 
-            {/* Today's Schedule - Jobber-Style with Dollar Values */}
+            {/* Today's Schedule - Team Timeline with current time indicator */}
             <div className="mb-8">
-              {(() => {
-                // Calculate job values for today's appointments
-                const toGoAppts = todaysAppointments.filter(a => a.status === 'Confirmed' || a.status === 'Pending');
-                const activeAppts = todaysAppointments.filter(a => a.status === 'In Progress');
-                const completedAppts = todaysAppointments.filter(a => a.status === 'Completed');
-                
-                // Link appointments to jobs to get values
-                const getApptValue = (apt: typeof todaysAppointments[0]) => {
-                  const linkedJob = jobs.find(j => j.id === apt.caseId);
-                  return linkedJob?.estimatedValue || 0;
-                };
-                
-                const totalValue = todaysAppointments.reduce((sum, a) => sum + getApptValue(a), 0);
-                const toGoValue = toGoAppts.reduce((sum, a) => sum + getApptValue(a), 0);
-                const activeValue = activeAppts.reduce((sum, a) => sum + getApptValue(a), 0);
-                const completedValue = completedAppts.reduce((sum, a) => sum + getApptValue(a), 0);
-                
-                return (
-                  <>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                          Today's Appointments
-                        </h3>
-                        {/* Enhanced Status Pills with Values */}
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-gray-50 border border-gray-100">
-                            <span className="text-sm font-bold text-gray-800">{todaysAppointments.length}</span>
-                            <span className="text-[9px] text-gray-500 uppercase tracking-wide">Total</span>
-                            <span className="text-[10px] font-semibold text-gray-600">${totalValue.toLocaleString()}</span>
-                          </div>
-                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-blue-50 border border-blue-100">
-                            <span className="text-sm font-bold text-blue-700">{toGoAppts.length}</span>
-                            <span className="text-[9px] text-blue-500 uppercase tracking-wide">To Go</span>
-                            <span className="text-[10px] font-semibold text-blue-600">${toGoValue.toLocaleString()}</span>
-                          </div>
-                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-amber-50 border border-amber-100">
-                            <span className="text-sm font-bold text-amber-700">{activeAppts.length}</span>
-                            <span className="text-[9px] text-amber-500 uppercase tracking-wide">Active</span>
-                            <span className="text-[10px] font-semibold text-amber-600">${activeValue.toLocaleString()}</span>
-                          </div>
-                          <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-green-50 border border-green-100">
-                            <span className="text-sm font-bold text-green-700">{completedAppts.length}</span>
-                            <span className="text-[9px] text-green-500 uppercase tracking-wide">Done</span>
-                            <span className="text-[10px] font-semibold text-green-600">${completedValue.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-blue-600 hover:text-blue-700 h-7 text-xs font-medium"
-                        onClick={() => navigate("/contractor-schedule")}
-                      >
-                        View Calendar
-                      </Button>
-                    </div>
-                  </>
-                );
-              })()}
-              
-              {/* Mini Calendar Timeline */}
-              <div 
-                className="rounded-xl overflow-hidden"
-                style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(0,0,0,0.05)',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.03)'
-                }}
-              >
-                {todaysAppointments.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <p className="text-gray-500 text-sm mb-2">No appointments scheduled for today</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                      onClick={() => navigate("/contractor-schedule?create=true")}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Schedule Job
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {/* Time Header */}
-                    <div className="px-4 py-2 bg-gray-50/50 flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-xs font-medium text-gray-500">{format(new Date(), 'EEEE, MMMM d')}</span>
-                    </div>
-                    
-                    {/* Appointment List */}
-                    {todaysAppointments.map((apt, index) => {
-                      const startTime = apt.scheduledStartAt ? (typeof apt.scheduledStartAt === 'string' ? parseISO(apt.scheduledStartAt) : apt.scheduledStartAt) : null;
-                      const endTime = apt.scheduledEndAt ? (typeof apt.scheduledEndAt === 'string' ? parseISO(apt.scheduledEndAt) : apt.scheduledEndAt) : null;
-                      const timeStr = startTime ? format(startTime, 'h:mm a') : 'TBD';
-                      const endStr = endTime ? format(endTime, 'h:mm a') : '';
-                      
-                      const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-                        'Confirmed': { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
-                        'Pending': { bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500' },
-                        'In Progress': { bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-500' },
-                        'Completed': { bg: 'bg-green-50', text: 'text-green-600', dot: 'bg-green-500' },
-                      };
-                      const colors = statusColors[apt.status] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-500' };
-                      
-                      return (
-                        <div 
-                          key={apt.id}
-                          className="flex items-stretch hover:bg-gray-50/50 cursor-pointer transition-colors"
-                          onClick={() => navigate("/contractor-schedule")}
-                        >
-                          {/* Time Column */}
-                          <div className="w-24 flex-shrink-0 p-4 border-r border-gray-100 flex flex-col justify-center">
-                            <div className="text-sm font-bold text-gray-800">{timeStr}</div>
-                            {endStr && <div className="text-xs text-gray-400">{endStr}</div>}
-                          </div>
-                          
-                          {/* Color Bar */}
-                          <div className={`w-1 ${colors.dot}`} />
-                          
-                          {/* Content */}
-                          <div className="flex-1 p-4 flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-gray-800">{apt.title || 'Appointment'}</div>
-                              <div className="text-sm text-gray-500 mt-0.5">
-                                {apt.notes || 'No details'}
-                              </div>
-                            </div>
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
-                              {apt.status}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <TeamTimeline 
+                teamMembers={(teamData?.allMembers || []).map(m => ({
+                  id: m.id,
+                  memberId: m.memberId,
+                  name: m.name,
+                  color: m.color
+                }))}
+                appointments={teamAppointments.map(apt => ({
+                  id: apt.id,
+                  title: apt.title,
+                  scheduledStartAt: apt.scheduledStartAt,
+                  scheduledEndAt: apt.scheduledEndAt,
+                  status: apt.status,
+                  contractorId: apt.contractorId,
+                  address: apt.address,
+                  customerName: apt.customerName
+                }))}
+                onViewCalendar={() => navigate("/contractor-schedule")}
+              />
             </div>
           </div>
         )}
