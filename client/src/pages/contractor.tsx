@@ -128,7 +128,8 @@ export default function Contractor() {
   const [mayaInput, setMayaInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mayaSuggestionIndex, setMayaSuggestionIndex] = useState(0);
-  const [showMayaBubble, setShowMayaBubble] = useState(true);
+  const [showMayaBubble, setShowMayaBubble] = useState(false);
+  const [mayaHovered, setMayaHovered] = useState(false);
   
   const mayaSuggestions = [
     "Which job is most lucrative?",
@@ -137,15 +138,24 @@ export default function Contractor() {
   ];
   
   useEffect(() => {
+    if (!mayaHovered) return;
     const interval = setInterval(() => {
       setShowMayaBubble(false);
       setTimeout(() => {
         setMayaSuggestionIndex((prev) => (prev + 1) % mayaSuggestions.length);
         setShowMayaBubble(true);
-      }, 300);
-    }, 4000);
+      }, 200);
+    }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [mayaHovered]);
+  
+  useEffect(() => {
+    if (mayaHovered) {
+      setShowMayaBubble(true);
+    } else {
+      setShowMayaBubble(false);
+    }
+  }, [mayaHovered]);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
@@ -571,39 +581,37 @@ export default function Contractor() {
                   {format(new Date(), 'EEEE, MMMM d')}
                 </p>
               </div>
-              <div className="relative">
+              <div 
+                className="relative"
+                onMouseEnter={() => setMayaHovered(true)}
+                onMouseLeave={() => setMayaHovered(false)}
+              >
                 <div 
                   className={`absolute -top-12 right-0 px-3 py-1.5 rounded-lg text-xs text-violet-600 dark:text-violet-400 whitespace-nowrap transition-all duration-300 ${showMayaBubble ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
                   style={{
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
-                    boxShadow: '0 2px 8px rgba(139, 92, 246, 0.1)'
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
                   }}
                 >
                   {mayaSuggestions[mayaSuggestionIndex]}
-                  <div className="absolute -bottom-1 right-6 w-2 h-2 rotate-45" style={{ background: 'rgba(139, 92, 246, 0.1)', borderRight: '1px solid rgba(139, 92, 246, 0.2)', borderBottom: '1px solid rgba(139, 92, 246, 0.2)' }} />
+                  <div className="absolute -bottom-1 right-6 w-2 h-2 rotate-45" style={{ background: 'rgba(139, 92, 246, 0.15)', borderRight: '1px solid rgba(139, 92, 246, 0.25)', borderBottom: '1px solid rgba(139, 92, 246, 0.25)' }} />
                 </div>
                 <button
                   onClick={() => setView("maya" as ViewState)}
-                  className="group flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 hover:scale-105"
+                  className={`group flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${mayaHovered ? 'scale-105' : ''}`}
                   style={{
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(59, 130, 246, 0.35) 100%)';
-                    e.currentTarget.style.boxShadow = '0 6px 24px rgba(139, 92, 246, 0.4)';
-                    e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.15)';
-                    e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                    background: mayaHovered 
+                      ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(59, 130, 246, 0.35) 100%)'
+                      : 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                    border: `1px solid ${mayaHovered ? 'rgba(139, 92, 246, 0.5)' : 'rgba(139, 92, 246, 0.3)'}`,
+                    boxShadow: mayaHovered 
+                      ? '0 6px 24px rgba(139, 92, 246, 0.4)' 
+                      : '0 4px 12px rgba(139, 92, 246, 0.15)'
                   }}
                 >
-                  <Sparkles className="h-4 w-4 text-violet-500 group-hover:text-violet-400 transition-colors" />
-                  <span className="text-sm font-medium text-violet-700 dark:text-violet-400 group-hover:text-violet-600 dark:group-hover:text-violet-300 transition-colors">Ask Maya</span>
+                  <Sparkles className={`h-4 w-4 transition-colors ${mayaHovered ? 'text-violet-400' : 'text-violet-500'}`} />
+                  <span className={`text-sm font-medium transition-colors ${mayaHovered ? 'text-violet-600 dark:text-violet-300' : 'text-violet-700 dark:text-violet-400'}`}>Ask Maya</span>
                 </button>
               </div>
             </div>
