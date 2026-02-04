@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { format, isToday, parseISO, startOfDay, endOfDay } from "date-fns";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -196,6 +197,22 @@ export default function Contractor() {
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
+
+  // Today's appointments - for the schedule view
+  const todaysAppointments = useMemo(() => {
+    const today = new Date();
+    return appointments
+      .filter(apt => {
+        if (!apt.scheduledAt) return false;
+        const aptDate = typeof apt.scheduledAt === 'string' ? parseISO(apt.scheduledAt) : apt.scheduledAt;
+        return isToday(aptDate);
+      })
+      .sort((a, b) => {
+        const dateA = typeof a.scheduledAt === 'string' ? parseISO(a.scheduledAt) : a.scheduledAt;
+        const dateB = typeof b.scheduledAt === 'string' ? parseISO(b.scheduledAt) : b.scheduledAt;
+        return new Date(dateA).getTime() - new Date(dateB).getTime();
+      });
+  }, [appointments]);
 
   // Placeholder for unread messages - would come from real messaging system
   const totalUnreadMessages = 0;
@@ -415,6 +432,43 @@ export default function Contractor() {
               <Home className="h-4 w-4" />
               Home
             </Button>
+            <Separator className="my-2" />
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => navigate("/quotes")}
+            >
+              <Receipt className="h-4 w-4" />
+              Quotes
+              {quotesCount > 0 && (
+                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">{quotesCount}</Badge>
+              )}
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => navigate("/customers")}
+            >
+              <Users className="h-4 w-4" />
+              Customers
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => navigate("/inbox")}
+            >
+              <Mail className="h-4 w-4" />
+              Inbox
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => navigate("/reminders")}
+            >
+              <Bell className="h-4 w-4" />
+              Reminders
+            </Button>
+            <Separator className="my-2" />
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3"
@@ -423,7 +477,6 @@ export default function Contractor() {
               <User className="h-4 w-4" />
               Profile
             </Button>
-            <Separator className="my-2" />
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3 text-muted-foreground"
@@ -577,51 +630,116 @@ export default function Contractor() {
               </div>
             )}
 
-            {/* Quick Categories - 2 rows of 4 */}
-            <div className="grid grid-cols-4 gap-3 max-w-md mt-6">
-              {quickCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    if (cat.id === "new-jobs") {
-                      setView("newJobs" as ViewState);
-                    } else if (cat.id === "active-jobs") {
-                      setView("activeJobs" as ViewState);
-                    } else if (cat.id === "schedule") {
-                      navigate("/contractor-schedule");
-                    } else if (cat.id === "quotes") {
-                      navigate("/quotes");
-                    } else if (cat.id === "inbox") {
-                      navigate("/inbox");
-                    } else if (cat.id === "customers") {
-                      navigate("/customers");
-                    } else if (cat.id === "reminders") {
-                      navigate("/reminders");
-                    } else if (cat.id === "messages") {
-                      setView("messages" as ViewState);
-                    }
-                  }}
-                  className="relative flex flex-col items-center gap-2 p-2 transition-all"
+            {/* Status Badges - Compact row for New Jobs and Active */}
+            <div className="flex items-center gap-3 mt-6 mb-6">
+              <button
+                onClick={() => setView("newJobs" as ViewState)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:scale-105"
+                style={{
+                  background: newJobsCount > 0 
+                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)'
+                    : 'rgba(0,0,0,0.05)',
+                  border: newJobsCount > 0 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(0,0,0,0.1)'
+                }}
+              >
+                <Briefcase className={`h-4 w-4 ${newJobsCount > 0 ? 'text-blue-600' : 'text-gray-400'}`} />
+                <span className={`text-sm font-medium ${newJobsCount > 0 ? 'text-blue-700' : 'text-gray-500'}`}>
+                  {newJobsCount} New
+                </span>
+              </button>
+              
+              <button
+                onClick={() => setView("activeJobs" as ViewState)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:scale-105"
+                style={{
+                  background: activeJobsCount > 0 
+                    ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.1) 100%)'
+                    : 'rgba(0,0,0,0.05)',
+                  border: activeJobsCount > 0 ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(0,0,0,0.1)'
+                }}
+              >
+                <CheckCircle className={`h-4 w-4 ${activeJobsCount > 0 ? 'text-green-600' : 'text-gray-400'}`} />
+                <span className={`text-sm font-medium ${activeJobsCount > 0 ? 'text-green-700' : 'text-gray-500'}`}>
+                  {activeJobsCount} Active
+                </span>
+              </button>
+            </div>
+
+            {/* Today's Schedule - Main Focus */}
+            <div className="w-full max-w-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                  Today's Schedule
+                </h2>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-blue-600 hover:text-blue-700"
+                  onClick={() => navigate("/contractor-schedule")}
                 >
-                  <div 
-                    className="relative w-16 h-16 rounded-full flex items-center justify-center transition-all"
-                    style={{ 
-                      background: 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.95) 0%, rgba(240,245,255,0.8) 25%, rgba(220,230,250,0.6) 50%, rgba(200,215,245,0.45) 75%, rgba(180,200,235,0.35) 100%)',
-                      backdropFilter: 'blur(48px) saturate(220%) brightness(1.05)',
-                      border: '2.5px solid rgba(255,255,255,0.9)',
-                      boxShadow: 'inset 0 8px 20px rgba(255,255,255,1), inset 0 -6px 12px rgba(100,130,200,0.1), 0 16px 48px rgba(0,0,0,0.15)'
-                    }}
+                  View All
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
+              </div>
+              
+              {todaysAppointments.length === 0 ? (
+                <div 
+                  className="rounded-2xl p-8 text-center"
+                  style={{
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
+                    border: '1px solid rgba(0,0,0,0.05)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Calendar className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-500 mb-3">No appointments scheduled for today</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-full"
+                    onClick={() => navigate("/contractor-schedule")}
                   >
-                    {cat.count > 0 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-lg">
-                        {cat.count}
+                    <Plus className="h-4 w-4 mr-1" />
+                    Schedule Job
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todaysAppointments.map((apt, index) => {
+                    const aptTime = typeof apt.scheduledAt === 'string' ? parseISO(apt.scheduledAt) : apt.scheduledAt;
+                    const timeStr = format(aptTime, 'h:mm a');
+                    const colors = [
+                      { bg: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200' },
+                      { bg: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200' },
+                      { bg: 'bg-violet-500', light: 'bg-violet-50', border: 'border-violet-200' },
+                      { bg: 'bg-amber-500', light: 'bg-amber-50', border: 'border-amber-200' },
+                    ];
+                    const color = colors[index % colors.length];
+                    
+                    return (
+                      <div 
+                        key={apt.id}
+                        className={`flex items-center gap-4 p-4 rounded-xl ${color.light} ${color.border} border cursor-pointer hover:shadow-md transition-all`}
+                        onClick={() => navigate("/contractor-schedule")}
+                      >
+                        <div className="text-center min-w-[60px]">
+                          <div className="text-lg font-bold text-gray-800">{timeStr}</div>
+                        </div>
+                        <div className={`w-1 h-12 ${color.bg} rounded-full`} />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-800">{apt.title || 'Appointment'}</div>
+                          <div className="text-sm text-gray-500">
+                            {apt.address || apt.notes || 'No location specified'}
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {apt.status}
+                        </Badge>
                       </div>
-                    )}
-                    <cat.icon className="h-7 w-7 text-gray-600 dark:text-gray-400" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
-                </button>
-              ))}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
