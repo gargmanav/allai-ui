@@ -377,10 +377,13 @@ export default function CustomersPage() {
 
   // Customer card component with frosted glass styling
   const CustomerCard = ({ customer, isSelected }: { customer: Customer; isSelected: boolean }) => (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => handleCardClick(customer)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(customer); }}
       className={`
-        w-full text-left rounded-xl p-4 transition-all duration-500 ease-out
+        w-full text-left rounded-xl p-4 transition-all duration-500 ease-out cursor-pointer
         backdrop-blur-xl backdrop-saturate-[180%]
         border border-white/20 dark:border-white/10
         focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2 focus:ring-offset-transparent
@@ -471,7 +474,7 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 
   return (

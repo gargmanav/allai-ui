@@ -38,10 +38,9 @@ import {
   Bell,
   MapPin
 } from "lucide-react";
-import { CustomerMap } from "@/components/contractor/customer-map";
 import { TeamCalendar } from "@/components/contractor/team-calendar";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "map";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
 interface ChatMessage {
   id: string;
@@ -237,16 +236,6 @@ export default function Contractor() {
   }>>({
     queryKey: ['/api/contractor/team-calendar'],
     enabled: !!user
-  });
-
-  // Geocode mutation
-  const geocodeMutation = useMutation({
-    mutationFn: (customerId: string) => 
-      apiRequest(`/api/contractor/customers/${customerId}/geocode`, { method: 'POST' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contractor/customers'] });
-      toast({ title: 'Address geocoded successfully' });
-    },
   });
 
   // Combine direct assignments and marketplace jobs, transform to displayable format
@@ -554,14 +543,6 @@ export default function Contractor() {
             >
               <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Team Calendar</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
-              onClick={() => setView("map" as ViewState)}
-            >
-              <MapPin className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
-              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Customer Map</span>
             </Button>
             <Button 
               variant="ghost" 
@@ -1397,49 +1378,6 @@ export default function Contractor() {
               appointments={teamAppointments}
               onAppointmentClick={(apt) => {
                 toast({ title: apt.title || 'Appointment', description: apt.customerName || apt.address || '' });
-              }}
-            />
-          </div>
-        )}
-
-        {/* Customer Map View */}
-        {view === ("map" as ViewState) && (
-          <div className="flex-1 flex flex-col pt-4">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-semibold">Customer Map</h2>
-                <p className="text-muted-foreground">View all customer locations on the map</p>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    customers.filter(c => !c.latitude && c.streetAddress).forEach(c => {
-                      geocodeMutation.mutate(c.id);
-                    });
-                  }}
-                  disabled={geocodeMutation.isPending}
-                >
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Geocode All
-                </Button>
-                <Button variant="outline" onClick={() => setView("landing")}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </div>
-            </div>
-            
-            <CustomerMap
-              customers={customers}
-              onSelectCustomer={(customerId) => {
-                const customer = customers.find(c => c.id === customerId);
-                if (customer) {
-                  toast({ 
-                    title: customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'Customer',
-                    description: customer.streetAddress || 'No address'
-                  });
-                }
               }}
             />
           </div>
