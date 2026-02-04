@@ -424,6 +424,10 @@ export default function Contractor() {
           </div>
 
           <div className="mt-auto border-t p-4 space-y-1">
+            {/* WORK Section */}
+            <div className="px-2 py-1">
+              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Work</span>
+            </div>
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3"
@@ -432,7 +436,30 @@ export default function Contractor() {
               <Home className="h-4 w-4" />
               Home
             </Button>
-            <Separator className="my-2" />
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => navigate("/contractor-schedule")}
+            >
+              <Calendar className="h-4 w-4" />
+              Schedule
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => setView("newJobs" as ViewState)}
+            >
+              <Briefcase className="h-4 w-4" />
+              Job Board
+              {newJobsCount > 0 && (
+                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">{newJobsCount}</Badge>
+              )}
+            </Button>
+            
+            {/* FINANCE Section */}
+            <div className="px-2 py-1 pt-4">
+              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Finance</span>
+            </div>
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3"
@@ -460,6 +487,11 @@ export default function Contractor() {
               <Mail className="h-4 w-4" />
               Inbox
             </Button>
+            
+            {/* ACCOUNT Section */}
+            <div className="px-2 py-1 pt-4">
+              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Account</span>
+            </div>
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3"
@@ -468,7 +500,6 @@ export default function Contractor() {
               <Bell className="h-4 w-4" />
               Reminders
             </Button>
-            <Separator className="my-2" />
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3"
@@ -652,122 +683,121 @@ export default function Contractor() {
               }
             })()}
 
-            {/* Needs Action - Three Cards */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              {/* New Jobs Card */}
-              <button
-                onClick={() => setView("newJobs" as ViewState)}
-                className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] hover:shadow-md"
-                style={{
-                  background: newJobsCount > 0 
-                    ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(239,246,255,0.95) 100%)'
-                    : 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
-                  backdropFilter: 'blur(12px)',
-                  border: newJobsCount > 0 ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(0,0,0,0.05)',
-                  boxShadow: newJobsCount > 0 
-                    ? '0 4px 16px rgba(59, 130, 246, 0.08)' 
-                    : '0 2px 8px rgba(0,0,0,0.02)'
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <Briefcase className={`h-5 w-5 ${newJobsCount > 0 ? 'text-blue-500' : 'text-gray-300'}`} />
-                  {newJobsCount > 0 && (
-                    <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                      {newJobsCount}
-                    </span>
-                  )}
-                </div>
-                <div className={`text-lg font-semibold ${newJobsCount > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {newJobsCount > 0 ? `${newJobsCount} New Jobs` : 'No new jobs'}
-                </div>
-                <div className={`text-sm ${newJobsCount > 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
-                  {newJobsCount > 0 ? `$${jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).reduce((sum, j) => sum + j.estimatedValue, 0).toLocaleString()} value` : 'Check job board'}
-                </div>
-              </button>
-
-              {/* Quotes Expiring Card */}
-              {(() => {
-                const expiringQuotes = quotes.filter(q => {
-                  if (!q.expiresAt || q.status !== 'sent') return false;
-                  const expiry = typeof q.expiresAt === 'string' ? parseISO(q.expiresAt) : q.expiresAt;
-                  const daysUntil = Math.ceil((new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  return daysUntil <= 7 && daysUntil >= 0;
-                });
-                const hasExpiring = expiringQuotes.length > 0;
-                
-                return (
+            {/* Jobber-Style 4-Column Dashboard Grid */}
+            {(() => {
+              const requestsCount = newJobsCount;
+              const requestsValue = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).reduce((sum, j) => sum + j.estimatedValue, 0);
+              
+              const draftQuotes = quotes.filter(q => q.status === 'draft');
+              const sentQuotes = quotes.filter(q => q.status === 'sent');
+              const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + parseFloat(q.total || '0'), 0);
+              
+              const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
+              const activeJobsValue = activeJobs.reduce((sum, j) => sum + j.estimatedValue, 0);
+              
+              const approvedQuotes = quotes.filter(q => q.status === 'approved');
+              const totalOwed = approvedQuotes.reduce((sum, q) => sum + parseFloat(q.total || '0'), 0);
+              
+              return (
+                <div className="grid grid-cols-4 gap-4 mb-8">
+                  {/* Requests Column */}
                   <button
-                    onClick={() => navigate("/quotes")}
-                    className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{
-                      background: hasExpiring 
-                        ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(254,249,239,0.95) 100%)'
-                        : 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
-                      backdropFilter: 'blur(12px)',
-                      border: hasExpiring ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(0,0,0,0.05)',
-                      boxShadow: hasExpiring 
-                        ? '0 4px 16px rgba(245, 158, 11, 0.08)' 
-                        : '0 2px 8px rgba(0,0,0,0.02)'
-                    }}
+                    onClick={() => setView("newJobs" as ViewState)}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-blue-300 group"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <Receipt className={`h-5 w-5 ${hasExpiring ? 'text-amber-500' : 'text-gray-300'}`} />
-                      {hasExpiring && (
-                        <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
-                          {expiringQuotes.length}
-                        </span>
-                      )}
-                    </div>
-                    <div className={`text-lg font-semibold ${hasExpiring ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {hasExpiring ? `${expiringQuotes.length} Expiring` : 'Quotes OK'}
-                    </div>
-                    <div className={`text-sm ${hasExpiring ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
-                      {hasExpiring ? 'Review this week' : 'All up to date'}
+                    <div className="h-1 bg-blue-500" />
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Requests</span>
+                        <Briefcase className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">New</span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{requestsCount}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Value</span>
+                          <span className="text-sm font-medium text-blue-600">${requestsValue.toLocaleString()}</span>
+                        </div>
+                      </div>
                     </div>
                   </button>
-                );
-              })()}
 
-              {/* Money Owed Card */}
-              {(() => {
-                // Calculate outstanding from approved quotes that aren't fully paid
-                const pendingPayments = quotes.filter(q => q.status === 'approved');
-                const totalOwed = pendingPayments.reduce((sum, q) => sum + parseFloat(q.total || '0'), 0);
-                const hasOwed = totalOwed > 0;
-                
-                return (
+                  {/* Quotes Column */}
                   <button
                     onClick={() => navigate("/quotes")}
-                    className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{
-                      background: hasOwed 
-                        ? 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,253,244,0.95) 100%)'
-                        : 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
-                      backdropFilter: 'blur(12px)',
-                      border: hasOwed ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(0,0,0,0.05)',
-                      boxShadow: hasOwed 
-                        ? '0 4px 16px rgba(34, 197, 94, 0.08)' 
-                        : '0 2px 8px rgba(0,0,0,0.02)'
-                    }}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-amber-300 group"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <DollarSign className={`h-5 w-5 ${hasOwed ? 'text-green-500' : 'text-gray-300'}`} />
-                      {hasOwed && (
-                        <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                          {pendingPayments.length}
-                        </span>
-                      )}
-                    </div>
-                    <div className={`text-lg font-semibold ${hasOwed ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {hasOwed ? `$${totalOwed.toLocaleString()}` : 'All collected'}
-                    </div>
-                    <div className={`text-sm ${hasOwed ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                      {hasOwed ? 'Awaiting payment' : 'No outstanding'}
+                    <div className="h-1 bg-amber-500" />
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Quotes</span>
+                        <Receipt className="h-4 w-4 text-gray-400 group-hover:text-amber-500 transition-colors" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Draft</span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{draftQuotes.length}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Awaiting</span>
+                          <span className="text-sm font-medium text-amber-600">${sentQuotesValue.toLocaleString()}</span>
+                        </div>
+                      </div>
                     </div>
                   </button>
-                );
-              })()}
-            </div>
+
+                  {/* Jobs Column */}
+                  <button
+                    onClick={() => setView("activeJobs" as ViewState)}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-green-300 group"
+                  >
+                    <div className="h-1 bg-green-500" />
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Jobs</span>
+                        <CheckCircle className="h-4 w-4 text-gray-400 group-hover:text-green-500 transition-colors" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Active</span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{activeJobs.length}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Value</span>
+                          <span className="text-sm font-medium text-green-600">${activeJobsValue.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Invoices Column */}
+                  <button
+                    onClick={() => navigate("/quotes")}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-left transition-all hover:shadow-md hover:border-violet-300 group"
+                  >
+                    <div className="h-1 bg-violet-500" />
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Invoices</span>
+                        <DollarSign className="h-4 w-4 text-gray-400 group-hover:text-violet-500 transition-colors" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Owed</span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{approvedQuotes.length}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-500">Total</span>
+                          <span className="text-sm font-medium text-violet-600">${totalOwed.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Today's Schedule - Compact */}
             <div className="mb-8">
