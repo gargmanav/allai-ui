@@ -36,8 +36,23 @@ import {
   Building2,
   Mail,
   Bell,
-  MapPin
+  MapPin,
+  Edit2,
+  Trash2,
+  Phone,
+  UserPlus
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { TeamCalendar } from "@/components/contractor/team-calendar";
 import { CustomersContent } from "@/pages/customers";
 
@@ -479,10 +494,7 @@ export default function Contractor() {
 
           {/* Navigation */}
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
-            {/* WORK Section */}
-            <div className="px-3 py-2">
-              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Work</span>
-            </div>
+            {/* Home - Standalone at top */}
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
@@ -491,33 +503,25 @@ export default function Contractor() {
               <Home className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Home</span>
             </Button>
-            <Button 
-              variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
-              onClick={() => navigate("/contractor-schedule")}
-            >
-              <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
-              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Schedule</span>
-            </Button>
+            
+            {/* Separator - Purple-Blue Gradient */}
+            <div className="my-3 mx-3 h-[1px] bg-gradient-to-r from-violet-400/40 via-blue-400/40 to-transparent" />
+            
+            {/* WORK Section - Natural workflow: Requests → Quotes → Jobs → Invoices */}
+            <div className="px-3 py-2">
+              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Work</span>
+            </div>
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => setView("newJobs" as ViewState)}
             >
               <Briefcase className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
-              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Job Board</span>
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Requests</span>
               {newJobsCount > 0 && (
                 <Badge className="ml-auto h-5 px-1.5 text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">{newJobsCount}</Badge>
               )}
             </Button>
-            
-            {/* Separator - Purple-Blue Gradient */}
-            <div className="my-3 mx-3 h-[1px] bg-gradient-to-r from-violet-400/40 via-blue-400/40 to-transparent" />
-            
-            {/* FINANCE Section */}
-            <div className="px-3 py-2">
-              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Finance</span>
-            </div>
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
@@ -532,6 +536,41 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              onClick={() => setView("activeJobs" as ViewState)}
+            >
+              <CheckCircle className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Jobs</span>
+              {activeJobsCount > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{activeJobsCount}</Badge>
+              )}
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              onClick={() => toast({ title: "Invoices", description: "Invoice management coming soon" })}
+            >
+              <DollarSign className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Invoices</span>
+            </Button>
+            
+            {/* Separator - Purple-Blue Gradient */}
+            <div className="my-3 mx-3 h-[1px] bg-gradient-to-r from-violet-400/40 via-blue-400/40 to-transparent" />
+            
+            {/* MANAGE Section */}
+            <div className="px-3 py-2">
+              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Manage</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              onClick={() => navigate("/contractor-schedule")}
+            >
+              <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Schedule</span>
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => setView("customers")}
             >
               <Users className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -542,16 +581,8 @@ export default function Contractor() {
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => setView("team" as ViewState)}
             >
-              <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
-              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Team Calendar</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
-              onClick={() => navigate("/inbox")}
-            >
-              <Mail className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
-              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Inbox</span>
+              <Users className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Team</span>
             </Button>
             
             {/* Separator - Purple-Blue Gradient */}
@@ -561,6 +592,14 @@ export default function Contractor() {
             <div className="px-3 py-2">
               <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Account</span>
             </div>
+            <Button 
+              variant="ghost" 
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              onClick={() => navigate("/inbox")}
+            >
+              <Mail className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Inbox</span>
+            </Button>
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
@@ -671,122 +710,6 @@ export default function Contractor() {
                 </button>
               </div>
             </div>
-
-            {/* What's Next - Hero Card (shows next upcoming appointment, any date) */}
-            {(() => {
-              const nextJob = jobs.find(j => ["Scheduled", "Confirmed"].includes(j.status));
-              
-              if (nextUpcomingAppointment) {
-                const aptTime = typeof nextUpcomingAppointment.scheduledStartAt === 'string' ? parseISO(nextUpcomingAppointment.scheduledStartAt) : nextUpcomingAppointment.scheduledStartAt;
-                const timeStr = format(aptTime, 'h:mm a');
-                const now = new Date();
-                const diffMs = new Date(aptTime).getTime() - now.getTime();
-                const diffMins = Math.round(diffMs / 60000);
-                
-                // Smart time display
-                let timeUntil = '';
-                let dateLabel = '';
-                if (isToday(aptTime)) {
-                  dateLabel = 'Today';
-                  timeUntil = diffMins > 60 
-                    ? `in ${Math.round(diffMins / 60)}h ${diffMins % 60}m`
-                    : diffMins > 0 
-                      ? `in ${diffMins} min` 
-                      : 'now';
-                } else if (isTomorrow(aptTime)) {
-                  dateLabel = 'Tomorrow';
-                  timeUntil = format(aptTime, 'h:mm a');
-                } else {
-                  dateLabel = format(aptTime, 'EEE, MMM d');
-                  timeUntil = format(aptTime, 'h:mm a');
-                }
-                
-                return (
-                  <div 
-                    className="mb-8 p-6 rounded-2xl cursor-pointer hover:shadow-lg transition-all"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(59, 130, 246, 0.2)',
-                      boxShadow: '0 8px 32px rgba(59, 130, 246, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)'
-                    }}
-                    onClick={() => navigate("/contractor-schedule")}
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                      <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Next Upcoming</span>
-                    </div>
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                      {nextUpcomingAppointment.title || 'Scheduled Appointment'}
-                    </h2>
-                    <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4" />
-                        <span className="font-medium">{dateLabel}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-4 w-4" />
-                        <span className="font-medium">{timeStr}</span>
-                        {isToday(aptTime) && <span className="text-blue-600 font-medium">({timeUntil})</span>}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <Button size="sm" className="rounded-full">
-                        View Details
-                        <ExternalLink className="h-3 w-3 ml-1.5" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              } else if (nextJob) {
-                return (
-                  <div 
-                    className="mb-8 p-6 rounded-2xl cursor-pointer hover:shadow-lg transition-all"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,255,250,0.95) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(34, 197, 94, 0.2)',
-                      boxShadow: '0 8px 32px rgba(34, 197, 94, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)'
-                    }}
-                    onClick={() => handleSelectCase(nextJob.id)}
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Active Job</span>
-                    </div>
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                      {nextJob.title}
-                    </h2>
-                    <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-                      <span>{nextJob.customerName}</span>
-                      <span className="text-green-600 font-semibold">${nextJob.estimatedValue}</span>
-                    </div>
-                  </div>
-                );
-              } else {
-                return (
-                  <div 
-                    className="mb-8 p-6 rounded-2xl text-center"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
-                      border: '1px solid rgba(0,0,0,0.05)',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
-                    }}
-                  >
-                    <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                    <p className="text-gray-500">No upcoming appointments</p>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="mt-2 text-blue-600"
-                      onClick={() => navigate("/contractor-schedule?create=true")}
-                    >
-                      Schedule a job
-                    </Button>
-                  </div>
-                );
-              }
-            })()}
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
             {(() => {
@@ -1348,40 +1271,193 @@ export default function Contractor() {
           </div>
         )}
 
-        {/* Team Calendar View */}
+        {/* Team View - Members + Calendar */}
         {view === ("team" as ViewState) && (
-          <div className="flex-1 flex flex-col pt-4">
+          <div className="flex-1 flex flex-col pt-4 px-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-semibold">Team Calendar</h2>
-                <p className="text-muted-foreground">View schedules for you and your team members</p>
+                <h2 className="text-2xl font-semibold">Team</h2>
+                <p className="text-muted-foreground">Manage your team members and view schedules</p>
               </div>
-              <Button variant="outline" onClick={() => setView("landing")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
             </div>
             
-            <TeamCalendar
-              teamMembers={[
-                { 
-                  id: user?.id || '', 
-                  name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You', 
-                  role: 'Lead', 
-                  color: '#8B5CF6' 
-                },
-                ...(teamData?.allMembers || []).map(m => ({
-                  id: m.memberId,
-                  name: m.name,
-                  role: m.role || undefined,
-                  color: m.color,
-                }))
-              ]}
-              appointments={teamAppointments}
-              onAppointmentClick={(apt) => {
-                toast({ title: apt.title || 'Appointment', description: apt.customerName || apt.address || '' });
-              }}
-            />
+            <Tabs defaultValue="members" className="flex-1 flex flex-col">
+              <TabsList className="w-fit mb-4">
+                <TabsTrigger value="members" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Members
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Calendar
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="members" className="flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    {(teamData?.allMembers?.length || 0) + 1} team member{(teamData?.allMembers?.length || 0) !== 0 ? 's' : ''}
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2 bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600">
+                        <UserPlus className="h-4 w-4" />
+                        Add Team Member
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Team Member</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="memberName">Name</Label>
+                          <Input id="memberName" placeholder="Enter name" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="memberEmail">Email</Label>
+                          <Input id="memberEmail" type="email" placeholder="email@example.com" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="memberPhone">Phone</Label>
+                          <Input id="memberPhone" placeholder="(555) 123-4567" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="memberRole">Role</Label>
+                          <Input id="memberRole" placeholder="e.g. Technician, Apprentice" />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={() => toast({ title: "Coming Soon", description: "Team member management is being implemented" })}>
+                          Add Member
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                
+                <div className="grid gap-4">
+                  {/* You (owner) card */}
+                  <Card className="border-2 border-violet-200 dark:border-violet-800/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div 
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold"
+                          style={{ backgroundColor: '#8B5CF6' }}
+                        >
+                          {getInitials([user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You')}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">
+                              {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You'}
+                            </h3>
+                            <Badge variant="secondary" className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                              Owner
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{user?.email || ''}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Team members */}
+                  {(teamData?.allMembers || []).map((member) => (
+                    <Card key={member.id} className="group hover:border-violet-200 dark:hover:border-violet-800/50 transition-colors">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold"
+                            style={{ backgroundColor: member.color }}
+                          >
+                            {getInitials(member.name)}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold">{member.name}</h3>
+                              {member.role && (
+                                <Badge variant="secondary">{member.role}</Badge>
+                              )}
+                              {member.hasLogin && (
+                                <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                                  Has Login
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              {member.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {member.email}
+                                </span>
+                              )}
+                              {member.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {member.phone}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => toast({ title: "Edit Member", description: "Editing coming soon" })}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => toast({ title: "Remove Member", description: "Removal coming soon" })}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  {(teamData?.allMembers?.length || 0) === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                      <p>No team members yet</p>
+                      <p className="text-sm">Add team members to assign jobs and track schedules</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="calendar" className="flex-1">
+                <TeamCalendar
+                  teamMembers={[
+                    { 
+                      id: user?.id || '', 
+                      name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You', 
+                      role: 'Lead', 
+                      color: '#8B5CF6' 
+                    },
+                    ...(teamData?.allMembers || []).map(m => ({
+                      id: m.memberId,
+                      name: m.name,
+                      role: m.role || undefined,
+                      color: m.color,
+                    }))
+                  ]}
+                  appointments={teamAppointments}
+                  onAppointmentClick={(apt) => {
+                    toast({ title: apt.title || 'Appointment', description: apt.customerName || apt.address || '' });
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
