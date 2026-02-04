@@ -197,3 +197,25 @@
     color: hsl(var(--muted-foreground));
   }
 }
+
+/* Custom map pin styles */
+.custom-pin-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-marker-icon.custom-pin-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.1;
+  }
+}

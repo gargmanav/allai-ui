@@ -72,77 +72,39 @@ const customerFormSchema = z.object({
 type CustomerFormData = z.infer<typeof customerFormSchema>;
 
 // Custom marker icons
-// Modern AI-style map pins with gradients and glow effects
-const defaultIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 52">
-      <defs>
-        <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#818cf8"/>
-          <stop offset="50%" style="stop-color:#8b5cf6"/>
-          <stop offset="100%" style="stop-color:#6366f1"/>
-        </linearGradient>
-        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#6366f1" flood-opacity="0.4"/>
-        </filter>
-      </defs>
-      <g filter="url(#shadow)">
-        <path d="M20 2C11 2 4 9 4 18C4 30 20 50 20 50S36 30 36 18C36 9 29 2 20 2Z" fill="url(#pinGrad)" filter="url(#glow)"/>
-        <circle cx="20" cy="18" r="8" fill="white" opacity="0.95"/>
-        <circle cx="20" cy="18" r="4" fill="url(#pinGrad)"/>
-      </g>
-    </svg>
-  `),
-  iconSize: [32, 42],
-  iconAnchor: [16, 42],
-  popupAnchor: [0, -38],
+// Modern AI-style map pins - using solid fills to avoid SVG ID collisions
+const defaultIcon = new L.DivIcon({
+  className: 'custom-pin-marker',
+  html: `
+    <div style="position: relative; width: 32px; height: 44px;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" width="32" height="44" style="filter: drop-shadow(0 3px 4px rgba(99, 102, 241, 0.5));">
+        <path d="M16 1C8 1 2 7 2 15C2 26 16 43 16 43S30 26 30 15C30 7 24 1 16 1Z" fill="#8b5cf6"/>
+        <circle cx="16" cy="15" r="6" fill="white"/>
+        <circle cx="16" cy="15" r="3" fill="#6366f1"/>
+      </svg>
+    </div>
+  `,
+  iconSize: [32, 44],
+  iconAnchor: [16, 44],
+  popupAnchor: [0, -40],
 });
 
-const selectedIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 62">
-      <defs>
-        <linearGradient id="selPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#c084fc"/>
-          <stop offset="50%" style="stop-color:#8b5cf6"/>
-          <stop offset="100%" style="stop-color:#3b82f6"/>
-        </linearGradient>
-        <filter id="selGlow" x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="selShadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#8b5cf6" flood-opacity="0.6"/>
-        </filter>
-        <filter id="pulse">
-          <feGaussianBlur stdDeviation="3"/>
-        </filter>
-      </defs>
-      <circle cx="24" cy="22" r="20" fill="#8b5cf6" opacity="0.2" filter="url(#pulse)">
-        <animate attributeName="r" values="18;24;18" dur="2s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.3;0.1;0.3" dur="2s" repeatCount="indefinite"/>
-      </circle>
-      <g filter="url(#selShadow)">
-        <path d="M24 2C13 2 4 11 4 22C4 36 24 60 24 60S44 36 44 22C44 11 35 2 24 2Z" fill="url(#selPinGrad)" filter="url(#selGlow)"/>
-        <circle cx="24" cy="22" r="10" fill="white"/>
-        <circle cx="24" cy="22" r="5" fill="url(#selPinGrad)"/>
-        <circle cx="22" cy="20" r="2" fill="white" opacity="0.6"/>
-      </g>
-    </svg>
-  `),
+const selectedIcon = new L.DivIcon({
+  className: 'custom-pin-marker selected-pin',
+  html: `
+    <div style="position: relative; width: 44px; height: 56px;">
+      <div style="position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; background: rgba(139, 92, 246, 0.3); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 56" width="44" height="56" style="position: relative; z-index: 2; filter: drop-shadow(0 4px 6px rgba(139, 92, 246, 0.6));">
+        <path d="M22 2C12 2 4 10 4 20C4 34 22 54 22 54S40 34 40 20C40 10 32 2 22 2Z" fill="#a855f7"/>
+        <circle cx="22" cy="20" r="8" fill="white"/>
+        <circle cx="22" cy="20" r="4" fill="#7c3aed"/>
+        <circle cx="20" cy="18" r="1.5" fill="white" opacity="0.7"/>
+      </svg>
+    </div>
+  `,
   iconSize: [44, 56],
   iconAnchor: [22, 56],
-  popupAnchor: [0, -50],
+  popupAnchor: [0, -52],
 });
 
 // Helper function to extract error message from API error
@@ -528,9 +490,9 @@ export function CustomersContent({ embedded = false }: { embedded?: boolean }) {
             {customer.phone}
           </div>
         )}
-        {customer.streetAddress && (
+        {customer.streetAddress ? (
           <div className="flex items-center gap-2 text-muted-foreground truncate">
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <MapPin className={`h-3.5 w-3.5 flex-shrink-0 ${customer.latitude ? 'text-emerald-500' : 'text-amber-500'}`} />
             <span className="truncate">
               {customer.streetAddress}{customer.city ? `, ${customer.city}` : ''}
             </span>
@@ -538,14 +500,19 @@ export function CustomersContent({ embedded = false }: { embedded?: boolean }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 px-1.5 text-xs ml-auto"
+                className="h-5 px-1.5 text-xs ml-auto bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400"
                 onClick={(e) => { e.stopPropagation(); geocodeMutation.mutate(customer.id); }}
                 disabled={geocodeMutation.isPending}
               >
                 <Navigation className="h-3 w-3 mr-1" />
-                Locate
+                {geocodeMutation.isPending ? 'Locating...' : 'Add to Map'}
               </Button>
             )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-amber-500/70 text-xs">
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>No address - won't appear on map</span>
           </div>
         )}
       </div>
