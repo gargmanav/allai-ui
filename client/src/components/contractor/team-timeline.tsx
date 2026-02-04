@@ -277,12 +277,12 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                       const isUrgent = apt.urgency === 'High' || apt.urgency === 'Emergent';
                       const isHovered = hoveredAppointment === apt.id;
 
-                      // Colors match legend: Complete=light green, Active=orange, Remaining=blue gradient
+                      // Colors: pastel and more transparent
                       const cardBackground = category === 'complete' 
-                        ? 'rgba(220, 252, 231, 0.85)' // solid light green (matches bg-green-50)
+                        ? 'rgba(220, 252, 231, 0.45)' // pastel green, transparent
                         : category === 'active'
-                        ? 'rgba(255, 237, 213, 0.85)' // solid light orange (matches bg-orange-50)
-                        : 'linear-gradient(135deg, rgba(219, 234, 254, 0.9) 0%, rgba(191, 219, 254, 0.8) 100%)'; // blue gradient for remaining
+                        ? 'rgba(255, 237, 213, 0.45)' // pastel peach, transparent
+                        : 'rgba(219, 234, 254, 0.45)'; // pastel blue, transparent
 
                       return (
                         <div
@@ -302,10 +302,10 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                               background: cardBackground,
                               backdropFilter: 'blur(8px)',
                               border: category === 'active' 
-                                ? '2px solid rgba(251, 146, 60, 0.7)' // orange-400
+                                ? '1px solid rgba(251, 146, 60, 0.4)' // soft orange
                                 : category === 'complete'
-                                ? '1px solid rgba(134, 239, 172, 0.6)' // green-300
-                                : '1px solid rgba(147, 197, 253, 0.7)', // blue-300 for remaining
+                                ? '1px solid rgba(134, 239, 172, 0.35)' // soft green
+                                : '1px solid rgba(147, 197, 253, 0.4)', // soft blue
                               boxShadow: isHovered 
                                 ? '0 4px 12px rgba(0,0,0,0.15)' 
                                 : '0 1px 3px rgba(0,0,0,0.05)'
