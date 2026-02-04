@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments } from '@shared/schema';
+import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -886,7 +886,7 @@ router.get('/team-members', requireAuth, requireRole('contractor'), async (req: 
   }
 });
 
-// Get team calendar - all appointments for contractor and their team
+// Get team calendar - all appointments AND scheduled jobs for contractor and their team
 router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {
     const contractorUserId = req.user!.id;
@@ -912,8 +912,11 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
     // Combine vendor IDs and user IDs - appointments may use either as contractor_id
     const allContractorIds = [...vendorIds, ...allUserIds];
     
+    // Map vendor IDs back to user IDs (for appointments using vendor IDs)
+    const vendorToUserMap = new Map(vendorResults.map(v => [v.id, v.userId]));
+    
     // Get appointments for all team vendors AND user IDs (legacy appointments use user IDs)
-    let appointmentsQuery = db.query.appointments.findMany({
+    const allAppointments = await db.query.appointments.findMany({
       where: allContractorIds.length > 0 ? inArray(appointments.contractorId, allContractorIds) : undefined,
       with: {
         smartCase: {
@@ -925,11 +928,18 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
       orderBy: (appts, { asc }) => [asc(appts.scheduledStartAt)],
     });
     
-    const allAppointments = await appointmentsQuery;
+    // Also get scheduled jobs from the schedule calendar
+    const allScheduledJobs = vendorIds.length > 0 
+      ? await db.query.scheduledJobs.findMany({
+          where: inArray(scheduledJobs.contractorId, vendorIds),
+          with: {
+            property: true,
+          },
+          orderBy: (jobs, { asc }) => [asc(jobs.scheduledStartAt)],
+        })
+      : [];
     
-    // Map vendor IDs back to user IDs (for appointments using vendor IDs)
-    const vendorToUserMap = new Map(vendorResults.map(v => [v.id, v.userId]));
-    
+    // Format appointments
     const formattedAppointments = allAppointments.map((apt: any) => ({
       id: apt.id,
       title: apt.title || apt.smartCase?.title || 'Appointment',
@@ -941,9 +951,43 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
         ? `${apt.smartCase.property.streetAddress}, ${apt.smartCase.property.city || ''}`
         : null,
       customerName: apt.smartCase?.property?.name,
+      source: 'appointment',
     }));
     
-    res.json(formattedAppointments);
+    // Format scheduled jobs - map status to timeline-compatible status
+    const formattedScheduledJobs = allScheduledJobs.map((job: any) => {
+      // Map job status to timeline status based on jobStatusEnum values:
+      // "Unscheduled", "Scheduled", "Pending Approval", "Needs Review", "Confirmed" → Remaining (blue)
+      // "In Progress" → Active (amber)
+      // "Completed" → Complete (green)
+      // "Cancelled" → hidden/grey
+      let timelineStatus = 'Scheduled'; // Default to "Remaining" category
+      if (job.status === 'Confirmed') timelineStatus = 'Confirmed';
+      else if (job.status === 'In Progress') timelineStatus = 'In Progress';
+      else if (job.status === 'Completed') timelineStatus = 'Completed';
+      else if (job.status === 'Cancelled') timelineStatus = 'Cancelled';
+      
+      return {
+        id: `job-${job.id}`,
+        title: job.title || 'Scheduled Job',
+        scheduledStartAt: job.scheduledStartAt,
+        scheduledEndAt: job.scheduledEndAt,
+        status: timelineStatus,
+        contractorId: vendorToUserMap.get(job.contractorId) || job.contractorId,
+        address: job.address || (job.property?.streetAddress 
+          ? `${job.property.streetAddress}, ${job.property.city || ''}`
+          : null),
+        customerName: job.property?.name,
+        source: 'scheduled_job',
+      };
+    });
+    
+    // Combine and sort by start time
+    const combined = [...formattedAppointments, ...formattedScheduledJobs]
+      .filter(item => item.scheduledStartAt)
+      .sort((a, b) => new Date(a.scheduledStartAt).getTime() - new Date(b.scheduledStartAt).getTime());
+    
+    res.json(combined);
   } catch (error) {
     console.error('Error fetching team calendar:', error);
     res.status(500).json({ error: 'Failed to fetch team calendar' });

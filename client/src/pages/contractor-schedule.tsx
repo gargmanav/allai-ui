@@ -394,6 +394,7 @@ export default function ContractorSchedulePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/scheduled-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/team-calendar'] });
       toast({ 
         title: "Job created successfully",
         duration: 2000
@@ -536,6 +537,7 @@ export default function ContractorSchedulePage() {
     onSuccess: (data: ScheduledJob) => {
       // Invalidate queries to refetch from server with new data
       queryClient.invalidateQueries({ queryKey: ['/api/scheduled-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/team-calendar'] });
       toast({ 
         title: "Job updated successfully",
         duration: 2000
@@ -564,6 +566,7 @@ export default function ContractorSchedulePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/scheduled-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/team-calendar'] });
       toast({ 
         title: "Job deleted successfully",
         duration: 2000

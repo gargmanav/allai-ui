@@ -77,35 +77,42 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
     return { left, width };
   };
 
-  // Pastel colors with subtle gradients for softer visual appearance
+  // Pastel colors matching the summary badges:
+  // Remaining (Confirmed/Pending/Scheduled/Unscheduled/Pending Approval/Needs Review) = blue
+  // Active (In Progress) = amber
+  // Complete (Completed) = green
   const getStatusStyle = (status?: string) => {
-    switch (status) {
-      case 'Confirmed': return { 
-        gradient: 'linear-gradient(135deg, #93c5fd 0%, #a5b4fc 100%)', 
-        text: 'text-blue-800',
-        border: '1px solid rgba(147, 197, 253, 0.5)'
-      };
-      case 'Pending': return { 
-        gradient: 'linear-gradient(135deg, #fde68a 0%, #fed7aa 100%)', 
+    // "Active" status - amber pastel (matches amber Active badge)
+    if (status === 'In Progress') {
+      return { 
+        gradient: 'linear-gradient(135deg, #fde68a 0%, #fef3c7 100%)', 
         text: 'text-amber-800',
         border: '1px solid rgba(253, 230, 138, 0.5)'
       };
-      case 'In Progress': return { 
-        gradient: 'linear-gradient(135deg, #fdba74 0%, #f9a8d4 100%)', 
-        text: 'text-orange-800',
-        border: '1px solid rgba(253, 186, 116, 0.5)'
-      };
-      case 'Completed': return { 
-        gradient: 'linear-gradient(135deg, #86efac 0%, #a7f3d0 100%)', 
+    }
+    // "Complete" status - green pastel (matches green Complete badge)
+    if (status === 'Completed') {
+      return { 
+        gradient: 'linear-gradient(135deg, #86efac 0%, #bbf7d0 100%)', 
         text: 'text-green-800',
         border: '1px solid rgba(134, 239, 172, 0.5)'
       };
-      default: return { 
-        gradient: 'linear-gradient(135deg, #d1d5db 0%, #e5e7eb 100%)', 
-        text: 'text-gray-700',
+    }
+    // "Cancelled" status - grey
+    if (status === 'Cancelled') {
+      return { 
+        gradient: 'linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 100%)', 
+        text: 'text-gray-600',
         border: '1px solid rgba(209, 213, 219, 0.5)'
       };
     }
+    // All other statuses are "Remaining" - blue pastel (matches blue Remaining badge)
+    // Includes: Confirmed, Pending, Scheduled, Unscheduled, Pending Approval, Needs Review
+    return { 
+      gradient: 'linear-gradient(135deg, #93c5fd 0%, #bfdbfe 100%)', 
+      text: 'text-blue-800',
+      border: '1px solid rgba(147, 197, 253, 0.5)'
+    };
   };
 
   const getCurrentTimePosition = () => {
