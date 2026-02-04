@@ -237,3 +237,26 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(139, 92, 246, 0.5);
 }
+
+/* Running light animation for card top bars - AllAI pyramid colors */
+@keyframes runningLight {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.running-light-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.7) 0%,
+    rgba(16, 185, 129, 0.7) 25%,
+    rgba(59, 130, 246, 0.7) 50%,
+    rgba(139, 92, 246, 0.7) 75%,
+    rgba(16, 185, 129, 0.7) 100%
+  );
+  background-size: 200% 100%;
+  animation: runningLight 3.5s linear infinite;
+}

@@ -767,18 +767,18 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with intense blue gradient hue */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 via-blue-300/0 to-sky-400/0 group-hover:from-blue-400/30 group-hover:via-blue-300/22 group-hover:to-sky-400/35 transition-all duration-500" />
-                    {/* Strong glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 80px rgba(59, 130, 246, 0.25), inset 0 0 40px rgba(96, 165, 250, 0.15)' }} />
+                    {/* Hover overlay with intense blue gradient hue and glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 via-blue-300/0 to-sky-400/0 group-hover:from-blue-500/35 group-hover:via-blue-400/28 group-hover:to-sky-500/40 transition-all duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-tl from-blue-300/0 via-transparent to-sky-300/0 group-hover:from-blue-300/20 group-hover:to-sky-300/25 transition-all duration-500" />
+                    {/* Strong multi-layer glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(59, 130, 246, 0.3), inset 0 0 60px rgba(96, 165, 250, 0.2), inset 0 0 30px rgba(147, 197, 253, 0.15)' }} />
                     
-                    {/* Blue frosted gradient top bar - enhanced */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="h-2 group-hover:h-2.5 transition-all duration-300" 
+                      className="running-light-bar h-2 group-hover:h-2.5 transition-all duration-300" 
                       style={{ 
-                        background: 'linear-gradient(90deg, rgba(191,219,254,0.85) 0%, rgba(147,197,253,0.8) 15%, rgba(96,165,250,0.75) 35%, rgba(59,130,246,0.7) 50%, rgba(96,165,250,0.75) 65%, rgba(147,197,253,0.8) 85%, rgba(191,219,254,0.85) 100%)',
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(59,130,246,0.2)'
+                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
                       }} 
                     />
                     
@@ -837,18 +837,18 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with intense amber gradient hue */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-400/0 via-yellow-300/0 to-orange-400/0 group-hover:from-amber-400/30 group-hover:via-yellow-300/22 group-hover:to-orange-400/35 transition-all duration-500" />
-                    {/* Strong glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 80px rgba(245, 158, 11, 0.25), inset 0 0 40px rgba(251, 191, 36, 0.15)' }} />
+                    {/* Hover overlay with intense amber gradient hue and glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-400/0 via-yellow-300/0 to-orange-400/0 group-hover:from-amber-500/35 group-hover:via-yellow-400/28 group-hover:to-orange-500/40 transition-all duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-tl from-yellow-300/0 via-transparent to-amber-300/0 group-hover:from-yellow-300/20 group-hover:to-amber-300/25 transition-all duration-500" />
+                    {/* Strong multi-layer glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(245, 158, 11, 0.3), inset 0 0 60px rgba(251, 191, 36, 0.2), inset 0 0 30px rgba(253, 224, 71, 0.15)' }} />
                     
-                    {/* Blue frosted gradient top bar - enhanced */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="h-2 group-hover:h-2.5 transition-all duration-300" 
+                      className="running-light-bar h-2 group-hover:h-2.5 transition-all duration-300" 
                       style={{ 
-                        background: 'linear-gradient(90deg, rgba(191,219,254,0.85) 0%, rgba(147,197,253,0.8) 15%, rgba(96,165,250,0.75) 35%, rgba(59,130,246,0.7) 50%, rgba(96,165,250,0.75) 65%, rgba(147,197,253,0.8) 85%, rgba(191,219,254,0.85) 100%)',
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(59,130,246,0.2)'
+                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
                       }} 
                     />
                     
@@ -904,18 +904,18 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with intense teal/green gradient hue */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-teal-400/0 via-emerald-300/0 to-green-400/0 group-hover:from-teal-400/30 group-hover:via-emerald-300/22 group-hover:to-green-400/35 transition-all duration-500" />
-                    {/* Strong glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 80px rgba(20, 184, 166, 0.25), inset 0 0 40px rgba(52, 211, 153, 0.15)' }} />
+                    {/* Hover overlay with intense teal/green gradient hue and glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-teal-400/0 via-emerald-300/0 to-green-400/0 group-hover:from-teal-500/35 group-hover:via-emerald-400/28 group-hover:to-green-500/40 transition-all duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-tl from-emerald-300/0 via-transparent to-teal-300/0 group-hover:from-emerald-300/20 group-hover:to-teal-300/25 transition-all duration-500" />
+                    {/* Strong multi-layer glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(20, 184, 166, 0.3), inset 0 0 60px rgba(52, 211, 153, 0.2), inset 0 0 30px rgba(110, 231, 183, 0.15)' }} />
                     
-                    {/* Blue frosted gradient top bar - enhanced */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="h-2 group-hover:h-2.5 transition-all duration-300" 
+                      className="running-light-bar h-2 group-hover:h-2.5 transition-all duration-300" 
                       style={{ 
-                        background: 'linear-gradient(90deg, rgba(191,219,254,0.85) 0%, rgba(147,197,253,0.8) 15%, rgba(96,165,250,0.75) 35%, rgba(59,130,246,0.7) 50%, rgba(96,165,250,0.75) 65%, rgba(147,197,253,0.8) 85%, rgba(191,219,254,0.85) 100%)',
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(59,130,246,0.2)'
+                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
                       }} 
                     />
                     
@@ -971,18 +971,18 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay with intense violet gradient hue */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-fuchsia-400/0 group-hover:from-violet-400/30 group-hover:via-purple-300/22 group-hover:to-fuchsia-400/35 transition-all duration-500" />
-                    {/* Strong glow effect on hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 80px rgba(139, 92, 246, 0.25), inset 0 0 40px rgba(167, 139, 250, 0.15)' }} />
+                    {/* Hover overlay with intense violet/purple gradient hue and glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 via-purple-300/0 to-fuchsia-400/0 group-hover:from-violet-500/35 group-hover:via-purple-400/28 group-hover:to-fuchsia-500/40 transition-all duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-tl from-purple-300/0 via-transparent to-violet-300/0 group-hover:from-purple-300/20 group-hover:to-violet-300/25 transition-all duration-500" />
+                    {/* Strong multi-layer glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 100px rgba(139, 92, 246, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.2), inset 0 0 30px rgba(196, 181, 253, 0.15)' }} />
                     
-                    {/* Blue frosted gradient top bar - enhanced */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="h-2 group-hover:h-2.5 transition-all duration-300" 
+                      className="running-light-bar h-2 group-hover:h-2.5 transition-all duration-300" 
                       style={{ 
-                        background: 'linear-gradient(90deg, rgba(191,219,254,0.85) 0%, rgba(147,197,253,0.8) 15%, rgba(96,165,250,0.75) 35%, rgba(59,130,246,0.7) 50%, rgba(96,165,250,0.75) 65%, rgba(147,197,253,0.8) 85%, rgba(191,219,254,0.85) 100%)',
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(59,130,246,0.2)'
+                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
                       }} 
                     />
                     
