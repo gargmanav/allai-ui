@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { format, isToday, parseISO, startOfDay, endOfDay } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, startOfDay, endOfDay } from "date-fns";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -212,6 +212,23 @@ export default function Contractor() {
         const dateB = typeof b.scheduledStartAt === 'string' ? parseISO(b.scheduledStartAt) : b.scheduledStartAt;
         return new Date(dateA).getTime() - new Date(dateB).getTime();
       });
+  }, [appointments]);
+
+  // Next upcoming appointment (any future date) - for the hero card
+  const nextUpcomingAppointment = useMemo(() => {
+    const now = new Date();
+    const upcoming = appointments
+      .filter(apt => {
+        if (!apt.scheduledStartAt) return false;
+        const aptDate = typeof apt.scheduledStartAt === 'string' ? parseISO(apt.scheduledStartAt) : new Date(apt.scheduledStartAt);
+        return aptDate > now && ['Confirmed', 'Pending', 'Scheduled'].includes(apt.status);
+      })
+      .sort((a, b) => {
+        const dateA = typeof a.scheduledStartAt === 'string' ? parseISO(a.scheduledStartAt) : a.scheduledStartAt;
+        const dateB = typeof b.scheduledStartAt === 'string' ? parseISO(b.scheduledStartAt) : b.scheduledStartAt;
+        return new Date(dateA).getTime() - new Date(dateB).getTime();
+      });
+    return upcoming[0] || null;
   }, [appointments]);
 
   // Placeholder for unread messages - would come from real messaging system
@@ -549,22 +566,34 @@ export default function Contractor() {
               </button>
             </div>
 
-            {/* What's Next - Hero Card */}
+            {/* What's Next - Hero Card (shows next upcoming appointment, any date) */}
             {(() => {
-              const nextAppointment = todaysAppointments[0];
               const nextJob = jobs.find(j => ["Scheduled", "Confirmed"].includes(j.status));
               
-              if (nextAppointment) {
-                const aptTime = typeof nextAppointment.scheduledStartAt === 'string' ? parseISO(nextAppointment.scheduledStartAt) : nextAppointment.scheduledStartAt;
+              if (nextUpcomingAppointment) {
+                const aptTime = typeof nextUpcomingAppointment.scheduledStartAt === 'string' ? parseISO(nextUpcomingAppointment.scheduledStartAt) : nextUpcomingAppointment.scheduledStartAt;
                 const timeStr = format(aptTime, 'h:mm a');
                 const now = new Date();
                 const diffMs = new Date(aptTime).getTime() - now.getTime();
                 const diffMins = Math.round(diffMs / 60000);
-                const timeUntil = diffMins > 60 
-                  ? `in ${Math.round(diffMins / 60)}h ${diffMins % 60}m`
-                  : diffMins > 0 
-                    ? `in ${diffMins} min` 
-                    : 'now';
+                
+                // Smart time display
+                let timeUntil = '';
+                let dateLabel = '';
+                if (isToday(aptTime)) {
+                  dateLabel = 'Today';
+                  timeUntil = diffMins > 60 
+                    ? `in ${Math.round(diffMins / 60)}h ${diffMins % 60}m`
+                    : diffMins > 0 
+                      ? `in ${diffMins} min` 
+                      : 'now';
+                } else if (isTomorrow(aptTime)) {
+                  dateLabel = 'Tomorrow';
+                  timeUntil = format(aptTime, 'h:mm a');
+                } else {
+                  dateLabel = format(aptTime, 'EEE, MMM d');
+                  timeUntil = format(aptTime, 'h:mm a');
+                }
                 
                 return (
                   <div 
@@ -579,23 +608,21 @@ export default function Contractor() {
                   >
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                      <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Next Up</span>
+                      <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Next Upcoming</span>
                     </div>
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                      {nextAppointment.title || 'Scheduled Appointment'}
+                      {nextUpcomingAppointment.title || 'Scheduled Appointment'}
                     </h2>
                     <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
                       <div className="flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4" />
+                        <span className="font-medium">{dateLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         <Clock className="h-4 w-4" />
                         <span className="font-medium">{timeStr}</span>
-                        <span className="text-blue-600 font-medium">({timeUntil})</span>
+                        {isToday(aptTime) && <span className="text-blue-600 font-medium">({timeUntil})</span>}
                       </div>
-                      {nextAppointment.address && (
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="h-4 w-4" />
-                          <span>{nextAppointment.address}</span>
-                        </div>
-                      )}
                     </div>
                     <div className="mt-4 flex justify-end">
                       <Button size="sm" className="rounded-full">
