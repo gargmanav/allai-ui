@@ -173,8 +173,8 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
               <span className="text-[9px] text-gray-500 uppercase tracking-wide">Total</span>
             </div>
             <div 
-              className="flex flex-col items-center px-3 py-1 rounded-lg border border-blue-200"
-              style={{ background: 'linear-gradient(135deg, rgba(219, 234, 254, 0.9) 0%, rgba(191, 219, 254, 0.8) 100%)' }}
+              className="flex flex-col items-center px-3 py-1 rounded-lg border border-blue-200/50"
+              style={{ background: 'linear-gradient(135deg, rgba(219, 234, 254, 0.45) 0%, rgba(191, 219, 254, 0.4) 100%)' }}
             >
               <span className="text-sm font-bold text-blue-700">{summaryStats.remaining}</span>
               <span className="text-[9px] text-blue-500 uppercase tracking-wide">Remaining</span>
