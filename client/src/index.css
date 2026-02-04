@@ -264,55 +264,68 @@
 .running-light-bar-blue {
   background: linear-gradient(
     90deg,
-    rgba(30, 58, 138, 0.9) 0%,
-    rgba(59, 130, 246, 0.8) 20%,
-    rgba(96, 165, 250, 0.7) 40%,
-    rgba(147, 197, 253, 0.6) 60%,
-    rgba(59, 130, 246, 0.8) 80%,
-    rgba(30, 58, 138, 0.9) 100%
+    rgba(30, 58, 138, 0.4) 0%,
+    rgba(30, 58, 138, 0.4) 40%,
+    rgba(59, 130, 246, 0.7) 45%,
+    rgba(147, 197, 253, 1) 50%,
+    rgba(59, 130, 246, 0.7) 55%,
+    rgba(30, 58, 138, 0.4) 60%,
+    rgba(30, 58, 138, 0.4) 100%
   );
-  background-size: 200% 100%;
-  animation: runningLight 40s linear infinite;
+  background-size: 300% 100%;
+  animation: sweepLight 3s ease-in-out infinite;
 }
 
 .running-light-bar-orange {
   background: linear-gradient(
     90deg,
-    rgba(194, 65, 12, 0.9) 0%,
-    rgba(249, 115, 22, 0.8) 20%,
-    rgba(251, 146, 60, 0.7) 40%,
-    rgba(253, 186, 116, 0.6) 60%,
-    rgba(249, 115, 22, 0.8) 80%,
-    rgba(194, 65, 12, 0.9) 100%
+    rgba(154, 52, 18, 0.4) 0%,
+    rgba(154, 52, 18, 0.4) 40%,
+    rgba(249, 115, 22, 0.7) 45%,
+    rgba(253, 186, 116, 1) 50%,
+    rgba(249, 115, 22, 0.7) 55%,
+    rgba(154, 52, 18, 0.4) 60%,
+    rgba(154, 52, 18, 0.4) 100%
   );
-  background-size: 200% 100%;
-  animation: runningLight 40s linear infinite;
+  background-size: 300% 100%;
+  animation: sweepLight 3s ease-in-out infinite;
 }
 
 .running-light-bar-green {
   background: linear-gradient(
     90deg,
-    rgba(6, 95, 70, 0.9) 0%,
-    rgba(16, 185, 129, 0.8) 20%,
-    rgba(52, 211, 153, 0.7) 40%,
-    rgba(110, 231, 183, 0.6) 60%,
-    rgba(16, 185, 129, 0.8) 80%,
-    rgba(6, 95, 70, 0.9) 100%
+    rgba(6, 78, 59, 0.4) 0%,
+    rgba(6, 78, 59, 0.4) 40%,
+    rgba(16, 185, 129, 0.7) 45%,
+    rgba(110, 231, 183, 1) 50%,
+    rgba(16, 185, 129, 0.7) 55%,
+    rgba(6, 78, 59, 0.4) 60%,
+    rgba(6, 78, 59, 0.4) 100%
   );
-  background-size: 200% 100%;
-  animation: runningLight 40s linear infinite;
+  background-size: 300% 100%;
+  animation: sweepLight 3s ease-in-out infinite;
 }
 
 .running-light-bar-purple {
   background: linear-gradient(
     90deg,
-    rgba(91, 33, 182, 0.9) 0%,
-    rgba(139, 92, 246, 0.8) 20%,
-    rgba(167, 139, 250, 0.7) 40%,
-    rgba(196, 181, 253, 0.6) 60%,
-    rgba(139, 92, 246, 0.8) 80%,
-    rgba(91, 33, 182, 0.9) 100%
+    rgba(76, 29, 149, 0.4) 0%,
+    rgba(76, 29, 149, 0.4) 40%,
+    rgba(139, 92, 246, 0.7) 45%,
+    rgba(196, 181, 253, 1) 50%,
+    rgba(139, 92, 246, 0.7) 55%,
+    rgba(76, 29, 149, 0.4) 60%,
+    rgba(76, 29, 149, 0.4) 100%
   );
-  background-size: 200% 100%;
-  animation: runningLight 40s linear infinite;
+  background-size: 300% 100%;
+  animation: sweepLight 3s ease-in-out infinite;
+}
+
+@keyframes sweepLight {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
