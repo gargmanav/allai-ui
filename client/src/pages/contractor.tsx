@@ -757,7 +757,7 @@ export default function Contractor() {
                 <div className="grid grid-cols-4 gap-4 mb-8">
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(59,130,246,0.35)] focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(139,92,246,0.2)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(248,250,255,0.95) 15%, rgba(240,245,252,0.88) 30%, rgba(232,238,250,0.78) 50%, rgba(225,232,248,0.68) 70%, rgba(218,226,245,0.58) 100%)',
@@ -767,17 +767,17 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay matching sidebar style - lighter gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
-                    {/* Subtle glow effect on hover matching sidebar */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar h-1.5 group-hover:h-2 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
                       }} 
                     />
                     
@@ -826,7 +826,7 @@ export default function Contractor() {
 
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(245,158,11,0.35)] focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(139,92,246,0.2)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(248,250,255,0.95) 15%, rgba(240,245,252,0.88) 30%, rgba(232,238,250,0.78) 50%, rgba(225,232,248,0.68) 70%, rgba(218,226,245,0.58) 100%)',
@@ -836,17 +836,17 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay matching sidebar style - lighter gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
-                    {/* Subtle glow effect on hover matching sidebar */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar h-1.5 group-hover:h-2 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
                       }} 
                     />
                     
@@ -892,7 +892,7 @@ export default function Contractor() {
 
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(20,184,166,0.35)] focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(139,92,246,0.2)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("activeJobs" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(248,250,255,0.95) 15%, rgba(240,245,252,0.88) 30%, rgba(232,238,250,0.78) 50%, rgba(225,232,248,0.68) 70%, rgba(218,226,245,0.58) 100%)',
@@ -902,17 +902,17 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay matching sidebar style - lighter gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
-                    {/* Subtle glow effect on hover matching sidebar */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar h-1.5 group-hover:h-2 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
                       }} 
                     />
                     
@@ -958,7 +958,7 @@ export default function Contractor() {
 
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(139,92,246,0.35)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(139,92,246,0.2)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(248,250,255,0.95) 15%, rgba(240,245,252,0.88) 30%, rgba(232,238,250,0.78) 50%, rgba(225,232,248,0.68) 70%, rgba(218,226,245,0.58) 100%)',
@@ -968,17 +968,17 @@ export default function Contractor() {
                       boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
                     }}
                   >
-                    {/* Hover overlay matching sidebar style - lighter gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/25 group-hover:to-blue-500/25 transition-all duration-300 rounded-xl" />
-                    {/* Subtle glow effect on hover matching sidebar */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 16px rgba(139, 92, 246, 0.3)' }} />
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
                     {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar h-1.5 group-hover:h-2 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.1)'
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
                       }} 
                     />
                     
