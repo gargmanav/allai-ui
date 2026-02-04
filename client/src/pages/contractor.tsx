@@ -52,16 +52,11 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { TeamCalendar } from "@/components/contractor/team-calendar";
 import { TeamTimeline } from "@/components/contractor/team-timeline";
 import { Sparkline } from "@/components/contractor/sparkline";
+import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import { CustomersContent } from "@/pages/customers";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
@@ -164,6 +159,7 @@ export default function Contractor() {
   const [mayaSuggestionIndex, setMayaSuggestionIndex] = useState(0);
   const [showMayaBubble, setShowMayaBubble] = useState(false);
   const [mayaHovered, setMayaHovered] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   
   const mayaSuggestions = [
     "Which job is most lucrative?",
@@ -788,13 +784,20 @@ export default function Contractor() {
               const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
               
               return (
-                <TooltipProvider delayDuration={300}>
                 <div className="grid grid-cols-4 gap-4 mb-8">
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("requests")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "requests"}>
+                      <p className="text-gray-600">{requestsTotal7Days} requests received</p>
+                      <p className="text-gray-600">{requestsConverted7Days} converted to jobs</p>
+                      <p className="text-blue-600 font-medium">{requestsConversionRate}% conversion rate</p>
+                    </ThoughtBubble>
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -860,22 +863,21 @@ export default function Contractor() {
                       </div>
                     </div>
                   </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-xl">
-                      <div className="space-y-1.5 text-sm">
-                        <p className="font-semibold text-gray-800">7-Day Summary</p>
-                        <p className="text-gray-600">{requestsTotal7Days} requests received</p>
-                        <p className="text-gray-600">{requestsConverted7Days} converted to jobs</p>
-                        <p className="text-blue-600 font-medium">{requestsConversionRate}% conversion rate</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                  </div>
 
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("quotes")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "quotes"}>
+                      <p className="text-gray-600">{quotesSent7Days} quotes sent</p>
+                      <p className="text-gray-600">{quotesApproved7Days} approved</p>
+                      <p className="text-amber-600 font-medium">{quotesApprovalRate}% approval rate</p>
+                    </ThoughtBubble>
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -938,22 +940,21 @@ export default function Contractor() {
                       </div>
                     </div>
                   </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-xl">
-                      <div className="space-y-1.5 text-sm">
-                        <p className="font-semibold text-gray-800">7-Day Summary</p>
-                        <p className="text-gray-600">{quotesSent7Days} quotes sent</p>
-                        <p className="text-gray-600">{quotesApproved7Days} approved</p>
-                        <p className="text-amber-600 font-medium">{quotesApprovalRate}% approval rate</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                  </div>
 
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("jobs")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "jobs"}>
+                      <p className="text-gray-600">{jobsStarted7Days} jobs started</p>
+                      <p className="text-gray-600">{jobsCompleted7Days} completed</p>
+                      <p className="text-green-600 font-medium">{jobsCompletionRate}% completion rate</p>
+                    </ThoughtBubble>
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("activeJobs" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -1016,22 +1017,21 @@ export default function Contractor() {
                       </div>
                     </div>
                   </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-xl">
-                      <div className="space-y-1.5 text-sm">
-                        <p className="font-semibold text-gray-800">7-Day Summary</p>
-                        <p className="text-gray-600">{jobsStarted7Days} jobs started</p>
-                        <p className="text-gray-600">{jobsCompleted7Days} completed</p>
-                        <p className="text-green-600 font-medium">{jobsCompletionRate}% completion rate</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                  </div>
 
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("invoices")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "invoices"}>
+                      <p className="text-gray-600">{invoicesSent7Days} invoices sent</p>
+                      <p className="text-gray-600">{invoicesPaid7Days} paid</p>
+                      <p className="text-violet-600 font-medium">{invoicesPaymentRate}% payment rate</p>
+                    </ThoughtBubble>
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -1094,18 +1094,8 @@ export default function Contractor() {
                       </div>
                     </div>
                   </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-xl">
-                      <div className="space-y-1.5 text-sm">
-                        <p className="font-semibold text-gray-800">7-Day Summary</p>
-                        <p className="text-gray-600">{invoicesSent7Days} invoices sent</p>
-                        <p className="text-gray-600">{invoicesPaid7Days} paid</p>
-                        <p className="text-violet-600 font-medium">{invoicesPaymentRate}% payment rate</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                  </div>
                 </div>
-                </TooltipProvider>
               );
             })()}
 
