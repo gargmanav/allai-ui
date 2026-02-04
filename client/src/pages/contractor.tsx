@@ -757,7 +757,7 @@ export default function Contractor() {
                 <div className="grid grid-cols-4 gap-4 mb-8">
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.06] hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(139,92,246,0.25),0_8px_20px_rgba(0,0,0,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -826,7 +826,7 @@ export default function Contractor() {
 
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.06] hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(139,92,246,0.25),0_8px_20px_rgba(0,0,0,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -892,7 +892,7 @@ export default function Contractor() {
 
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.06] hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(139,92,246,0.25),0_8px_20px_rgba(0,0,0,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("activeJobs" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
@@ -958,7 +958,7 @@ export default function Contractor() {
 
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
                   <button
-                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.06] hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(139,92,246,0.25),0_8px_20px_rgba(0,0,0,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
