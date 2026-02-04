@@ -96,11 +96,13 @@ router.get('/customers', requireAuth, requireRole('contractor'), async (req: Aut
     const contractorVendors = await storage.getContractorVendorsByUserId(contractorUserId);
     const vendorIds = contractorVendors.map(v => v.id);
     
-    // Get active job counts for each customer
+    // Get job counts for each customer
     const customerIds = customers.map(c => c.id);
     let activeJobCounts: { customerId: string; count: number }[] = [];
+    let totalJobCounts: { customerId: string; count: number }[] = [];
     
     if (customerIds.length > 0 && vendorIds.length > 0) {
+      // Active jobs (not closed/resolved)
       activeJobCounts = await db
         .select({
           customerId: smartCases.customerId,
@@ -115,15 +117,32 @@ router.get('/customers', requireAuth, requireRole('contractor'), async (req: Aut
           )
         )
         .groupBy(smartCases.customerId);
+      
+      // Total jobs (all statuses)
+      totalJobCounts = await db
+        .select({
+          customerId: smartCases.customerId,
+          count: sql<number>`count(*)::int`.as('count'),
+        })
+        .from(smartCases)
+        .where(
+          and(
+            inArray(smartCases.customerId, customerIds),
+            inArray(smartCases.assignedContractorId, vendorIds)
+          )
+        )
+        .groupBy(smartCases.customerId);
     }
     
-    // Create lookup map for active job counts
+    // Create lookup maps
     const activeJobCountMap = new Map(activeJobCounts.map(ajc => [ajc.customerId, ajc.count]));
+    const totalJobCountMap = new Map(totalJobCounts.map(tjc => [tjc.customerId, tjc.count]));
     
     // Add metrics to customers
     const customersWithMetrics = customers.map(customer => ({
       ...customer,
       activeJobCount: activeJobCountMap.get(customer.id) || 0,
+      totalJobCount: totalJobCountMap.get(customer.id) || 0,
     }));
     
     res.json(customersWithMetrics);

@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { User, Briefcase, Plus, Mail, Phone, Building2, Trash2, Edit, ArrowUpDown, Filter, LayoutGrid, List, MapPin, Navigation } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +39,15 @@ type Customer = {
   createdAt: string;
   updatedAt: string;
   activeJobCount: number;
+  totalJobCount: number;
+};
+
+type CustomerStatus = 'all' | 'current' | 'leads' | 'prior';
+
+const getCustomerStatus = (customer: Customer): 'current' | 'leads' | 'prior' => {
+  if (customer.activeJobCount > 0) return 'current';
+  if (customer.totalJobCount === 0) return 'leads';
+  return 'prior';
 };
 
 const customerFormSchema = z.object({
@@ -147,7 +157,7 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'company' | 'city'>('name');
   const [filterCity, setFilterCity] = useState<string>('');
-  const [filterActiveJobs, setFilterActiveJobs] = useState<'all' | 'with-jobs' | 'no-jobs'>('all');
+  const [statusFilter, setStatusFilter] = useState<CustomerStatus>('current');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -315,11 +325,11 @@ export default function CustomersPage() {
       if (filterCity && customer.city !== filterCity) {
         return false;
       }
-      if (filterActiveJobs === 'with-jobs' && customer.activeJobCount === 0) {
-        return false;
-      }
-      if (filterActiveJobs === 'no-jobs' && customer.activeJobCount > 0) {
-        return false;
+      if (statusFilter !== 'all') {
+        const customerStatus = getCustomerStatus(customer);
+        if (statusFilter === 'current' && customerStatus !== 'current') return false;
+        if (statusFilter === 'leads' && customerStatus !== 'leads') return false;
+        if (statusFilter === 'prior' && customerStatus !== 'prior') return false;
       }
       return true;
     })
@@ -406,6 +416,20 @@ export default function CustomersPage() {
             <h3 className="font-semibold truncate" data-testid={`text-customer-name-${customer.id}`}>
               {getCustomerDisplayName(customer)}
             </h3>
+            {(() => {
+              const status = getCustomerStatus(customer);
+              const statusConfig = {
+                current: { label: 'Current', className: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' },
+                leads: { label: 'Lead', className: 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/30' },
+                prior: { label: 'Prior', className: 'bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30' },
+              };
+              const config = statusConfig[status];
+              return (
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${config.className}`}>
+                  {config.label}
+                </Badge>
+              );
+            })()}
           </div>
           {customer.companyName && (
             <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 ml-8 truncate">
@@ -694,14 +718,15 @@ export default function CustomersPage() {
 
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={filterActiveJobs} onValueChange={(value: 'all' | 'with-jobs' | 'no-jobs') => setFilterActiveJobs(value)}>
-                  <SelectTrigger className="w-32" data-testid="select-active-jobs">
-                    <SelectValue placeholder="Active Jobs" />
+                <Select value={statusFilter} onValueChange={(value: CustomerStatus) => setStatusFilter(value)}>
+                  <SelectTrigger className="w-32" data-testid="select-status">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="current">Current</SelectItem>
+                    <SelectItem value="leads">Leads</SelectItem>
+                    <SelectItem value="prior">Prior</SelectItem>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="with-jobs">With Jobs</SelectItem>
-                    <SelectItem value="no-jobs">No Jobs</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -722,17 +747,17 @@ export default function CustomersPage() {
                 </Select>
               )}
 
-              {(filterCity || filterActiveJobs !== 'all') && (
+              {(filterCity || statusFilter !== 'current') && (
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={() => {
                     setFilterCity('');
-                    setFilterActiveJobs('all');
+                    setStatusFilter('current');
                   }}
                   data-testid="button-clear-filters"
                 >
-                  Clear Filters
+                  Reset Filters
                 </Button>
               )}
 
