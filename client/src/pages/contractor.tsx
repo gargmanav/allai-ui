@@ -409,37 +409,27 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 ${
-                view === "landing" 
-                  ? "bg-gradient-to-r from-violet-500/15 to-blue-500/15 text-violet-700 dark:text-violet-400 shadow-sm" 
-                  : "hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10"
-              }`}
-              style={view === "landing" ? { boxShadow: '0 0 12px rgba(139, 92, 246, 0.15)' } : {}}
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => setView("landing")}
             >
-              <Home className={`h-4 w-4 ${view === "landing" ? "text-violet-500" : "text-muted-foreground"}`} />
-              <span className="font-medium">Home</span>
+              <Home className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Home</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => navigate("/contractor-schedule")}
             >
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Schedule</span>
+              <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Schedule</span>
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 ${
-                view === "newJobs" 
-                  ? "bg-gradient-to-r from-violet-500/15 to-blue-500/15 text-violet-700 dark:text-violet-400 shadow-sm" 
-                  : "hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10"
-              }`}
-              style={view === "newJobs" ? { boxShadow: '0 0 12px rgba(139, 92, 246, 0.15)' } : {}}
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => setView("newJobs" as ViewState)}
             >
-              <Briefcase className={`h-4 w-4 ${view === "newJobs" ? "text-violet-500" : "text-muted-foreground"}`} />
-              <span className="font-medium">Job Board</span>
+              <Briefcase className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Job Board</span>
               {newJobsCount > 0 && (
                 <Badge className="ml-auto h-5 px-1.5 text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">{newJobsCount}</Badge>
               )}
@@ -454,30 +444,30 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => navigate("/quotes")}
             >
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Quotes</span>
+              <Receipt className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Quotes</span>
               {quotesCount > 0 && (
                 <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">{quotesCount}</Badge>
               )}
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => navigate("/customers")}
             >
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Customers</span>
+              <Users className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Customers</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => navigate("/inbox")}
             >
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Inbox</span>
+              <Mail className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Inbox</span>
             </Button>
             
             {/* Separator - Purple-Blue Gradient */}
@@ -489,19 +479,19 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => navigate("/reminders")}
             >
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Reminders</span>
+              <Bell className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Reminders</span>
             </Button>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/10 hover:to-blue-500/10 active:from-violet-500/20 active:to-blue-500/20"
+              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
               onClick={() => toast({ title: "Profile", description: "Profile settings coming soon" })}
             >
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Profile</span>
+              <User className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Profile</span>
             </Button>
           </div>
 
