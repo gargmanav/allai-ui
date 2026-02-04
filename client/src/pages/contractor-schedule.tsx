@@ -5,6 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation, useSearch } from "wouter";
 import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Check, Circle, AlertTriangle, AlertOctagon, Zap, Info, ChevronDown, Edit2, Star, Trash2, CalendarClock, Clock } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -180,10 +181,22 @@ const topEdgeCollisionDetection: CollisionDetection = (args) => {
 export default function ContractorSchedulePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const searchString = useSearch();
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 })); // 1 = Monday
   const [showJobDialog, setShowJobDialog] = useState(false);
+  
+  // Auto-open create dialog if navigating with ?create=true
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    if (params.get('create') === 'true') {
+      setShowJobDialog(true);
+      // Clear the query param to avoid re-opening on refresh
+      navigate('/contractor-schedule', { replace: true });
+    }
+  }, [searchString, navigate]);
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [viewingJob, setViewingJob] = useState<ScheduledJob | null>(null);
   const [reviewingCounterProposal, setReviewingCounterProposal] = useState<{job: any, proposalId: string} | null>(null);

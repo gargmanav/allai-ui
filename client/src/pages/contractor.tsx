@@ -673,7 +673,7 @@ export default function Contractor() {
                       variant="ghost" 
                       size="sm" 
                       className="mt-2 text-blue-600"
-                      onClick={() => navigate("/contractor-schedule")}
+                      onClick={() => navigate("/contractor-schedule?create=true")}
                     >
                       Schedule a job
                     </Button>
@@ -879,7 +879,7 @@ export default function Contractor() {
                       variant="outline" 
                       size="sm" 
                       className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                      onClick={() => navigate("/contractor-schedule")}
+                      onClick={() => navigate("/contractor-schedule?create=true")}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Schedule Job
