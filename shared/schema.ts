@@ -1803,6 +1803,12 @@ export const contractorTeamMembersRelations = relations(contractorTeamMembers, (
   }),
 }));
 
+export const appointmentsRelations = relations(appointments, ({ one }) => ({
+  smartCase: one(smartCases, { fields: [appointments.caseId], references: [smartCases.id] }),
+  contractor: one(vendors, { fields: [appointments.contractorId], references: [vendors.id] }),
+  organization: one(organizations, { fields: [appointments.orgId], references: [organizations.id] }),
+}));
+
 export const contactTeamMembersRelations = relations(contactTeamMembers, ({ one }) => ({
   contractor: one(users, {
     fields: [contactTeamMembers.contractorUserId],

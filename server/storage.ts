@@ -4060,14 +4060,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAvailableMarketplaceCases(contractorUserId: string): Promise<SmartCase[]> {
-    const contractorOrgLinks = await db.select()
+    const orgLinks = await db.select()
       .from(contractorOrgLinks)
       .where(and(
         eq(contractorOrgLinks.contractorUserId, contractorUserId),
         eq(contractorOrgLinks.status, 'active')
       ));
     
-    const accessibleOrgIds = contractorOrgLinks.map(link => link.orgId);
+    const accessibleOrgIds = orgLinks.map(link => link.orgId);
     
     if (accessibleOrgIds.length === 0) {
       return [];
