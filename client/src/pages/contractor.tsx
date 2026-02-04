@@ -39,6 +39,7 @@ import {
   MapPin
 } from "lucide-react";
 import { TeamCalendar } from "@/components/contractor/team-calendar";
+import { CustomersContent } from "@/pages/customers";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -531,7 +532,7 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
-              onClick={() => navigate("/customers")}
+              onClick={() => setView("customers")}
             >
               <Users className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Customers</span>
@@ -1515,6 +1516,11 @@ export default function Contractor() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Customers View */}
+        {view === "customers" && (
+          <CustomersContent embedded={true} />
         )}
 
         </main>

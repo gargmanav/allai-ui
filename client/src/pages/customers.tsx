@@ -72,26 +72,77 @@ const customerFormSchema = z.object({
 type CustomerFormData = z.infer<typeof customerFormSchema>;
 
 // Custom marker icons
+// Modern AI-style map pins with gradients and glow effects
 const defaultIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 52">
+      <defs>
+        <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#818cf8"/>
+          <stop offset="50%" style="stop-color:#8b5cf6"/>
+          <stop offset="100%" style="stop-color:#6366f1"/>
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#6366f1" flood-opacity="0.4"/>
+        </filter>
+      </defs>
+      <g filter="url(#shadow)">
+        <path d="M20 2C11 2 4 9 4 18C4 30 20 50 20 50S36 30 36 18C36 9 29 2 20 2Z" fill="url(#pinGrad)" filter="url(#glow)"/>
+        <circle cx="20" cy="18" r="8" fill="white" opacity="0.95"/>
+        <circle cx="20" cy="18" r="4" fill="url(#pinGrad)"/>
+      </g>
+    </svg>
+  `),
+  iconSize: [32, 42],
+  iconAnchor: [16, 42],
+  popupAnchor: [0, -38],
 });
 
 const selectedIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41">
-      <path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 21.9 12.5 41 12.5 41S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z" fill="#8b5cf6"/>
-      <circle cx="12.5" cy="12.5" r="6" fill="white"/>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 62">
+      <defs>
+        <linearGradient id="selPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#c084fc"/>
+          <stop offset="50%" style="stop-color:#8b5cf6"/>
+          <stop offset="100%" style="stop-color:#3b82f6"/>
+        </linearGradient>
+        <filter id="selGlow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="selShadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#8b5cf6" flood-opacity="0.6"/>
+        </filter>
+        <filter id="pulse">
+          <feGaussianBlur stdDeviation="3"/>
+        </filter>
+      </defs>
+      <circle cx="24" cy="22" r="20" fill="#8b5cf6" opacity="0.2" filter="url(#pulse)">
+        <animate attributeName="r" values="18;24;18" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.3;0.1;0.3" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <g filter="url(#selShadow)">
+        <path d="M24 2C13 2 4 11 4 22C4 36 24 60 24 60S44 36 44 22C44 11 35 2 24 2Z" fill="url(#selPinGrad)" filter="url(#selGlow)"/>
+        <circle cx="24" cy="22" r="10" fill="white"/>
+        <circle cx="24" cy="22" r="5" fill="url(#selPinGrad)"/>
+        <circle cx="22" cy="20" r="2" fill="white" opacity="0.6"/>
+      </g>
     </svg>
   `),
-  iconSize: [35, 57],
-  iconAnchor: [17, 57],
-  popupAnchor: [1, -48],
+  iconSize: [44, 56],
+  iconAnchor: [22, 56],
+  popupAnchor: [0, -50],
 });
 
 // Helper function to extract error message from API error
@@ -152,7 +203,7 @@ function FlyToCustomer({ customerId, customers }: { customerId: string | null; c
   return null;
 }
 
-export default function CustomersPage() {
+export function CustomersContent({ embedded = false }: { embedded?: boolean }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'company' | 'city'>('name');
@@ -501,24 +552,20 @@ export default function CustomersPage() {
     </div>
   );
 
-  return (
-    <div className="flex h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Customers" />
-        <main className="flex-1 p-6 overflow-hidden flex flex-col">
-          <div className="mb-4 flex items-center justify-between flex-shrink-0">
-            <div>
-              <h1 className="text-3xl font-bold mb-2" data-testid="text-page-title">
-                Customers
-              </h1>
-              <p className="text-muted-foreground">
-                Manage your clients and view their locations
-              </p>
-            </div>
-            <Dialog open={isAddDialogOpen || !!editingCustomer} onOpenChange={(open) => {
-              if (!open) {
-                setIsAddDialogOpen(false);
+  const mainContent = (
+    <main className={`flex-1 ${embedded ? 'p-4' : 'p-6'} overflow-hidden flex flex-col`}>
+      <div className="mb-4 flex items-center justify-between flex-shrink-0">
+        <div>
+          <h1 className={`${embedded ? 'text-2xl' : 'text-3xl'} font-bold mb-2`} data-testid="text-page-title">
+            Customers
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your clients and view their locations
+          </p>
+        </div>
+        <Dialog open={isAddDialogOpen || !!editingCustomer} onOpenChange={(open) => {
+          if (!open) {
+            setIsAddDialogOpen(false);
                 setEditingCustomer(null);
                 form.reset();
               }
@@ -948,7 +995,23 @@ export default function CustomersPage() {
             </div>
           </div>
         </main>
+  );
+
+  if (embedded) {
+    return mainContent;
+  }
+
+  return (
+    <div className="flex h-screen bg-background">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Customers" />
+        {mainContent}
       </div>
     </div>
   );
+}
+
+export default function CustomersPage() {
+  return <CustomersContent embedded={false} />;
 }
