@@ -260,3 +260,63 @@
   background-size: 200% 100%;
   animation: runningLight 40s linear infinite;
 }
+
+.running-light-bar-blue {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.8) 0%,
+    rgba(59, 130, 246, 0.7) 15%,
+    rgba(249, 115, 22, 0.5) 30%,
+    rgba(16, 185, 129, 0.5) 50%,
+    rgba(139, 92, 246, 0.5) 70%,
+    rgba(59, 130, 246, 0.7) 85%,
+    rgba(59, 130, 246, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: runningLight 40s linear infinite;
+}
+
+.running-light-bar-orange {
+  background: linear-gradient(
+    90deg,
+    rgba(249, 115, 22, 0.8) 0%,
+    rgba(249, 115, 22, 0.7) 15%,
+    rgba(59, 130, 246, 0.5) 30%,
+    rgba(16, 185, 129, 0.5) 50%,
+    rgba(139, 92, 246, 0.5) 70%,
+    rgba(249, 115, 22, 0.7) 85%,
+    rgba(249, 115, 22, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: runningLight 40s linear infinite;
+}
+
+.running-light-bar-green {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.8) 0%,
+    rgba(16, 185, 129, 0.7) 15%,
+    rgba(249, 115, 22, 0.5) 30%,
+    rgba(59, 130, 246, 0.5) 50%,
+    rgba(139, 92, 246, 0.5) 70%,
+    rgba(16, 185, 129, 0.7) 85%,
+    rgba(16, 185, 129, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: runningLight 40s linear infinite;
+}
+
+.running-light-bar-purple {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.8) 0%,
+    rgba(139, 92, 246, 0.7) 15%,
+    rgba(249, 115, 22, 0.5) 30%,
+    rgba(59, 130, 246, 0.5) 50%,
+    rgba(16, 185, 129, 0.5) 70%,
+    rgba(139, 92, 246, 0.7) 85%,
+    rgba(139, 92, 246, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: runningLight 40s linear infinite;
+}
