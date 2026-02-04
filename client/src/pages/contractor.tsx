@@ -767,39 +767,40 @@ export default function Contractor() {
               
               return (
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                  {/* Requests Column - Frosted Glass with Selection State */}
+                  {/* Requests Column - Enhanced Frosted Glass */}
                   <button
-                    className={`group relative rounded-2xl overflow-hidden text-left transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 ${
-                      view === "newJobs" ? 'shadow-[0_8px_32px_rgba(16,185,129,0.2)]' : 'hover:shadow-lg'
-                    }`}
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
                     style={{
-                      background: view === "newJobs" ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.7)',
+                      background: 'rgba(255, 255, 255, 0.7)',
                       backdropFilter: 'blur(24px) saturate(180%)',
                       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: view === "newJobs" ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.4)',
-                      boxShadow: view === "newJobs" 
-                        ? '0 4px 24px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)' 
-                        : '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    {/* Selected state overlay */}
-                    <div className={`absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/10 transition-opacity duration-300 ${view === "newJobs" ? 'opacity-100' : 'opacity-0'}`} />
+                    {/* Hover overlay with purple-blue gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    {/* Glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
                     
-                    {/* Top accent bar - only shows when selected */}
-                    <div className={`h-1 transition-all duration-300 ${view === "newJobs" ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gray-200/50'}`} />
+                    {/* Top accent bar */}
+                    <div className="h-1 bg-gradient-to-r from-blue-400 to-blue-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
                     
                     <div className="relative p-4">
+                      {/* Header with icon */}
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Requests</span>
-                        <Briefcase className={`h-4 w-4 transition-colors duration-300 ${view === "newJobs" ? 'text-emerald-500' : 'text-gray-400'}`} />
+                        <Briefcase className="h-4 w-4 text-blue-500 group-hover:text-violet-500 transition-colors duration-300" />
                       </div>
                       
+                      {/* Primary metric */}
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">New</span>
                         <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{requestsCount}</span>
                       </div>
                       
+                      {/* Sub-metrics */}
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Assessed</span>
@@ -811,45 +812,33 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Value</span>
-                          <span className={`text-sm font-bold ${view === "newJobs" ? 'text-emerald-600' : 'text-gray-600'}`}>${requestsValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-blue-600">${requestsValue.toLocaleString()}</span>
                         </div>
                       </div>
-                      
-                      {/* Action button */}
-                      {requestsCount > 0 && (
-                        <div className="pt-3 mt-2 border-t border-gray-100/50">
-                          <span className="text-[10px] font-medium text-emerald-600 hover:text-emerald-700 uppercase tracking-wide">
-                            Schedule Assessments →
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </button>
 
-                  {/* Quotes Column - Frosted Glass with Selection State */}
+                  {/* Quotes Column - Enhanced Frosted Glass */}
                   <button
-                    className={`group relative rounded-2xl overflow-hidden text-left transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 ${
-                      view === "quotes" ? 'shadow-[0_8px_32px_rgba(16,185,129,0.2)]' : 'hover:shadow-lg'
-                    }`}
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
-                      background: view === "quotes" ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.7)',
+                      background: 'rgba(255, 255, 255, 0.7)',
                       backdropFilter: 'blur(24px) saturate(180%)',
                       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: view === "quotes" ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.4)',
-                      boxShadow: view === "quotes"
-                        ? '0 4px 24px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-                        : '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/10 transition-opacity duration-300 ${view === "quotes" ? 'opacity-100' : 'opacity-0'}`} />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
                     
-                    <div className={`h-1 transition-all duration-300 ${view === "quotes" ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gray-200/50'}`} />
+                    <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
                     
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Quotes</span>
-                        <Receipt className={`h-4 w-4 transition-colors duration-300 ${view === "quotes" ? 'text-emerald-500' : 'text-gray-400'}`} />
+                        <Receipt className="h-4 w-4 text-amber-500 group-hover:text-violet-500 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
@@ -868,44 +857,33 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Awaiting</span>
-                          <span className={`text-sm font-bold ${view === "quotes" ? 'text-emerald-600' : 'text-gray-600'}`}>${sentQuotesValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
                         </div>
                       </div>
-                      
-                      {draftQuotes.length > 0 && (
-                        <div className="pt-3 mt-2 border-t border-gray-100/50">
-                          <span className="text-[10px] font-medium text-emerald-600 hover:text-emerald-700 uppercase tracking-wide">
-                            Send Quotes →
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </button>
 
-                  {/* Jobs Column - Frosted Glass with Selection State */}
+                  {/* Jobs Column - Enhanced Frosted Glass */}
                   <button
-                    className={`group relative rounded-2xl overflow-hidden text-left transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 ${
-                      view === "activeJobs" ? 'shadow-[0_8px_32px_rgba(16,185,129,0.2)]' : 'hover:shadow-lg'
-                    }`}
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("activeJobs" as ViewState)}
                     style={{
-                      background: view === "activeJobs" ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.7)',
+                      background: 'rgba(255, 255, 255, 0.7)',
                       backdropFilter: 'blur(24px) saturate(180%)',
                       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: view === "activeJobs" ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.4)',
-                      boxShadow: view === "activeJobs"
-                        ? '0 4px 24px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-                        : '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/10 transition-opacity duration-300 ${view === "activeJobs" ? 'opacity-100' : 'opacity-0'}`} />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
                     
-                    <div className={`h-1 transition-all duration-300 ${view === "activeJobs" ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gray-200/50'}`} />
+                    <div className="h-1 bg-gradient-to-r from-green-400 to-green-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
                     
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Jobs</span>
-                        <CheckCircle className={`h-4 w-4 transition-colors duration-300 ${view === "activeJobs" ? 'text-emerald-500' : 'text-gray-400'}`} />
+                        <CheckCircle className="h-4 w-4 text-green-500 group-hover:text-violet-500 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
@@ -924,44 +902,33 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Value</span>
-                          <span className={`text-sm font-bold ${view === "activeJobs" ? 'text-emerald-600' : 'text-gray-600'}`}>${activeJobsValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-green-600">${activeJobsValue.toLocaleString()}</span>
                         </div>
                       </div>
-                      
-                      {requiresInvoicing > 0 && (
-                        <div className="pt-3 mt-2 border-t border-gray-100/50">
-                          <span className="text-[10px] font-medium text-emerald-600 hover:text-emerald-700 uppercase tracking-wide">
-                            Create Invoices →
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </button>
 
-                  {/* Invoices Column - Frosted Glass with Selection State */}
+                  {/* Invoices Column - Enhanced Frosted Glass */}
                   <button
-                    className={`group relative rounded-2xl overflow-hidden text-left transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 ${
-                      view === "invoices" ? 'shadow-[0_8px_32px_rgba(16,185,129,0.2)]' : 'hover:shadow-lg'
-                    }`}
+                    className="group relative rounded-2xl overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => navigate("/quotes")}
                     style={{
-                      background: view === "invoices" ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.7)',
+                      background: 'rgba(255, 255, 255, 0.7)',
                       backdropFilter: 'blur(24px) saturate(180%)',
                       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                      border: view === "invoices" ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.4)',
-                      boxShadow: view === "invoices"
-                        ? '0 4px 24px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-                        : '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/10 transition-opacity duration-300 ${view === "invoices" ? 'opacity-100' : 'opacity-0'}`} />
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-blue-500/0 group-hover:from-violet-500/10 group-hover:via-violet-400/8 group-hover:to-blue-500/15 transition-all duration-500" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ boxShadow: 'inset 0 0 40px rgba(139, 92, 246, 0.08)' }} />
                     
-                    <div className={`h-1 transition-all duration-300 ${view === "invoices" ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gray-200/50'}`} />
+                    <div className="h-1 bg-gradient-to-r from-violet-400 to-violet-600 group-hover:from-violet-500 group-hover:to-blue-500 transition-all duration-300" />
                     
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Invoices</span>
-                        <DollarSign className={`h-4 w-4 transition-colors duration-300 ${view === "invoices" ? 'text-emerald-500' : 'text-gray-400'}`} />
+                        <DollarSign className="h-4 w-4 text-violet-500 group-hover:text-violet-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
@@ -980,17 +947,9 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Total</span>
-                          <span className={`text-sm font-bold ${view === "invoices" ? 'text-emerald-600' : 'text-gray-600'}`}>${totalOwed.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-violet-600">${totalOwed.toLocaleString()}</span>
                         </div>
                       </div>
-                      
-                      {totalOwed > 0 && (
-                        <div className="pt-3 mt-2 border-t border-gray-100/50">
-                          <span className="text-[10px] font-medium text-emerald-600 hover:text-emerald-700 uppercase tracking-wide">
-                            Send Reminders →
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </button>
                 </div>
