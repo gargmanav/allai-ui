@@ -951,6 +951,7 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
         ? `${apt.smartCase.property.streetAddress}, ${apt.smartCase.property.city || ''}`
         : null,
       customerName: apt.smartCase?.property?.name,
+      urgency: apt.smartCase?.priority || null,
       source: 'appointment',
     }));
     
@@ -978,6 +979,7 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
           ? `${job.property.streetAddress}, ${job.property.city || ''}`
           : null),
         customerName: job.property?.name,
+        urgency: job.urgency || null,
         source: 'scheduled_job',
       };
     });

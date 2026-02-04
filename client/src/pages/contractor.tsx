@@ -291,6 +291,7 @@ export default function Contractor() {
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
+  const approvedQuotesCount = quotes.filter(q => q.status === "approved").length;
 
   // Today's appointments - for the schedule view
   const todaysAppointments = useMemo(() => {
@@ -553,6 +554,9 @@ export default function Contractor() {
             >
               <DollarSign className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Invoices</span>
+              {approvedQuotesCount > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100">{approvedQuotesCount}</Badge>
+              )}
             </Button>
             
             {/* Separator - Purple-Blue Gradient */}
@@ -997,7 +1001,7 @@ export default function Contractor() {
                   name: m.name,
                   color: m.color
                 }))}
-                appointments={teamAppointments.map(apt => ({
+                appointments={teamAppointments.map((apt: any) => ({
                   id: apt.id,
                   title: apt.title,
                   scheduledStartAt: apt.scheduledStartAt,
@@ -1005,7 +1009,9 @@ export default function Contractor() {
                   status: apt.status,
                   contractorId: apt.contractorId,
                   address: apt.address,
-                  customerName: apt.customerName
+                  customerName: apt.customerName,
+                  urgency: apt.urgency,
+                  source: apt.source
                 }))}
                 onViewCalendar={() => navigate("/contractor-schedule")}
               />

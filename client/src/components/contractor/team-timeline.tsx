@@ -1,7 +1,10 @@
-import { useMemo } from "react";
-import { format, parseISO, isToday, differenceInMinutes, startOfDay, addHours } from "date-fns";
-import { Clock, Calendar } from "lucide-react";
+import { useMemo, useState } from "react";
+import { format, parseISO, isToday, isBefore, isAfter, addMinutes } from "date-fns";
+import { Clock, Calendar, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface TeamMember {
   id: string;
@@ -19,6 +22,8 @@ interface Appointment {
   contractorId: string;
   address?: string;
   customerName?: string;
+  urgency?: string;
+  source?: string;
 }
 
 interface TeamTimelineProps {
@@ -32,10 +37,16 @@ const TIMELINE_START = 6;
 const TIMELINE_END = 20;
 const TOTAL_HOURS = TIMELINE_END - TIMELINE_START;
 
+const TEAM_COLORS = [
+  '#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1', '#14B8A6'
+];
+
 export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: TeamTimelineProps) {
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
+  const { toast } = useToast();
+  const [hoveredAppointment, setHoveredAppointment] = useState<string | null>(null);
   
   const timelineMarkers = useMemo(() => {
     const markers = [];
@@ -63,7 +74,6 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
   const getAppointmentStyle = (apt: Appointment) => {
     const start = parseISO(apt.scheduledStartAt);
     const end = parseISO(apt.scheduledEndAt);
-    const dayStart = startOfDay(start);
     
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
@@ -72,47 +82,24 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
     const clampedEnd = Math.min(endHour, TIMELINE_END);
     
     const left = (clampedStart - TIMELINE_START) * HOUR_WIDTH;
-    const width = Math.max((clampedEnd - clampedStart) * HOUR_WIDTH, 40);
+    const width = Math.max((clampedEnd - clampedStart) * HOUR_WIDTH, 50);
     
     return { left, width };
   };
 
-  // Pastel colors matching the summary badges:
-  // Remaining (Confirmed/Pending/Scheduled/Unscheduled/Pending Approval/Needs Review) = blue
-  // Active (In Progress) = amber
-  // Complete (Completed) = green
-  const getStatusStyle = (status?: string) => {
-    // "Active" status - amber pastel (matches amber Active badge)
-    if (status === 'In Progress') {
-      return { 
-        gradient: 'linear-gradient(135deg, #fde68a 0%, #fef3c7 100%)', 
-        text: 'text-amber-800',
-        border: '1px solid rgba(253, 230, 138, 0.5)'
-      };
-    }
-    // "Complete" status - green pastel (matches green Complete badge)
-    if (status === 'Completed') {
-      return { 
-        gradient: 'linear-gradient(135deg, #86efac 0%, #bbf7d0 100%)', 
-        text: 'text-green-800',
-        border: '1px solid rgba(134, 239, 172, 0.5)'
-      };
-    }
-    // "Cancelled" status - grey
-    if (status === 'Cancelled') {
-      return { 
-        gradient: 'linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 100%)', 
-        text: 'text-gray-600',
-        border: '1px solid rgba(209, 213, 219, 0.5)'
-      };
-    }
-    // All other statuses are "Remaining" - blue pastel (matches blue Remaining badge)
-    // Includes: Confirmed, Pending, Scheduled, Unscheduled, Pending Approval, Needs Review
-    return { 
-      gradient: 'linear-gradient(135deg, #93c5fd 0%, #bfdbfe 100%)', 
-      text: 'text-blue-800',
-      border: '1px solid rgba(147, 197, 253, 0.5)'
-    };
+  const getTimeBasedCategory = (apt: Appointment): 'remaining' | 'active' | 'complete' => {
+    if (apt.status === 'Completed') return 'complete';
+    
+    const start = parseISO(apt.scheduledStartAt);
+    const end = parseISO(apt.scheduledEndAt);
+    
+    if (isAfter(now, end)) return 'complete';
+    if (isBefore(now, start)) return 'remaining';
+    return 'active';
+  };
+
+  const getTeamColor = (member: TeamMember, index: number) => {
+    return member.color || TEAM_COLORS[index % TEAM_COLORS.length];
   };
 
   const getCurrentTimePosition = () => {
@@ -125,13 +112,38 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
 
   const summaryStats = useMemo(() => {
     const total = todaysAppointments.length;
-    const remaining = todaysAppointments.filter(a => 
-      ['Confirmed', 'Pending', 'Scheduled'].includes(a.status || '')
-    ).length;
-    const active = todaysAppointments.filter(a => a.status === 'In Progress').length;
-    const complete = todaysAppointments.filter(a => a.status === 'Completed').length;
+    let remaining = 0;
+    let active = 0;
+    let complete = 0;
+    
+    todaysAppointments.forEach(apt => {
+      const category = getTimeBasedCategory(apt);
+      if (category === 'remaining') remaining++;
+      else if (category === 'active') active++;
+      else complete++;
+    });
+    
     return { total, remaining, active, complete };
-  }, [todaysAppointments]);
+  }, [todaysAppointments, now]);
+
+  const markCompleteMutation = useMutation({
+    mutationFn: async (appointmentId: string) => {
+      const isScheduledJob = appointmentId.startsWith('job-');
+      if (isScheduledJob) {
+        const jobId = appointmentId.replace('job-', '');
+        return apiRequest('PATCH', `/api/scheduled-jobs/${jobId}`, { status: 'Completed' });
+      }
+      return apiRequest('PATCH', `/api/appointments/${appointmentId}`, { status: 'Completed' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/team-calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-jobs'] });
+      toast({ title: "Marked complete", description: "Job has been marked as completed" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to mark as complete", variant: "destructive" });
+    }
+  });
 
   if (teamMembers.length === 0) {
     return (
@@ -214,20 +226,21 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
             {teamMembers.map((member, idx) => {
               const memberAppts = getAppointmentsForMember(member);
               const initials = member.name.split(' ').map(n => n[0]).join('').slice(0, 2);
+              const teamColor = getTeamColor(member, idx);
 
               return (
                 <div 
                   key={member.id} 
-                  className={`flex items-center min-h-[48px] ${idx < teamMembers.length - 1 ? 'border-b border-gray-100' : ''}`}
+                  className={`flex items-center min-h-[52px] ${idx < teamMembers.length - 1 ? 'border-b border-gray-100' : ''}`}
                 >
                   <div className="w-24 flex-shrink-0 px-3 py-2 flex items-center gap-2">
                     <div 
                       className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0"
-                      style={{ backgroundColor: member.color }}
+                      style={{ backgroundColor: teamColor }}
                     >
                       {initials}
                     </div>
-                    <span className="text-xs font-medium text-gray-700 truncate">{member.name.split(' ')[0]}</span>
+                    <span className="text-xs font-medium text-gray-700 truncate">{member.name}</span>
                   </div>
 
                   <div className="flex-1 relative h-12">
@@ -243,36 +256,136 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
 
                     {currentTimePos !== null && (
                       <div 
-                        className="absolute top-0 bottom-0 z-10"
+                        className="absolute top-0 bottom-0 z-20 pointer-events-none"
                         style={{ 
                           left: currentTimePos,
                           width: '2px',
-                          background: 'repeating-linear-gradient(to bottom, #f9a8a8 0px, #f9a8a8 4px, transparent 4px, transparent 8px)',
-                          boxShadow: '0 0 4px rgba(249, 168, 168, 0.4)'
+                          backgroundColor: '#EF4444'
                         }}
-                      >
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-rose-300" />
-                      </div>
+                      />
                     )}
 
                     {memberAppts.map((apt) => {
                       const { left, width } = getAppointmentStyle(apt);
-                      const style = getStatusStyle(apt.status);
+                      const category = getTimeBasedCategory(apt);
+                      const isUrgent = apt.urgency === 'High' || apt.urgency === 'Emergent';
+                      const isHovered = hoveredAppointment === apt.id;
+
+                      const cardBackground = category === 'complete' 
+                        ? 'linear-gradient(135deg, rgba(134, 239, 172, 0.4) 0%, rgba(187, 247, 208, 0.3) 100%)'
+                        : 'linear-gradient(135deg, rgba(241, 245, 249, 0.95) 0%, rgba(226, 232, 240, 0.85) 100%)';
 
                       return (
                         <div
                           key={apt.id}
-                          className={`absolute top-1 bottom-1 rounded-md ${style.text} text-[10px] font-medium px-2 py-1 overflow-hidden cursor-pointer hover:opacity-95 transition-opacity`}
+                          className="absolute top-1 bottom-1 cursor-pointer transition-all duration-200"
                           style={{ 
                             left, 
-                            width, 
-                            background: style.gradient,
-                            border: style.border,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                            width,
+                            zIndex: isHovered ? 30 : 10
                           }}
-                          title={`${apt.title || 'Appointment'} - ${apt.status}`}
+                          onMouseEnter={() => setHoveredAppointment(apt.id)}
+                          onMouseLeave={() => setHoveredAppointment(null)}
                         >
-                          <div className="truncate">{apt.title || apt.customerName || 'Job'}</div>
+                          <div
+                            className="h-full flex overflow-hidden"
+                            style={{ 
+                              background: cardBackground,
+                              backdropFilter: 'blur(8px)',
+                              border: category === 'active' 
+                                ? '2px solid rgba(251, 191, 36, 0.6)' 
+                                : '1px solid rgba(0,0,0,0.08)',
+                              boxShadow: isHovered 
+                                ? '0 4px 12px rgba(0,0,0,0.15)' 
+                                : '0 1px 3px rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            <div 
+                              className="w-1 flex-shrink-0"
+                              style={{ backgroundColor: teamColor }}
+                            />
+                            <div className="flex-1 px-2 py-1 flex items-center gap-1 min-w-0">
+                              {isUrgent && (
+                                <span className="flex-shrink-0 px-1 py-0.5 text-[8px] font-bold bg-red-500 text-white rounded">
+                                  Urgent
+                                </span>
+                              )}
+                              <span className="text-[10px] font-medium text-gray-700 truncate">
+                                {apt.title || apt.customerName || 'Job'}
+                              </span>
+                              {category === 'complete' && (
+                                <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0 ml-auto" />
+                              )}
+                            </div>
+                          </div>
+
+                          {isHovered && (
+                            <div 
+                              className="absolute top-full left-0 mt-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200 z-50 min-w-[220px]"
+                              style={{ maxWidth: '280px' }}
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-semibold text-gray-900 text-sm">
+                                    {apt.title || 'Appointment'}
+                                  </h4>
+                                  {isUrgent && (
+                                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-white rounded">
+                                      Urgent
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {apt.customerName && (
+                                  <div className="text-xs">
+                                    <span className="text-gray-500">Customer:</span>{' '}
+                                    <span className="text-gray-700">{apt.customerName}</span>
+                                  </div>
+                                )}
+                                
+                                {apt.address && (
+                                  <div className="text-xs">
+                                    <span className="text-gray-500">Location:</span>{' '}
+                                    <span className="text-gray-700">{apt.address}</span>
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs">
+                                  <span className="text-gray-500">Time:</span>{' '}
+                                  <span className="text-gray-700">
+                                    {format(parseISO(apt.scheduledStartAt), 'h:mm a')} - {format(parseISO(apt.scheduledEndAt), 'h:mm a')}
+                                  </span>
+                                </div>
+                                
+                                <div className="text-xs">
+                                  <span className="text-gray-500">Status:</span>{' '}
+                                  <span className={`font-medium ${
+                                    category === 'complete' ? 'text-green-600' :
+                                    category === 'active' ? 'text-amber-600' : 'text-blue-600'
+                                  }`}>
+                                    {category === 'complete' ? 'Completed' : 
+                                     category === 'active' ? 'In Progress' : 'Scheduled'}
+                                  </span>
+                                </div>
+                                
+                                {category !== 'complete' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full mt-2 h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      markCompleteMutation.mutate(apt.id);
+                                    }}
+                                    disabled={markCompleteMutation.isPending}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Mark Complete
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
