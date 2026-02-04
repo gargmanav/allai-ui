@@ -814,6 +814,21 @@ router.post('/counter-proposals/:id/counter', requireAuth, requireRole('contract
 router.get('/team-members', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {
     const contractorUserId = req.user!.id;
+    const currentUser = req.user!;
+    
+    // Include the owner (lead contractor) as the first team member
+    const ownerMember = {
+      id: `owner-${contractorUserId}`,
+      memberId: contractorUserId,
+      name: [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ') || currentUser.email || 'Owner',
+      email: currentUser.email,
+      phone: currentUser.phone,
+      role: 'Owner',
+      canManageJobs: true,
+      hasLogin: true,
+      isOwner: true,
+      color: generateColorFromId(contractorUserId),
+    };
     
     // Get team members with login capability
     const loginMembers = await db.query.contractorTeamMembers.findMany({
@@ -841,6 +856,7 @@ router.get('/team-members', requireAuth, requireRole('contractor'), async (req: 
       role: m.role,
       canManageJobs: m.canManageJobs,
       hasLogin: true,
+      isOwner: false,
       color: generateColorFromId(m.memberUserId),
       joinedAt: m.joinedAt,
     }));
@@ -854,6 +870,7 @@ router.get('/team-members', requireAuth, requireRole('contractor'), async (req: 
       role: m.role,
       canManageJobs: false,
       hasLogin: false,
+      isOwner: false,
       color: generateColorFromId(m.id),
       notes: m.notes,
     }));
@@ -861,7 +878,7 @@ router.get('/team-members', requireAuth, requireRole('contractor'), async (req: 
     res.json({
       loginMembers: formattedLoginMembers,
       contactMembers: formattedContactMembers,
-      allMembers: [...formattedLoginMembers, ...formattedContactMembers],
+      allMembers: [ownerMember, ...formattedLoginMembers, ...formattedContactMembers],
     });
   } catch (error) {
     console.error('Error fetching team members:', error);
@@ -892,9 +909,12 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
     );
     const vendorIds = vendorResults.map(v => v.id);
     
-    // Get appointments for all team vendors
+    // Combine vendor IDs and user IDs - appointments may use either as contractor_id
+    const allContractorIds = [...vendorIds, ...allUserIds];
+    
+    // Get appointments for all team vendors AND user IDs (legacy appointments use user IDs)
     let appointmentsQuery = db.query.appointments.findMany({
-      where: vendorIds.length > 0 ? inArray(appointments.contractorId, vendorIds) : undefined,
+      where: allContractorIds.length > 0 ? inArray(appointments.contractorId, allContractorIds) : undefined,
       with: {
         smartCase: {
           with: {
@@ -907,7 +927,7 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
     
     const allAppointments = await appointmentsQuery;
     
-    // Map vendor IDs back to user IDs
+    // Map vendor IDs back to user IDs (for appointments using vendor IDs)
     const vendorToUserMap = new Map(vendorResults.map(v => [v.id, v.userId]));
     
     const formattedAppointments = allAppointments.map((apt: any) => ({
