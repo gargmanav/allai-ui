@@ -1265,7 +1265,7 @@ router.get('/dashboard-metrics', requireAuth, requireRole('contractor'), async (
       SELECT 
         DATE(created_at) as day,
         COUNT(*) as count,
-        SUM(CASE WHEN status = 'Completed' OR status = 'In Progress' THEN 1 ELSE 0 END) as converted
+        SUM(CASE WHEN status IN ('Resolved', 'Closed', 'In Progress') THEN 1 ELSE 0 END) as converted
       FROM smart_cases 
       WHERE assigned_contractor_id = ${contractorUserId}
         AND created_at >= ${sevenDaysAgo.toISOString()}
@@ -1287,7 +1287,7 @@ router.get('/dashboard-metrics', requireAuth, requireRole('contractor'), async (
       ORDER BY day ASC
     `) : { rows: [] };
     
-    // Query scheduled_jobs for this contractor, grouped by day
+    // Query scheduled_jobs for this contractor, grouped by day (job_status enum: Completed is valid)
     const jobsData = await db.execute(sql`
       SELECT 
         DATE(created_at) as day,
