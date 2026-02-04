@@ -291,8 +291,6 @@ export default function Contractor() {
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
-  // Actionable quotes: drafts + sent (awaiting response) + changes requested
-  const actionableQuotesCount = quotes.filter(q => ["draft", "sent", "changes_requested"].includes(q.status)).length;
 
   // Today's appointments - for the schedule view
   const todaysAppointments = useMemo(() => {
@@ -533,8 +531,8 @@ export default function Contractor() {
             >
               <Receipt className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Quotes</span>
-              {actionableQuotesCount > 0 && (
-                <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">{actionableQuotesCount}</Badge>
+              {draftQuotesCount > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">{draftQuotesCount}</Badge>
               )}
             </Button>
             <Button 
@@ -921,9 +919,9 @@ export default function Contractor() {
                         <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
                         <Sparkline 
                           data={jobsSparkline.started}
-                          color="#3b82f6"
+                          color="#f97316"
                           secondaryData={jobsSparkline.completed}
-                          secondaryColor="#22c55e"
+                          secondaryColor="#14b8a6"
                           labels={{ primary: "Started", secondary: "Completed" }}
                         />
                       </div>

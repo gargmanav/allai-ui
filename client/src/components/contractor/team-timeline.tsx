@@ -77,13 +77,34 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
     return { left, width };
   };
 
-  const getStatusColor = (status?: string) => {
+  // Pastel colors with subtle gradients for softer visual appearance
+  const getStatusStyle = (status?: string) => {
     switch (status) {
-      case 'Confirmed': return { bg: 'bg-blue-500', text: 'text-white' };
-      case 'Pending': return { bg: 'bg-amber-400', text: 'text-gray-800' };
-      case 'In Progress': return { bg: 'bg-orange-500', text: 'text-white' };
-      case 'Completed': return { bg: 'bg-green-500', text: 'text-white' };
-      default: return { bg: 'bg-gray-400', text: 'text-white' };
+      case 'Confirmed': return { 
+        gradient: 'linear-gradient(135deg, #93c5fd 0%, #a5b4fc 100%)', 
+        text: 'text-blue-800',
+        border: '1px solid rgba(147, 197, 253, 0.5)'
+      };
+      case 'Pending': return { 
+        gradient: 'linear-gradient(135deg, #fde68a 0%, #fed7aa 100%)', 
+        text: 'text-amber-800',
+        border: '1px solid rgba(253, 230, 138, 0.5)'
+      };
+      case 'In Progress': return { 
+        gradient: 'linear-gradient(135deg, #fdba74 0%, #f9a8d4 100%)', 
+        text: 'text-orange-800',
+        border: '1px solid rgba(253, 186, 116, 0.5)'
+      };
+      case 'Completed': return { 
+        gradient: 'linear-gradient(135deg, #86efac 0%, #a7f3d0 100%)', 
+        text: 'text-green-800',
+        border: '1px solid rgba(134, 239, 172, 0.5)'
+      };
+      default: return { 
+        gradient: 'linear-gradient(135deg, #d1d5db 0%, #e5e7eb 100%)', 
+        text: 'text-gray-700',
+        border: '1px solid rgba(209, 213, 219, 0.5)'
+      };
     }
   };
 
@@ -219,23 +240,29 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                         style={{ 
                           left: currentTimePos,
                           width: '2px',
-                          background: 'repeating-linear-gradient(to bottom, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 8px)',
-                          boxShadow: '0 0 4px rgba(239, 68, 68, 0.5)'
+                          background: 'repeating-linear-gradient(to bottom, #f9a8a8 0px, #f9a8a8 4px, transparent 4px, transparent 8px)',
+                          boxShadow: '0 0 4px rgba(249, 168, 168, 0.4)'
                         }}
                       >
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-500" />
+                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-rose-300" />
                       </div>
                     )}
 
                     {memberAppts.map((apt) => {
                       const { left, width } = getAppointmentStyle(apt);
-                      const colors = getStatusColor(apt.status);
+                      const style = getStatusStyle(apt.status);
 
                       return (
                         <div
                           key={apt.id}
-                          className={`absolute top-1 bottom-1 rounded-md ${colors.bg} ${colors.text} text-[10px] font-medium px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity shadow-sm`}
-                          style={{ left, width }}
+                          className={`absolute top-1 bottom-1 rounded-md ${style.text} text-[10px] font-medium px-2 py-1 overflow-hidden cursor-pointer hover:opacity-95 transition-opacity`}
+                          style={{ 
+                            left, 
+                            width, 
+                            background: style.gradient,
+                            border: style.border,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                          }}
                           title={`${apt.title || 'Appointment'} - ${apt.status}`}
                         >
                           <div className="truncate">{apt.title || apt.customerName || 'Job'}</div>
