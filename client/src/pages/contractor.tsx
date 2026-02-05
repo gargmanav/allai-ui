@@ -808,15 +808,12 @@ export default function Contractor() {
               
               return (
                 <div 
-                  className="gap-3 sm:gap-4 mb-8 overflow-hidden"
-                  style={{ 
-                    display: 'grid',
-                    gridTemplateColumns: isLargeScreen ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
-                  }}
+                  className="flex flex-wrap gap-3 sm:gap-4 mb-8"
                 >
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <div 
                     className="relative min-w-0 overflow-hidden"
+                    style={{ width: isLargeScreen ? 'calc(25% - 12px)' : 'calc(50% - 6px)', flexShrink: 0 }}
                     onMouseEnter={() => setHoveredCard("requests")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -897,6 +894,7 @@ export default function Contractor() {
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
                   <div 
                     className="relative min-w-0 overflow-hidden"
+                    style={{ width: isLargeScreen ? 'calc(25% - 12px)' : 'calc(50% - 6px)', flexShrink: 0 }}
                     onMouseEnter={() => setHoveredCard("quotes")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -974,6 +972,7 @@ export default function Contractor() {
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
                   <div 
                     className="relative min-w-0 overflow-hidden"
+                    style={{ width: isLargeScreen ? 'calc(25% - 12px)' : 'calc(50% - 6px)', flexShrink: 0 }}
                     onMouseEnter={() => setHoveredCard("jobs")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -1051,6 +1050,7 @@ export default function Contractor() {
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
                   <div 
                     className="relative min-w-0 overflow-hidden"
+                    style={{ width: isLargeScreen ? 'calc(25% - 12px)' : 'calc(50% - 6px)', flexShrink: 0 }}
                     onMouseEnter={() => setHoveredCard("invoices")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
