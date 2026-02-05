@@ -369,27 +369,6 @@ export function MayaCarouselLayout({
             </SheetContent>
           </Sheet>
 
-          {/* View Toggle */}
-          <div className="flex items-center bg-muted rounded-lg p-1">
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`p-1.5 rounded transition-colors touch-manipulation ${
-                viewMode === "cards" ? "bg-white shadow-sm" : "hover:bg-white/50"
-              }`}
-              title="Card View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded transition-colors touch-manipulation ${
-                viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-white/50"
-              }`}
-              title="List View"
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
         </div>
       </div>
       
@@ -504,17 +483,15 @@ export function MayaCarouselLayout({
 
         {/* Main Content Column */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Sticky Header Area - Filter Tabs + Filters */}
-          <div className="shrink-0">
-          {/* Filter Tabs */}
-          {filterTabs && filterTabs.length > 0 && (
-          <div className="px-3 sm:px-6 py-2 sm:py-3 border-b bg-muted/20 overflow-x-auto">
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap min-w-max">
-              {filterTabs.map(tab => (
+          {/* Unified Toolbar - Filter tabs + Search + Filters + View Toggle in one row */}
+          <div className="shrink-0 px-3 sm:px-4 py-2 border-b bg-white overflow-x-auto">
+            <div className="flex items-center gap-2 flex-nowrap min-w-max">
+              {/* Filter Tabs */}
+              {filterTabs && filterTabs.length > 0 && filterTabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => handleFilterChange(tab.id)}
-                  className={`px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap touch-manipulation ${
+                  className={`px-2.5 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap touch-manipulation ${
                     activeFilter === tab.id
                       ? "bg-violet-100 text-violet-700 ring-1 ring-violet-200"
                       : "text-muted-foreground hover:bg-muted"
@@ -522,7 +499,7 @@ export function MayaCarouselLayout({
                 >
                   {tab.label}
                   {tab.count > 0 && (
-                    <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+                    <span className={`ml-1 px-1.5 py-0.5 text-[10px] rounded-full ${
                       activeFilter === tab.id ? "bg-violet-200" : "bg-muted"
                     }`}>
                       {tab.count}
@@ -530,72 +507,65 @@ export function MayaCarouselLayout({
                   )}
                 </button>
               ))}
-            </div>
-          </div>
-        )}
 
-        {/* Enhanced Filters - Consolidated Layout */}
-        {(showSearch || showCategoryFilter || showPriorityFilter || showSort) && (
-          <div className="px-4 sm:px-6 py-3 border-b bg-white">
-            <div className="flex items-center gap-3">
+              {/* Separator between tabs and filters */}
+              {filterTabs && filterTabs.length > 0 && (showSearch || showCategoryFilter || showPriorityFilter || showSort) && (
+                <div className="w-px h-5 bg-slate-200 mx-1" />
+              )}
+
               {/* Search */}
               {showSearch && (
-                <div className="relative flex-1 max-w-xs">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search requests..."
+                    placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9 text-sm border-slate-200 bg-slate-50 focus:bg-white"
+                    className="pl-8 h-8 w-36 text-xs border-slate-200 bg-slate-50 focus:bg-white focus:w-48 transition-all"
                   />
                   {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded">
+                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded">
                       <X className="h-3 w-3 text-slate-400" />
                     </button>
                   )}
                 </div>
               )}
-              
-              {/* Filter Group */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                {showCategoryFilter && derivedCategories.length > 0 && (
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="h-7 px-2 text-sm bg-transparent border-0 text-slate-600 focus:ring-0 cursor-pointer"
-                  >
-                    <option value="all">All Categories</option>
-                    {derivedCategories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                )}
-                
-                {showPriorityFilter && showCategoryFilter && (
-                  <div className="w-px h-4 bg-slate-200" />
-                )}
-                
-                {showPriorityFilter && (
-                  <select
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="h-7 px-2 text-sm bg-transparent border-0 text-slate-600 focus:ring-0 cursor-pointer"
-                  >
-                    <option value="all">All Priorities</option>
-                    <option value="Urgent">Urgent</option>
-                    <option value="High">High</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Low">Low</option>
-                  </select>
-                )}
-              </div>
-              
+
+              {/* Category Filter */}
+              {showCategoryFilter && derivedCategories.length > 0 && (
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="h-8 px-2 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-600 cursor-pointer"
+                >
+                  <option value="all">All Categories</option>
+                  {derivedCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* Priority Filter */}
+              {showPriorityFilter && (
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="h-8 px-2 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-600 cursor-pointer"
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="Urgent">Urgent</option>
+                  <option value="High">High</option>
+                  <option value="Normal">Normal</option>
+                  <option value="Low">Low</option>
+                </select>
+              )}
+
               {/* Sort */}
               {showSort && (
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white text-slate-600 cursor-pointer"
+                  className="h-8 px-2 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-600 cursor-pointer"
                 >
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
@@ -604,25 +574,45 @@ export function MayaCarouselLayout({
                   <option value="priority">By Priority</option>
                 </select>
               )}
-              
-              {/* Clear & Count */}
-              <div className="flex items-center gap-3 ml-auto shrink-0">
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1 whitespace-nowrap"
-                  >
-                    <X className="h-3 w-3" />
-                    Clear
-                  </button>
-                )}
-                <span className="text-sm text-slate-400 whitespace-nowrap">
+
+              {/* Clear filters */}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-0.5 whitespace-nowrap touch-manipulation"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </button>
+              )}
+
+              {/* Count + View Toggle - pushed to the right */}
+              <div className="flex items-center gap-2 ml-auto shrink-0">
+                <span className="text-xs text-slate-400 whitespace-nowrap">
                   {filteredItems.length} of {items.length}
                 </span>
+                <div className="flex items-center bg-muted rounded-md p-0.5">
+                  <button
+                    onClick={() => setViewMode("cards")}
+                    className={`p-1.5 rounded transition-colors touch-manipulation ${
+                      viewMode === "cards" ? "bg-white shadow-sm" : "hover:bg-white/50"
+                    }`}
+                    title="Card View"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-1.5 rounded transition-colors touch-manipulation ${
+                      viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-white/50"
+                    }`}
+                    title="List View"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
           </div>
 
         {/* Content Area - scrollable with sticky headers above */}
