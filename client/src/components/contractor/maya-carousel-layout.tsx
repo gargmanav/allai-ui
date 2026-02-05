@@ -446,7 +446,7 @@ export function MayaCarouselLayout({
               <div 
                 className="absolute top-0 left-0 right-0 h-1"
                 style={{
-                  background: "linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd, #60a5fa, #3b82f6)",
+                  background: "linear-gradient(90deg, #8b5cf6, #7c3aed, #6366f1, #3b82f6, #6366f1, #7c3aed, #8b5cf6)",
                   backgroundSize: "200% 100%",
                   animation: "shimmer 2s linear infinite",
                 }}
@@ -514,7 +514,7 @@ export function MayaCarouselLayout({
               <div 
                 className="absolute top-0 left-0 right-0 h-1"
                 style={{
-                  background: "linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd, #60a5fa, #3b82f6)",
+                  background: "linear-gradient(90deg, #8b5cf6, #7c3aed, #6366f1, #3b82f6, #6366f1, #7c3aed, #8b5cf6)",
                   backgroundSize: "200% 100%",
                   animation: "shimmer 2s linear infinite",
                 }}
