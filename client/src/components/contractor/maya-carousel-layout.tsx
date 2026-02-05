@@ -625,11 +625,11 @@ export function MayaCarouselLayout({
         )}
           </div>
 
-        {/* Content Area - scrollable with sticky headers above */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Content Area - each view manages its own scrolling */}
+        <div className="flex-1 min-h-0 flex flex-col">
           {viewMode === "cards" ? (
             /* Cards View - Horizontal Carousel */
-            <div className="p-4 sm:p-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               <div className="flex items-start gap-4 overflow-x-auto pb-4 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
                 {filteredItems.map((item, idx) => {
                   const isSelected = selectedItemId === item.id;
@@ -764,9 +764,9 @@ export function MayaCarouselLayout({
             </div>
           ) : (
             /* List View - Compact Table with sticky header */
-            <div className="flex flex-col h-full p-2 sm:p-4">
-              {/* Fixed Table Header */}
-              <div className="shrink-0 rounded-t-lg border border-b-0 bg-muted/50">
+            <div className="flex flex-col flex-1 min-h-0 p-2 sm:p-4">
+              {/* Fixed Table Header - stays in place */}
+              <div className="shrink-0 rounded-t-lg border border-b-0 bg-slate-100 shadow-sm z-10">
                 <table className="w-full text-sm">
                   <thead>
                     <tr>
