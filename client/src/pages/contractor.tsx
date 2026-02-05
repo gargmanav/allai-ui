@@ -817,7 +817,16 @@ export default function Contractor() {
             </div>
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
-            <div key="dashboard-stats-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3 mb-8 flex-shrink-0">
+            <div className="block w-full mb-8" style={{ display: 'block' }}>
+              <div 
+                key="dashboard-stats-grid" 
+                className="dashboard-stats-grid w-full"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '0.5rem'
+                }}
+              >
               {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
               <div 
                 key="card-requests"
@@ -1132,6 +1141,7 @@ export default function Contractor() {
                     </div>
                   </button>
                 </div>
+              </div>
             </div>
 
             {/* Today's Schedule - Team Timeline with current time indicator */}
