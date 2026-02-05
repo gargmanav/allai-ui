@@ -503,7 +503,9 @@ export function MayaCarouselLayout({
         </div>
 
         {/* Main Content Column */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Sticky Header Area - Filter Tabs + Filters */}
+          <div className="shrink-0">
           {/* Filter Tabs */}
           {filterTabs && filterTabs.length > 0 && (
           <div className="px-3 sm:px-6 py-2 sm:py-3 border-b bg-muted/20 overflow-x-auto">
@@ -604,26 +606,27 @@ export function MayaCarouselLayout({
               )}
               
               {/* Clear & Count */}
-              <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-3 ml-auto shrink-0">
                 {hasActiveFilters && (
                   <button
                     onClick={clearAllFilters}
-                    className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                    className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1 whitespace-nowrap"
                   >
                     <X className="h-3 w-3" />
                     Clear
                   </button>
                 )}
-                <span className="text-sm text-slate-400">
+                <span className="text-sm text-slate-400 whitespace-nowrap">
                   {filteredItems.length} of {items.length}
                 </span>
               </div>
             </div>
           </div>
         )}
+          </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Content Area - scrollable with sticky headers above */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {viewMode === "cards" ? (
             /* Cards View - Horizontal Carousel */
             <div className="p-4 sm:p-6">
