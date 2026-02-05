@@ -168,6 +168,13 @@ export default function Contractor() {
   const [showMayaBubble, setShowMayaBubble] = useState(false);
   const [mayaHovered, setMayaHovered] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [isLargeScreen, setIsLargeScreen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+  
+  useEffect(() => {
+    const handleResize = () => setIsLargeScreen(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   const mayaSuggestions = [
     "Which job is most lucrative?",
@@ -800,7 +807,13 @@ export default function Contractor() {
               const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
               
               return (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 min-w-0">
+                <div 
+                  className="grid gap-3 sm:gap-4 mb-8"
+                  style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: isLargeScreen ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
+                  }}
+                >
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <div 
                     className="relative"
