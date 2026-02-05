@@ -290,10 +290,10 @@ export function MayaCarouselLayout({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Top Title Bar - Spans Full Width */}
       <div 
-        className="px-4 sm:px-6 py-3 border-b flex items-center justify-between"
+        className="px-4 sm:px-6 py-3 border-b flex items-center justify-between shrink-0"
         style={{
           background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
           backdropFilter: "blur(24px) saturate(180%)",
@@ -763,26 +763,20 @@ export function MayaCarouselLayout({
               )}
             </div>
           ) : (
-            /* List View - Compact Table with sticky header */
-            <div className="flex flex-col h-full p-2 sm:p-4">
-              {/* Fixed Table Header */}
-              <div className="shrink-0 rounded-t-lg border border-b-0 bg-muted/50">
+            /* List View - Compact Table */
+            <div className="p-2 sm:p-4">
+              <div className="rounded-lg border bg-white">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="bg-muted/50 border-b sticky top-0 z-10">
                     <tr>
-                      <th className="text-left px-3 py-2.5 font-medium w-[180px]">Customer</th>
-                      <th className="text-left px-3 py-2.5 font-medium hidden sm:table-cell w-[140px]">Category</th>
-                      <th className="text-center px-3 py-2.5 font-medium w-[80px]">Priority</th>
-                      <th className="text-right px-3 py-2.5 font-medium w-[80px]">Value</th>
-                      <th className="text-center px-3 py-2.5 font-medium hidden md:table-cell w-[90px]">Status</th>
-                      <th className="text-right px-3 py-2.5 font-medium w-[90px]">Actions</th>
+                      <th className="text-left px-3 py-2.5 font-medium">Customer</th>
+                      <th className="text-left px-3 py-2.5 font-medium hidden sm:table-cell">Category</th>
+                      <th className="text-center px-3 py-2.5 font-medium">Priority</th>
+                      <th className="text-right px-3 py-2.5 font-medium">Value</th>
+                      <th className="text-center px-3 py-2.5 font-medium hidden md:table-cell">Status</th>
+                      <th className="text-right px-3 py-2.5 font-medium">Actions</th>
                     </tr>
                   </thead>
-                </table>
-              </div>
-              {/* Scrollable Table Body */}
-              <div className="flex-1 overflow-y-auto border border-t-0 rounded-b-lg bg-white min-h-0">
-                <table className="w-full text-sm">
                   <tbody>
                     {filteredItems.map((item, idx) => (
                       <tr 
@@ -792,7 +786,7 @@ export function MayaCarouselLayout({
                         }`}
                         onClick={() => handleItemClick(item)}
                       >
-                        <td className="px-3 py-3 w-[180px]">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
                             <div 
                               className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold shrink-0"
@@ -809,21 +803,21 @@ export function MayaCarouselLayout({
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3 hidden sm:table-cell w-[140px]">
+                        <td className="px-3 py-3 hidden sm:table-cell">
                           <span className="text-muted-foreground">{item.category || "General"}</span>
                         </td>
-                        <td className="px-3 py-3 text-center w-[80px]">
+                        <td className="px-3 py-3 text-center">
                           <Badge className={`${getPriorityColor(item.priority)} text-[10px] px-1.5 py-0.5`}>
                             {item.priority || "Normal"}
                           </Badge>
                         </td>
-                        <td className="px-3 py-3 text-right w-[80px]">
+                        <td className="px-3 py-3 text-right">
                           <span className="font-medium text-slate-700">${(item.estimatedValue || 0).toLocaleString()}</span>
                         </td>
-                        <td className="px-3 py-3 text-center hidden md:table-cell w-[90px]">
+                        <td className="px-3 py-3 text-center hidden md:table-cell">
                           <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
                         </td>
-                        <td className="px-3 py-3 w-[90px]">
+                        <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {onAccept && (
                               <Button 

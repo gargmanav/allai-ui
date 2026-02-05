@@ -697,7 +697,11 @@ export default function Contractor() {
 
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
-        <main className="pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
+        <main className={`flex flex-col ${
+          view === "newJobs" || view === "quotes" 
+            ? "h-screen overflow-hidden" 
+            : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
+        }`}>
         
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
@@ -1145,6 +1149,8 @@ export default function Contractor() {
 
         {/* New Jobs View - Maya Carousel Layout */}
         {view === ("newJobs" as ViewState) && (
+          <>
+          <div className="shrink-0 h-16 sm:h-20" />
           <MayaCarouselLayout
             title="New Job Requests"
             subtitle="Jobs waiting for your response"
@@ -1188,6 +1194,7 @@ export default function Contractor() {
             emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No new job requests"
           />
+          </>
         )}
 
         {/* Active Jobs View */}
@@ -1273,6 +1280,8 @@ export default function Contractor() {
 
         {/* Quotes View - Maya Carousel Layout */}
         {view === "quotes" && (
+          <>
+          <div className="shrink-0 h-16 sm:h-20" />
           <MayaCarouselLayout
             title="Quotes"
             subtitle="Manage and send quotes to customers"
@@ -1317,6 +1326,7 @@ export default function Contractor() {
             emptyIcon={<Receipt className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No quotes found"
           />
+          </>
         )}
 
         {/* Messages View */}
