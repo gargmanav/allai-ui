@@ -57,6 +57,7 @@ import { TeamCalendar } from "@/components/contractor/team-calendar";
 import { TeamTimeline } from "@/components/contractor/team-timeline";
 import { Sparkline } from "@/components/contractor/sparkline";
 import { ThoughtBubble } from "@/components/contractor/thought-bubble";
+import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout";
 import { CustomersContent } from "@/pages/customers";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
@@ -1127,46 +1128,39 @@ export default function Contractor() {
           </div>
         )}
 
-        {/* New Jobs View */}
+        {/* New Jobs View - Maya Carousel Layout */}
         {view === ("newJobs" as ViewState) && (
-          <div className="flex-1 flex flex-col items-center pt-8">
-            <div className="w-full max-w-xl">
-              <h2 className="text-2xl font-semibold mb-2">New Job Requests</h2>
-              <p className="text-muted-foreground mb-6">Jobs waiting for your response</p>
-              
-              <div className="space-y-4">
-                {jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).map((job) => (
-                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
-                            {job.customerInitials}
-                          </div>
-                          <div>
-                            <div className="font-medium">{job.title}</div>
-                            <div className="text-sm text-muted-foreground">{job.customerName}</div>
-                          </div>
-                        </div>
-                        <Badge className={getPriorityColor(job.priority)}>{job.priority}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">{job.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-semibold text-green-600">${job.estimatedValue}</span>
-                        <Button size="sm" className="rounded-full">View Details</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No new job requests</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <MayaCarouselLayout
+            title="New Job Requests"
+            subtitle="Jobs waiting for your response"
+            items={jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).map(job => ({
+              id: job.id,
+              title: job.title,
+              customerName: job.customerName,
+              customerInitials: job.customerInitials,
+              description: job.description,
+              status: job.status,
+              priority: job.priority,
+              estimatedValue: job.estimatedValue,
+              scheduledDate: job.scheduledDate,
+              address: job.address,
+              category: job.category,
+              color: job.color,
+            }))}
+            itemType="request"
+            onItemSelect={(item) => { handleSelectCase(item.id); }}
+            onAccept={(item) => { 
+              toast({ title: "Job Accepted", description: `${item.title} has been accepted.` });
+            }}
+            onSendQuote={(item) => {
+              navigate("/quotes");
+            }}
+            onSchedule={(item) => {
+              setView("calendar");
+            }}
+            emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
+            emptyMessage="No new job requests"
+          />
         )}
 
         {/* Active Jobs View */}
@@ -1250,40 +1244,52 @@ export default function Contractor() {
           </div>
         )}
 
-        {/* Quotes View */}
+        {/* Quotes View - Maya Carousel Layout */}
         {view === "quotes" && (
-          <div className="flex-1 flex flex-col items-center pt-8">
-            <div className="w-full max-w-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-semibold mb-1">Quotes</h2>
-                  <p className="text-muted-foreground">Manage your quotes</p>
-                </div>
-                <Button className="rounded-full gap-2">
-                  <Receipt className="h-4 w-4" />
-                  New Quote
-                </Button>
-              </div>
-              
-              <div className="space-y-4">
-                {jobs.map((job) => (
-                  <Card key={job.id} className="overflow-hidden">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium">{job.title}</div>
-                        <Badge variant="outline">Draft</Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground mb-3">{job.customerName}</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-semibold">${job.estimatedValue}</span>
-                        <Button size="sm" variant="outline" className="rounded-full">Send Quote</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
+          <MayaCarouselLayout
+            title="Quotes"
+            subtitle="Manage and send quotes to customers"
+            items={quotes.map(quote => {
+              const customer = quote.customer || customers.find(c => c.id === quote.customerId);
+              const customerName = customer?.name || customer?.company || "Unknown Customer";
+              const initials = customerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+              const colors = [
+                { bg: "bg-blue-500", text: "text-blue-600" },
+                { bg: "bg-emerald-500", text: "text-emerald-600" },
+                { bg: "bg-violet-500", text: "text-violet-600" },
+                { bg: "bg-orange-500", text: "text-orange-600" },
+              ];
+              const colorIdx = customerName.charCodeAt(0) % colors.length;
+              return {
+                id: quote.id,
+                title: `Quote #${quote.id.slice(0, 8)}`,
+                customerName,
+                customerInitials: initials,
+                description: `Total: $${parseFloat(quote.total).toLocaleString()}`,
+                status: quote.status.charAt(0).toUpperCase() + quote.status.slice(1),
+                estimatedValue: parseFloat(quote.total),
+                subtotal: parseFloat(quote.subtotal),
+                taxAmount: parseFloat(quote.taxAmount || "0"),
+                total: parseFloat(quote.total),
+                expiresAt: quote.expiresAt,
+                createdAt: new Date(quote.createdAt).toLocaleDateString(),
+                color: colors[colorIdx],
+              };
+            })}
+            filterTabs={[
+              { id: "all", label: "All", count: quotes.length },
+              { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
+              { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent").length },
+              { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved").length },
+            ]}
+            itemType="quote"
+            onItemSelect={(item) => { navigate(`/quotes?id=${item.id}`); }}
+            onSendQuote={(item) => {
+              toast({ title: "Quote Sent", description: `Quote ${item.title} has been sent.` });
+            }}
+            emptyIcon={<Receipt className="h-12 w-12 mx-auto opacity-50" />}
+            emptyMessage="No quotes found"
+          />
         )}
 
         {/* Messages View */}
