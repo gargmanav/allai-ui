@@ -812,9 +812,9 @@ export default function Contractor() {
                     {/* Subtle glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
-                    {/* Animated running light top bar - Blue emphasis for Requests */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar-blue h-1 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
                         boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
@@ -892,9 +892,9 @@ export default function Contractor() {
                     {/* Subtle glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
-                    {/* Animated running light top bar - Orange emphasis for Quotes */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar-orange h-1 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
                         boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
@@ -969,9 +969,9 @@ export default function Contractor() {
                     {/* Subtle glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
-                    {/* Animated running light top bar - Green emphasis for Jobs */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar-green h-1 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
                         boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
@@ -1046,9 +1046,9 @@ export default function Contractor() {
                     {/* Subtle glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
                     
-                    {/* Animated running light top bar - Purple emphasis for Invoices */}
+                    {/* Animated running light top bar - AllAI pyramid colors */}
                     <div 
-                      className="running-light-bar-purple h-1 transition-all duration-300" 
+                      className="running-light-bar h-1 transition-all duration-300" 
                       style={{ 
                         backdropFilter: 'blur(16px) saturate(200%)',
                         boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
