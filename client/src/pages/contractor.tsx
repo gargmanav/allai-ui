@@ -58,6 +58,7 @@ import { TeamTimeline } from "@/components/contractor/team-timeline";
 import { Sparkline } from "@/components/contractor/sparkline";
 import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout";
+import { DashboardStatsGrid } from "@/components/contractor/dashboard-stats-grid";
 import { CustomersContent } from "@/pages/customers";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
@@ -828,17 +829,8 @@ export default function Contractor() {
             </div>
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
-            <div className="block w-full mb-8" style={{ display: 'block' }}>
-              <div 
-                ref={dashboardGridRef}
-                key="dashboard-stats-grid" 
-                className="dashboard-stats-grid w-full"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  gap: '0.5rem'
-                }}
-              >
+            <div className="mb-8">
+              <DashboardStatsGrid>
               {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
               <div 
                 key="card-requests"
@@ -1153,7 +1145,7 @@ export default function Contractor() {
                     </div>
                   </button>
                 </div>
-              </div>
+              </DashboardStatsGrid>
             </div>
 
             {/* Today's Schedule - Team Timeline with current time indicator */}
