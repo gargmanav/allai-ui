@@ -500,6 +500,7 @@ export function MayaCarouselLayout({
             </Button>
           </div>
         </div>
+        </div>
 
         {/* Main Content Column */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -906,6 +907,7 @@ export function MayaCarouselLayout({
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
