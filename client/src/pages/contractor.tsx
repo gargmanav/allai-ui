@@ -817,7 +817,7 @@ export default function Contractor() {
             </div>
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
-            <div className="dashboard-stats-grid mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3 mb-8">
               {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
               <div 
                 className="relative"
