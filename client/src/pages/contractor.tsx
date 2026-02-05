@@ -800,7 +800,7 @@ export default function Contractor() {
               const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
               
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <div 
                     className="relative"
