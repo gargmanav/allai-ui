@@ -260,3 +260,12 @@
   background-size: 200% 100%;
   animation: runningLight 40s linear infinite;
 }
+
+@keyframes maya-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.maya-sparkle-spin {
+  animation: maya-spin 8s linear infinite;
+}

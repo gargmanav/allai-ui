@@ -267,24 +267,25 @@ export function MayaCarouselLayout({
 
   const getPriorityColor = (priority?: string) => {
     switch (priority) {
-      case "Urgent": return "bg-red-100 text-red-700 border-red-200";
-      case "High": return "bg-orange-100 text-orange-700 border-orange-200";
-      case "Normal": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Low": return "bg-gray-100 text-gray-600 border-gray-200";
-      default: return "bg-gray-100 text-gray-600 border-gray-200";
+      case "Urgent": return "bg-red-50 text-red-600 border-red-100";
+      case "High": return "bg-amber-50 text-amber-600 border-amber-100";
+      case "Normal": return "bg-slate-100 text-slate-600 border-slate-200";
+      case "Low": return "bg-slate-50 text-slate-500 border-slate-100";
+      default: return "bg-slate-50 text-slate-500 border-slate-100";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "New": case "Submitted": return "bg-blue-100 text-blue-700";
-      case "In Progress": case "Active": return "bg-green-100 text-green-700";
-      case "Scheduled": return "bg-purple-100 text-purple-700";
-      case "Draft": return "bg-gray-100 text-gray-600";
-      case "Sent": return "bg-amber-100 text-amber-700";
-      case "Approved": return "bg-emerald-100 text-emerald-700";
-      case "Declined": case "Expired": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-600";
+      case "New": case "Submitted": return "bg-slate-100 text-slate-600";
+      case "In Progress": case "Active": return "bg-slate-100 text-slate-700";
+      case "Scheduled": return "bg-slate-100 text-slate-600";
+      case "Draft": return "bg-slate-50 text-slate-500";
+      case "Sent": return "bg-slate-100 text-slate-600";
+      case "Approved": return "bg-green-50 text-green-600";
+      case "Declined": case "Expired": return "bg-red-50 text-red-500";
+      case "In Review": return "bg-slate-100 text-slate-600";
+      default: return "bg-slate-50 text-slate-500";
     }
   };
 
@@ -295,7 +296,7 @@ export function MayaCarouselLayout({
         <div className="p-4 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
-              <Sparkles className="h-6 w-6 text-white" />
+              <Sparkles className="h-6 w-6 text-white maya-sparkle-spin" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-800">Maya AI Advisor</h3>
@@ -426,7 +427,7 @@ export function MayaCarouselLayout({
                 <SheetHeader className="p-4 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-white" />
+                      <Sparkles className="h-5 w-5 text-white maya-sparkle-spin" />
                     </div>
                     <SheetTitle>Maya AI Advisor</SheetTitle>
                   </div>
@@ -530,92 +531,102 @@ export function MayaCarouselLayout({
           </div>
         )}
 
-        {/* Enhanced Filters */}
+        {/* Enhanced Filters - Consolidated Layout */}
         {(showSearch || showCategoryFilter || showPriorityFilter || showSort) && (
-          <div className="px-3 sm:px-6 py-2 border-b bg-muted/10 flex items-center gap-2 sm:gap-3 flex-wrap">
-            {showSearch && (
-              <div className="relative flex-1 sm:flex-none">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-full sm:w-48 h-9 text-sm rounded-full"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
+          <div className="px-4 sm:px-6 py-3 border-b bg-white">
+            <div className="flex items-center gap-3">
+              {/* Search */}
+              {showSearch && (
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search requests..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 text-sm border-slate-200 bg-slate-50 focus:bg-white"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded">
+                      <X className="h-3 w-3 text-slate-400" />
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {/* Filter Group */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                {showCategoryFilter && derivedCategories.length > 0 && (
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="h-7 px-2 text-sm bg-transparent border-0 text-slate-600 focus:ring-0 cursor-pointer"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
+                    <option value="all">All Categories</option>
+                    {derivedCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                )}
+                
+                {showPriorityFilter && showCategoryFilter && (
+                  <div className="w-px h-4 bg-slate-200" />
+                )}
+                
+                {showPriorityFilter && (
+                  <select
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                    className="h-7 px-2 text-sm bg-transparent border-0 text-slate-600 focus:ring-0 cursor-pointer"
+                  >
+                    <option value="all">All Priorities</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="High">High</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Low">Low</option>
+                  </select>
                 )}
               </div>
-            )}
-            
-            {showCategoryFilter && derivedCategories.length > 0 && (
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-9 px-3 text-sm rounded-full border bg-background touch-manipulation"
-              >
-                <option value="all">Category</option>
-                {derivedCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            )}
-            
-            {showPriorityFilter && (
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="h-9 px-3 text-sm rounded-full border bg-background touch-manipulation"
-              >
-                <option value="all">Priority</option>
-                <option value="Urgent">Urgent</option>
-                <option value="High">High</option>
-                <option value="Normal">Normal</option>
-                <option value="Low">Low</option>
-              </select>
-            )}
-            
-            {showSort && (
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="h-9 px-3 text-sm rounded-full border bg-background touch-manipulation"
-              >
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="highest">Highest $</option>
-                <option value="lowest">Lowest $</option>
-                <option value="priority">Priority</option>
-              </select>
-            )}
-            
-            {hasActiveFilters && (
-              <button
-                onClick={clearAllFilters}
-                className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1 touch-manipulation"
-              >
-                <X className="h-3 w-3" />
-                Clear
-              </button>
-            )}
-            
-            <div className="ml-auto text-sm text-muted-foreground">
-              {filteredItems.length}/{items.length}
+              
+              {/* Sort */}
+              {showSort && (
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white text-slate-600 cursor-pointer"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="highest">Highest Value</option>
+                  <option value="lowest">Lowest Value</option>
+                  <option value="priority">By Priority</option>
+                </select>
+              )}
+              
+              {/* Clear & Count */}
+              <div className="flex items-center gap-3 ml-auto">
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                  >
+                    <X className="h-3 w-3" />
+                    Clear
+                  </button>
+                )}
+                <span className="text-sm text-slate-400">
+                  {filteredItems.length} of {items.length}
+                </span>
+              </div>
             </div>
           </div>
         )}
 
         {/* Content Area */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           {viewMode === "cards" ? (
             /* Cards View - Horizontal Carousel */
             <div className="p-4 sm:p-6">
-              <div className="flex items-center gap-3 overflow-x-auto pb-4 -mx-2 px-2">
+              <div className="flex items-start gap-4 overflow-x-auto pb-4 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
                 {filteredItems.map((item, idx) => {
                   const isSelected = selectedItemId === item.id;
                   return (
@@ -650,7 +661,7 @@ export function MayaCarouselLayout({
                         {item.customerName.split(" ")[0]}
                       </span>
                       <span className="text-[10px] text-muted-foreground">{item.status}</span>
-                      <span className={`text-xs font-medium ${isSelected ? "text-green-600" : "text-muted-foreground"}`}>
+                      <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>
                         ${(item.estimatedValue || 0).toLocaleString()}
                       </span>
                     </button>
@@ -709,7 +720,7 @@ export function MayaCarouselLayout({
                       </div>
                       <div>
                         <span className="text-muted-foreground">Value:</span>
-                        <p className="font-bold text-green-600">${(selectedItem.estimatedValue || 0).toLocaleString()}</p>
+                        <p className="font-bold text-slate-800">${(selectedItem.estimatedValue || 0).toLocaleString()}</p>
                       </div>
                       {selectedItem.phone && (
                         <div className="flex items-center gap-2">
@@ -785,7 +796,7 @@ export function MayaCarouselLayout({
                           </Badge>
                         </td>
                         <td className="px-3 py-3 text-right">
-                          <span className="font-semibold text-green-600">${(item.estimatedValue || 0).toLocaleString()}</span>
+                          <span className="font-medium text-slate-700">${(item.estimatedValue || 0).toLocaleString()}</span>
                         </td>
                         <td className="px-3 py-3 text-center hidden md:table-cell">
                           <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
@@ -796,7 +807,7 @@ export function MayaCarouselLayout({
                               <Button 
                                 size="sm" 
                                 variant="ghost" 
-                                className="h-8 w-8 p-0 text-green-600 hover:bg-green-50 touch-manipulation"
+                                className="h-8 w-8 p-0 text-slate-600 hover:bg-slate-50 touch-manipulation"
                                 onClick={(e) => { e.stopPropagation(); onAccept(item); }}
                               >
                                 <CheckCircle className="h-4 w-4" />
@@ -877,7 +888,7 @@ export function MayaCarouselLayout({
               )}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
