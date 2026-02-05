@@ -293,13 +293,13 @@ export function MayaCarouselLayout({
     <div className="flex h-full">
       {/* Sticky Maya Sidebar - Desktop */}
       <div className="hidden lg:flex flex-col w-80 border-r bg-gradient-to-b from-violet-50/50 to-white sticky top-0 h-screen">
-        <div className="p-4 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80">
+        <div className="px-4 py-3 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80 min-h-[60px] flex items-center">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
-              <Sparkles className="h-6 w-6 text-white maya-sparkle-spin" />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
+              <Sparkles className="h-5 w-5 text-white maya-sparkle-spin" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-800">Maya AI Advisor</h3>
+              <h3 className="font-semibold text-gray-800 text-base">Maya AI Advisor</h3>
               <p className="text-xs text-muted-foreground">Your intelligent assistant</p>
             </div>
           </div>
@@ -403,15 +403,15 @@ export function MayaCarouselLayout({
       <div className="flex-1 flex flex-col h-full min-w-0">
         {/* Header */}
         <div 
-          className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between"
+          className="px-4 sm:px-6 py-3 border-b flex items-center justify-between min-h-[60px]"
           style={{
             background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
             backdropFilter: "blur(24px) saturate(180%)",
           }}
         >
           <div>
-            <h2 className="font-semibold text-lg sm:text-xl">{title}</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
+            <h2 className="font-semibold text-lg">{title}</h2>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
           
           <div className="flex items-center gap-2">
@@ -680,7 +680,13 @@ export function MayaCarouselLayout({
                   <div className="px-4 py-3 border-b bg-gradient-to-r from-violet-50 to-white">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-full ${selectedItem.color.bg} flex items-center justify-center text-white font-bold`}>
+                        <div 
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-slate-600 font-bold"
+                          style={{
+                            background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                            boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
+                          }}
+                        >
                           {selectedItem.customerInitials}
                         </div>
                         <div>
@@ -778,7 +784,13 @@ export function MayaCarouselLayout({
                       >
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full ${item.color.bg} flex items-center justify-center text-white text-xs font-bold`}>
+                            <div 
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold"
+                              style={{
+                                background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                              }}
+                            >
                               {item.customerInitials}
                             </div>
                             <div className="min-w-0">
@@ -853,7 +865,13 @@ export function MayaCarouselLayout({
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full ${selectedItem.color.bg} flex items-center justify-center text-white font-bold`}>
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-slate-600 font-bold"
+                          style={{
+                            background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                            boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
+                          }}
+                        >
                           {selectedItem.customerInitials}
                         </div>
                         <div>
