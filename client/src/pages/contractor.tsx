@@ -875,11 +875,11 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Overdue</span>
-                          <span className={`text-xs font-semibold ${overdueRequests > 0 ? 'text-red-500' : 'text-gray-700'}`}>{dashboardStats.overdueRequests}</span>
+                          <span className={`text-xs font-semibold ${dashboardStats.overdueRequests > 0 ? 'text-red-500' : 'text-gray-700'}`}>{dashboardStats.overdueRequests}</span>
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Value</span>
-                          <span className="text-sm font-bold text-blue-600">${requestsValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-blue-600">${dashboardStats.requestsValue.toLocaleString()}</span>
                         </div>
                       </div>
                       
