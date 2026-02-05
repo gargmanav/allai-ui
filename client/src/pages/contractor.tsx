@@ -153,7 +153,14 @@ export default function Contractor() {
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
-  const [view, setView] = useState<ViewState>("landing");
+  const [view, setView] = useState<ViewState>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlView = params.get("view");
+    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "quotes", "customers", "newJobs", "activeJobs", "messages", "team"].includes(urlView)) {
+      return urlView as ViewState;
+    }
+    return "landing";
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [mayaInput, setMayaInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
