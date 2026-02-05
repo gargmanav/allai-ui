@@ -357,6 +357,68 @@ export default function Contractor() {
   // Placeholder for unread messages - would come from real messaging system
   const totalUnreadMessages = 0;
 
+  // Dashboard stats calculations - memoized for stable rendering
+  const dashboardStats = useMemo(() => {
+    const requestsCount = newJobsCount;
+    const requestsValue = jobs
+      .filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status))
+      .reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
+    
+    const draftQuotes = quotes.filter(q => q.status === 'draft');
+    const sentQuotes = quotes.filter(q => q.status === 'sent');
+    const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
+    
+    const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
+    const activeJobsValue = activeJobs.reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
+    
+    const approvedQuotes = quotes.filter(q => q.status === 'approved');
+    const totalOwed = approvedQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
+    
+    const assessmentCompleted = jobs.filter(j => j.status === 'Assessed').length;
+    const overdueRequests = jobs.filter(j => {
+      const created = new Date(j.createdAt);
+      const daysSince = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+      return ["New", "Pending"].includes(j.status) && daysSince > 7;
+    }).length;
+    const changesRequested = quotes.filter(q => q.status === 'changes_requested').length;
+    const requiresInvoicing = jobs.filter(j => j.status === 'Completed').length;
+    const pastDueInvoices = 0;
+    const awaitingPayment = approvedQuotes.length;
+    
+    const requestsSparkline = dashboardMetrics?.requests ?? { received: [requestsCount], converted: [assessmentCompleted] };
+    const quotesSparkline = dashboardMetrics?.quotes ?? { sent: [sentQuotes.length], approved: [approvedQuotes.length] };
+    const jobsSparkline = dashboardMetrics?.jobs ?? { started: [activeJobs.length], completed: [requiresInvoicing] };
+    const invoicesSparkline = dashboardMetrics?.invoices ?? { sent: [awaitingPayment], paid: [0] };
+    
+    const requestsTotal7Days = requestsSparkline.received.reduce((a, b) => a + b, 0);
+    const requestsConverted7Days = requestsSparkline.converted.reduce((a, b) => a + b, 0);
+    const requestsConversionRate = requestsTotal7Days > 0 ? Math.round((requestsConverted7Days / requestsTotal7Days) * 100) : 0;
+    
+    const quotesSent7Days = quotesSparkline.sent.reduce((a, b) => a + b, 0);
+    const quotesApproved7Days = quotesSparkline.approved.reduce((a, b) => a + b, 0);
+    const quotesApprovalRate = quotesSent7Days > 0 ? Math.round((quotesApproved7Days / quotesSent7Days) * 100) : 0;
+    
+    const jobsStarted7Days = jobsSparkline.started.reduce((a, b) => a + b, 0);
+    const jobsCompleted7Days = jobsSparkline.completed.reduce((a, b) => a + b, 0);
+    const jobsCompletionRate = jobsStarted7Days > 0 ? Math.round((jobsCompleted7Days / jobsStarted7Days) * 100) : 0;
+    
+    const invoicesSent7Days = invoicesSparkline.sent.reduce((a, b) => a + b, 0);
+    const invoicesPaid7Days = invoicesSparkline.paid.reduce((a, b) => a + b, 0);
+    const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
+
+    return {
+      requestsCount, requestsValue, draftQuotes, sentQuotes, sentQuotesValue,
+      activeJobs, activeJobsValue, approvedQuotes, totalOwed,
+      assessmentCompleted, overdueRequests, changesRequested, requiresInvoicing,
+      pastDueInvoices, awaitingPayment,
+      requestsSparkline, quotesSparkline, jobsSparkline, invoicesSparkline,
+      requestsTotal7Days, requestsConverted7Days, requestsConversionRate,
+      quotesSent7Days, quotesApproved7Days, quotesApprovalRate,
+      jobsStarted7Days, jobsCompleted7Days, jobsCompletionRate,
+      invoicesSent7Days, invoicesPaid7Days, invoicesPaymentRate
+    };
+  }, [jobs, quotes, dashboardMetrics, newJobsCount]);
+
   // Quick categories with real counts - 8 items in 2 rows of 4
   const quickCategories = [
     { id: "new-jobs", label: "New Jobs", icon: Briefcase, count: newJobsCount },
@@ -755,70 +817,18 @@ export default function Contractor() {
             </div>
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
-            {(() => {
-              const requestsCount = newJobsCount;
-              const requestsValue = jobs
-                .filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status))
-                .reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
-              
-              const draftQuotes = quotes.filter(q => q.status === 'draft');
-              const sentQuotes = quotes.filter(q => q.status === 'sent');
-              const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
-              
-              const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
-              const activeJobsValue = activeJobs.reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
-              
-              const approvedQuotes = quotes.filter(q => q.status === 'approved');
-              const totalOwed = approvedQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
-              
-              // Additional metrics for Jobber-like sub-rows
-              const assessmentCompleted = jobs.filter(j => j.status === 'Assessed').length;
-              const overdueRequests = jobs.filter(j => {
-                const created = new Date(j.createdAt);
-                const daysSince = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
-                return ["New", "Pending"].includes(j.status) && daysSince > 7;
-              }).length;
-              const changesRequested = quotes.filter(q => q.status === 'changes_requested').length;
-              const requiresInvoicing = jobs.filter(j => j.status === 'Completed').length;
-              const pastDueInvoices = 0; // Would come from invoices API
-              const awaitingPayment = approvedQuotes.length;
-              
-              // Sparkline data from real historical metrics API (with fallback to current values only)
-              const requestsSparkline = dashboardMetrics?.requests ?? { received: [requestsCount], converted: [assessmentCompleted] };
-              const quotesSparkline = dashboardMetrics?.quotes ?? { sent: [sentQuotes.length], approved: [approvedQuotes.length] };
-              const jobsSparkline = dashboardMetrics?.jobs ?? { started: [activeJobs.length], completed: [requiresInvoicing] };
-              const invoicesSparkline = dashboardMetrics?.invoices ?? { sent: [awaitingPayment], paid: [0] };
-              
-              // Calculate summary stats for tooltips
-              const requestsTotal7Days = requestsSparkline.received.reduce((a, b) => a + b, 0);
-              const requestsConverted7Days = requestsSparkline.converted.reduce((a, b) => a + b, 0);
-              const requestsConversionRate = requestsTotal7Days > 0 ? Math.round((requestsConverted7Days / requestsTotal7Days) * 100) : 0;
-              
-              const quotesSent7Days = quotesSparkline.sent.reduce((a, b) => a + b, 0);
-              const quotesApproved7Days = quotesSparkline.approved.reduce((a, b) => a + b, 0);
-              const quotesApprovalRate = quotesSent7Days > 0 ? Math.round((quotesApproved7Days / quotesSent7Days) * 100) : 0;
-              
-              const jobsStarted7Days = jobsSparkline.started.reduce((a, b) => a + b, 0);
-              const jobsCompleted7Days = jobsSparkline.completed.reduce((a, b) => a + b, 0);
-              const jobsCompletionRate = jobsStarted7Days > 0 ? Math.round((jobsCompleted7Days / jobsStarted7Days) * 100) : 0;
-              
-              const invoicesSent7Days = invoicesSparkline.sent.reduce((a, b) => a + b, 0);
-              const invoicesPaid7Days = invoicesSparkline.paid.reduce((a, b) => a + b, 0);
-              const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
-              
-              return (
-                <div className="dashboard-stats-grid mb-8">
-                  {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setHoveredCard("requests")}
-                    onMouseLeave={() => setHoveredCard(null)}
-                  >
-                    <ThoughtBubble visible={hoveredCard === "requests"}>
-                      <p className="text-gray-600">{requestsTotal7Days} requests received</p>
-                      <p className="text-gray-600">{requestsConverted7Days} converted to jobs</p>
-                      <p className="text-blue-600 font-medium">{requestsConversionRate}% conversion rate</p>
-                    </ThoughtBubble>
+            <div className="dashboard-stats-grid mb-8">
+              {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setHoveredCard("requests")}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                <ThoughtBubble visible={hoveredCard === "requests"}>
+                  <p className="text-gray-600">{dashboardStats.requestsTotal7Days} requests received</p>
+                  <p className="text-gray-600">{dashboardStats.requestsConverted7Days} converted to jobs</p>
+                  <p className="text-blue-600 font-medium">{dashboardStats.requestsConversionRate}% conversion rate</p>
+                </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
                     onClick={() => setView("newJobs" as ViewState)}
@@ -854,18 +864,18 @@ export default function Contractor() {
                       {/* Primary metric */}
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">New</span>
-                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{requestsCount}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.requestsCount}</span>
                       </div>
                       
                       {/* Sub-metrics */}
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Converted</span>
-                          <span className="text-xs font-semibold text-emerald-600">{assessmentCompleted}</span>
+                          <span className="text-xs font-semibold text-emerald-600">{dashboardStats.assessmentCompleted}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Overdue</span>
-                          <span className={`text-xs font-semibold ${overdueRequests > 0 ? 'text-red-500' : 'text-gray-700'}`}>{overdueRequests}</span>
+                          <span className={`text-xs font-semibold ${overdueRequests > 0 ? 'text-red-500' : 'text-gray-700'}`}>{dashboardStats.overdueRequests}</span>
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Value</span>
@@ -877,9 +887,9 @@ export default function Contractor() {
                       <div className="pt-2 border-t border-gray-100/50 mt-2">
                         <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
                         <Sparkline 
-                          data={requestsSparkline.received}
+                          data={dashboardStats.requestsSparkline.received}
                           color="#3b82f6"
-                          secondaryData={requestsSparkline.converted}
+                          secondaryData={dashboardStats.requestsSparkline.converted}
                           secondaryColor="#6b7280"
                           labels={{ primary: "Received", secondary: "Converted" }}
                         />
@@ -895,9 +905,9 @@ export default function Contractor() {
                     onMouseLeave={() => setHoveredCard(null)}
                   >
                     <ThoughtBubble visible={hoveredCard === "quotes"}>
-                      <p className="text-gray-600">{quotesSent7Days} quotes sent</p>
-                      <p className="text-gray-600">{quotesApproved7Days} approved</p>
-                      <p className="text-amber-600 font-medium">{quotesApprovalRate}% approval rate</p>
+                      <p className="text-gray-600">{dashboardStats.quotesSent7Days} quotes sent</p>
+                      <p className="text-gray-600">{dashboardStats.quotesApproved7Days} approved</p>
+                      <p className="text-amber-600 font-medium">{dashboardStats.quotesApprovalRate}% approval rate</p>
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
@@ -932,21 +942,21 @@ export default function Contractor() {
                       
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">Draft</span>
-                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{draftQuotes.length}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.draftQuotes.length}</span>
                       </div>
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Approved</span>
-                          <span className="text-xs font-semibold text-emerald-600">{approvedQuotes.length}</span>
+                          <span className="text-xs font-semibold text-emerald-600">{dashboardStats.approvedQuotes.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Changes</span>
-                          <span className={`text-xs font-semibold ${changesRequested > 0 ? 'text-orange-500' : 'text-gray-700'}`}>{changesRequested}</span>
+                          <span className={`text-xs font-semibold ${dashboardStats.changesRequested > 0 ? 'text-orange-500' : 'text-gray-700'}`}>{dashboardStats.changesRequested}</span>
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Awaiting</span>
-                          <span className="text-sm font-bold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-amber-600">${dashboardStats.sentQuotesValue.toLocaleString()}</span>
                         </div>
                       </div>
                       
@@ -954,9 +964,9 @@ export default function Contractor() {
                       <div className="pt-2 border-t border-gray-100/50 mt-2">
                         <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
                         <Sparkline 
-                          data={quotesSparkline.sent}
+                          data={dashboardStats.quotesSparkline.sent}
                           color="#f59e0b"
-                          secondaryData={quotesSparkline.approved}
+                          secondaryData={dashboardStats.quotesSparkline.approved}
                           secondaryColor="#6b7280"
                           labels={{ primary: "Sent", secondary: "Approved" }}
                         />
@@ -972,9 +982,9 @@ export default function Contractor() {
                     onMouseLeave={() => setHoveredCard(null)}
                   >
                     <ThoughtBubble visible={hoveredCard === "jobs"}>
-                      <p className="text-gray-600">{jobsStarted7Days} jobs started</p>
-                      <p className="text-gray-600">{jobsCompleted7Days} completed</p>
-                      <p className="text-green-600 font-medium">{jobsCompletionRate}% completion rate</p>
+                      <p className="text-gray-600">{dashboardStats.jobsStarted7Days} jobs started</p>
+                      <p className="text-gray-600">{dashboardStats.jobsCompleted7Days} completed</p>
+                      <p className="text-green-600 font-medium">{dashboardStats.jobsCompletionRate}% completion rate</p>
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
@@ -1009,13 +1019,13 @@ export default function Contractor() {
                       
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">Active</span>
-                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeJobs.length}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.activeJobs.length}</span>
                       </div>
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Completed</span>
-                          <span className="text-xs font-semibold text-emerald-600">{requiresInvoicing}</span>
+                          <span className="text-xs font-semibold text-emerald-600">{dashboardStats.requiresInvoicing}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Scheduled</span>
@@ -1023,7 +1033,7 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Value</span>
-                          <span className="text-sm font-bold text-green-600">${activeJobsValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-green-600">${dashboardStats.activeJobsValue.toLocaleString()}</span>
                         </div>
                       </div>
                       
@@ -1031,9 +1041,9 @@ export default function Contractor() {
                       <div className="pt-2 border-t border-gray-100/50 mt-2">
                         <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
                         <Sparkline 
-                          data={jobsSparkline.started}
+                          data={dashboardStats.jobsSparkline.started}
                           color="#10b981"
-                          secondaryData={jobsSparkline.completed}
+                          secondaryData={dashboardStats.jobsSparkline.completed}
                           secondaryColor="#6b7280"
                           labels={{ primary: "Started", secondary: "Completed" }}
                         />
@@ -1049,9 +1059,9 @@ export default function Contractor() {
                     onMouseLeave={() => setHoveredCard(null)}
                   >
                     <ThoughtBubble visible={hoveredCard === "invoices"}>
-                      <p className="text-gray-600">{invoicesSent7Days} invoices sent</p>
-                      <p className="text-gray-600">{invoicesPaid7Days} paid</p>
-                      <p className="text-violet-600 font-medium">{invoicesPaymentRate}% payment rate</p>
+                      <p className="text-gray-600">{dashboardStats.invoicesSent7Days} invoices sent</p>
+                      <p className="text-gray-600">{dashboardStats.invoicesPaid7Days} paid</p>
+                      <p className="text-violet-600 font-medium">{dashboardStats.invoicesPaymentRate}% payment rate</p>
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
@@ -1086,7 +1096,7 @@ export default function Contractor() {
                       
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">Owed</span>
-                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{approvedQuotes.length}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.approvedQuotes.length}</span>
                       </div>
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
@@ -1096,11 +1106,11 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] text-gray-500">Past Due</span>
-                          <span className={`text-xs font-semibold ${pastDueInvoices > 0 ? 'text-red-500' : 'text-gray-700'}`}>{pastDueInvoices}</span>
+                          <span className={`text-xs font-semibold ${dashboardStats.pastDueInvoices > 0 ? 'text-red-500' : 'text-gray-700'}`}>{dashboardStats.pastDueInvoices}</span>
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Total</span>
-                          <span className="text-sm font-bold text-violet-600">${totalOwed.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-violet-600">${dashboardStats.totalOwed.toLocaleString()}</span>
                         </div>
                       </div>
                       
@@ -1108,19 +1118,17 @@ export default function Contractor() {
                       <div className="pt-2 border-t border-gray-100/50 mt-2">
                         <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 30 days</span>
                         <Sparkline 
-                          data={invoicesSparkline.sent}
+                          data={dashboardStats.invoicesSparkline.sent}
                           color="#8b5cf6"
-                          secondaryData={invoicesSparkline.paid}
+                          secondaryData={dashboardStats.invoicesSparkline.paid}
                           secondaryColor="#6b7280"
                           labels={{ primary: "Sent", secondary: "Paid" }}
                         />
                       </div>
                     </div>
                   </button>
-                  </div>
                 </div>
-              );
-            })()}
+            </div>
 
             {/* Today's Schedule - Team Timeline with current time indicator */}
             <div className="mb-8">
