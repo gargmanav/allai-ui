@@ -162,37 +162,37 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
             Today's Appointments
           </h3>
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-gray-50 border border-gray-100">
-              <span className="text-sm font-bold text-gray-800">{summaryStats.total}</span>
-              <span className="text-[9px] text-gray-500 uppercase tracking-wide">Total</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex flex-col items-center px-2 sm:px-3 py-1 rounded-lg bg-gray-50 border border-gray-100 min-w-fit">
+              <span className="text-xs sm:text-sm font-bold text-gray-800">{summaryStats.total}</span>
+              <span className="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-wide">Total</span>
             </div>
             <div 
-              className="flex flex-col items-center px-3 py-1 rounded-lg border border-blue-200/50"
+              className="flex flex-col items-center px-2 sm:px-3 py-1 rounded-lg border border-blue-200/50 min-w-fit"
               style={{ background: 'linear-gradient(135deg, rgba(219, 234, 254, 0.45) 0%, rgba(191, 219, 254, 0.4) 100%)' }}
             >
-              <span className="text-sm font-bold text-blue-700">{summaryStats.remaining}</span>
-              <span className="text-[9px] text-blue-500 uppercase tracking-wide">Remaining</span>
+              <span className="text-xs sm:text-sm font-bold text-blue-700">{summaryStats.remaining}</span>
+              <span className="text-[8px] sm:text-[9px] text-blue-500 uppercase tracking-wide">Left</span>
             </div>
-            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-orange-50 border border-orange-200">
-              <span className="text-sm font-bold text-orange-600">{summaryStats.active}</span>
-              <span className="text-[9px] text-orange-500 uppercase tracking-wide">Active</span>
+            <div className="flex flex-col items-center px-2 sm:px-3 py-1 rounded-lg bg-orange-50 border border-orange-200 min-w-fit">
+              <span className="text-xs sm:text-sm font-bold text-orange-600">{summaryStats.active}</span>
+              <span className="text-[8px] sm:text-[9px] text-orange-500 uppercase tracking-wide">Active</span>
             </div>
-            <div className="flex flex-col items-center px-3 py-1 rounded-lg bg-green-50 border border-green-200">
-              <span className="text-sm font-bold text-green-600">{summaryStats.complete}</span>
-              <span className="text-[9px] text-green-500 uppercase tracking-wide">Complete</span>
+            <div className="flex flex-col items-center px-2 sm:px-3 py-1 rounded-lg bg-green-50 border border-green-200 min-w-fit">
+              <span className="text-xs sm:text-sm font-bold text-green-600">{summaryStats.complete}</span>
+              <span className="text-[8px] sm:text-[9px] text-green-500 uppercase tracking-wide">Done</span>
             </div>
           </div>
         </div>
         <Button 
           variant="ghost" 
           size="sm" 
-          className="text-blue-600 hover:text-blue-700 h-7 text-xs font-medium"
+          className="text-blue-600 hover:text-blue-700 h-8 sm:h-7 text-xs font-medium self-start sm:self-auto touch-manipulation"
           onClick={onViewCalendar}
         >
           View Calendar

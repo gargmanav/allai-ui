@@ -228,24 +228,24 @@ export function MayaCarouselLayout({
   return (
     <div className="flex-1 flex flex-col h-full">
       <div 
-        className="px-6 py-4 border-b"
+        className="px-4 sm:px-6 py-3 sm:py-4 border-b"
         style={{
           background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
           backdropFilter: "blur(24px) saturate(180%)",
         }}
       >
-        <h2 className="font-semibold text-xl">{title}</h2>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <h2 className="font-semibold text-lg sm:text-xl">{title}</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       {filterTabs && filterTabs.length > 0 && (
-        <div className="px-6 py-3 border-b bg-muted/20">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="px-3 sm:px-6 py-2 sm:py-3 border-b bg-muted/20 overflow-x-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap sm:flex-wrap min-w-max sm:min-w-0">
             {filterTabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => handleFilterChange(tab.id)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap touch-manipulation ${
                   activeFilter === tab.id
                     ? "bg-violet-100 text-violet-700 ring-1 ring-violet-200"
                     : "text-muted-foreground hover:bg-muted"
@@ -253,7 +253,7 @@ export function MayaCarouselLayout({
               >
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+                  <span className={`ml-1 sm:ml-1.5 px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full ${
                     activeFilter === tab.id ? "bg-violet-200" : "bg-muted"
                   }`}>
                     {tab.count}
@@ -266,22 +266,22 @@ export function MayaCarouselLayout({
       )}
 
       {(showSearch || showCategoryFilter || showPriorityFilter || showSort) && (
-        <div className="px-6 py-2 border-b bg-muted/10 flex items-center gap-3 flex-wrap">
+        <div className="px-3 sm:px-6 py-2 border-b bg-muted/10 flex items-center gap-2 sm:gap-3 flex-wrap">
           {showSearch && (
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={`Search ${itemType}s...`}
+                placeholder={`Search...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-48 h-8 text-sm rounded-full"
+                className="pl-9 w-full sm:w-48 h-9 sm:h-8 text-sm rounded-full"
               />
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-4 w-4 sm:h-3 sm:w-3" />
                 </button>
               )}
             </div>
@@ -291,9 +291,9 @@ export function MayaCarouselLayout({
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-8 px-3 text-sm rounded-full border bg-background"
+              className="h-9 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm rounded-full border bg-background touch-manipulation"
             >
-              <option value="all">All Categories</option>
+              <option value="all">Category</option>
               {derivedCategories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
@@ -304,9 +304,9 @@ export function MayaCarouselLayout({
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-8 px-3 text-sm rounded-full border bg-background"
+              className="h-9 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm rounded-full border bg-background touch-manipulation"
             >
-              <option value="all">All Priorities</option>
+              <option value="all">Priority</option>
               <option value="Urgent">Urgent</option>
               <option value="High">High</option>
               <option value="Normal">Normal</option>
@@ -318,40 +318,41 @@ export function MayaCarouselLayout({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="h-8 px-3 text-sm rounded-full border bg-background"
+              className="h-9 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm rounded-full border bg-background touch-manipulation"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="highest">Highest Value</option>
-              <option value="lowest">Lowest Value</option>
-              <option value="priority">By Priority</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="highest">Highest $</option>
+              <option value="lowest">Lowest $</option>
+              <option value="priority">Priority</option>
             </select>
           )}
           
           {hasActiveFilters && (
             <button
               onClick={clearAllFilters}
-              className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
+              className="text-xs sm:text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1 p-1 touch-manipulation"
             >
               <X className="h-3 w-3" />
-              Clear filters
+              <span className="hidden sm:inline">Clear filters</span>
+              <span className="sm:hidden">Clear</span>
             </button>
           )}
           
-          <div className="ml-auto text-sm text-muted-foreground">
-            {filteredItems.length} of {items.length} {itemType}s
+          <div className="ml-auto text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+            {filteredItems.length}/{items.length}
           </div>
         </div>
       )}
 
-      <div className="px-6 py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
-        <div className="flex items-center gap-4 overflow-x-auto pb-2">
+      <div className="px-3 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
+        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-2 -mx-1 px-1">
           <button
             onClick={() => { setShowMayaPanel(true); setSelectedItemId(null); }}
-            className="flex flex-col items-center min-w-[80px] group"
+            className="flex flex-col items-center min-w-[60px] sm:min-w-[80px] group touch-manipulation"
           >
             <div 
-              className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
+              className={`relative w-11 h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
                 showMayaPanel 
                   ? "ring-2 ring-violet-400/70 scale-105" 
                   : "hover:scale-105 group-hover:ring-2 group-hover:ring-violet-300/50"
@@ -367,12 +368,12 @@ export function MayaCarouselLayout({
               }}
             >
               <Sparkles 
-                className="h-6 w-6 text-violet-500" 
+                className="h-5 w-5 sm:h-6 sm:w-6 text-violet-500" 
                 style={{ animation: "spin 8s linear infinite" }}
               />
             </div>
-            <span className={`text-xs mt-2 font-medium ${showMayaPanel ? "text-violet-600" : "text-foreground"}`}>Maya</span>
-            <span className="text-[10px] text-muted-foreground">AI Advisor</span>
+            <span className={`text-[10px] sm:text-xs mt-1 sm:mt-2 font-medium ${showMayaPanel ? "text-violet-600" : "text-foreground"}`}>Maya</span>
+            <span className="text-[9px] sm:text-[10px] text-muted-foreground hidden sm:block">AI Advisor</span>
           </button>
 
           <div className="relative flex items-center justify-center px-2">
@@ -391,10 +392,10 @@ export function MayaCarouselLayout({
               <button
                 key={`${item.id}-${idx}`}
                 onClick={() => handleItemClick(item)}
-                className="flex flex-col items-center min-w-[80px] group"
+                className="flex flex-col items-center min-w-[60px] sm:min-w-[80px] group touch-manipulation"
               >
                 <div 
-                  className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  className={`relative w-11 h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
                     isSelected ? "ring-2 ring-gray-300/60 scale-105" : "hover:scale-105"
                   }`}
                   style={{
@@ -416,10 +417,10 @@ export function MayaCarouselLayout({
                     </div>
                   )}
                 </div>
-                <span className={`text-xs mt-2 font-medium truncate max-w-[70px] ${isSelected ? "text-gray-800" : "text-foreground"}`}>
+                <span className={`text-[10px] sm:text-xs mt-1 sm:mt-2 font-medium truncate max-w-[55px] sm:max-w-[70px] ${isSelected ? "text-gray-800" : "text-foreground"}`}>
                   {item.customerName.split(" ")[0]}
                 </span>
-                <span className={`text-[10px] font-medium ${isSelected ? "text-green-600" : "text-muted-foreground"}`}>
+                <span className={`text-[9px] sm:text-[10px] font-medium ${isSelected ? "text-green-600" : "text-muted-foreground"}`}>
                   ${(item.estimatedValue || 0).toLocaleString()}
                 </span>
               </button>
@@ -434,7 +435,7 @@ export function MayaCarouselLayout({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-6">
+      <ScrollArea className="flex-1 p-3 sm:p-6">
         {showMayaPanel ? (
           <div className="space-y-4">
             <Card 

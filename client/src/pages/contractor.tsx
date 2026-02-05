@@ -481,10 +481,18 @@ export default function Contractor() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       {/* Left Sidebar - Frosted Glass */}
       <aside 
-        className={`fixed left-0 top-0 h-full bg-muted/30 border-r flex flex-col z-40 transition-all duration-300 ${
-          sidebarOpen ? "w-72" : "w-0"
+        className={`fixed left-0 top-0 h-full bg-background/95 backdrop-blur-xl border-r flex flex-col z-40 transition-all duration-300 ${
+          sidebarOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full lg:translate-x-0 lg:w-0"
         } overflow-hidden`}
       >
         <div className="w-72 h-full flex flex-col">
@@ -522,7 +530,7 @@ export default function Contractor() {
             {/* Home - Standalone at top */}
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => setView("landing")}
             >
               <Home className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -538,7 +546,7 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => setView("newJobs" as ViewState)}
             >
               <Briefcase className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -549,7 +557,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => navigate("/quotes")}
             >
               <Receipt className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -560,7 +568,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => setView("activeJobs" as ViewState)}
             >
               <CheckCircle className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -571,7 +579,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => toast({ title: "Invoices", description: "Invoice management coming soon" })}
             >
               <DollarSign className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -590,7 +598,7 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => navigate("/contractor-schedule")}
             >
               <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -598,7 +606,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => setView("customers")}
             >
               <Users className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -606,7 +614,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => setView("team" as ViewState)}
             >
               <Users className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -622,7 +630,7 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => navigate("/inbox")}
             >
               <Mail className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -630,7 +638,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => navigate("/reminders")}
             >
               <Bell className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -638,7 +646,7 @@ export default function Contractor() {
             </Button>
             <Button 
               variant="ghost" 
-              className="group w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35"
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => toast({ title: "Profile", description: "Profile settings coming soon" })}
             >
               <User className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
@@ -661,19 +669,19 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" ? "row-start-1" : "fixed top-0 right-0"} z-50 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
-          <div className="relative flex items-center justify-center px-6 py-4">
+        <header className={`${view === "customers" ? "row-start-1" : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+          <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-4">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
                 <Menu className="h-5 w-5" />
               </Button>
             )}
             {(sidebarOpen && view !== "landing") || (!sidebarOpen && view !== "landing" && !selectedCaseId) ? (
-              <Button variant="ghost" size="sm" onClick={() => { setView("landing"); setSelectedCaseId(null); }} className="absolute left-4 gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setView("landing"); setSelectedCaseId(null); }} className="absolute left-2 sm:left-4 gap-2 h-10 touch-manipulation">
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                <span className="hidden sm:inline">Back</span>
               </Button>
             ) : null}
             
@@ -689,7 +697,7 @@ export default function Contractor() {
 
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
-        <main className="pt-32 pb-8 px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
+        <main className="pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
@@ -792,7 +800,7 @@ export default function Contractor() {
               const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
               
               return (
-                <div className="grid grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <div 
                     className="relative"
