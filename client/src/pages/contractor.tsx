@@ -669,9 +669,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "quotes" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" ? "row-start-1" : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "quotes" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "quotes" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -699,7 +699,7 @@ export default function Contractor() {
         {view !== "customers" ? (
         <main className={`flex flex-col ${
           view === "newJobs" || view === "quotes" 
-            ? "h-screen overflow-hidden" 
+            ? "flex-1 min-h-0 overflow-hidden" 
             : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
         }`}>
         
@@ -1149,8 +1149,6 @@ export default function Contractor() {
 
         {/* New Jobs View - Maya Carousel Layout */}
         {view === ("newJobs" as ViewState) && (
-          <>
-          <div className="shrink-0 h-16 sm:h-20" />
           <MayaCarouselLayout
             title="New Job Requests"
             subtitle="Jobs waiting for your response"
@@ -1194,7 +1192,6 @@ export default function Contractor() {
             emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No new job requests"
           />
-          </>
         )}
 
         {/* Active Jobs View */}
@@ -1280,8 +1277,6 @@ export default function Contractor() {
 
         {/* Quotes View - Maya Carousel Layout */}
         {view === "quotes" && (
-          <>
-          <div className="shrink-0 h-16 sm:h-20" />
           <MayaCarouselLayout
             title="Quotes"
             subtitle="Manage and send quotes to customers"
@@ -1326,7 +1321,6 @@ export default function Contractor() {
             emptyIcon={<Receipt className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No quotes found"
           />
-          </>
         )}
 
         {/* Messages View */}

@@ -290,7 +290,7 @@ export function MayaCarouselLayout({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Top Title Bar - Spans Full Width */}
       <div 
         className="px-4 sm:px-6 py-3 border-b flex items-center justify-between shrink-0"
