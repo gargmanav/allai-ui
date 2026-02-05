@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { format, isToday, isTomorrow, parseISO, startOfDay, endOfDay } from "date-fns";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
@@ -202,16 +202,6 @@ export default function Contractor() {
       setShowMayaBubble(false);
     }
   }, [mayaHovered]);
-
-  // Ref and layout effect to force grid layout on mobile
-  const dashboardGridRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (dashboardGridRef.current) {
-      dashboardGridRef.current.style.display = 'grid';
-      dashboardGridRef.current.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
-      dashboardGridRef.current.style.gap = '0.5rem';
-    }
-  });
 
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
@@ -782,7 +772,7 @@ export default function Contractor() {
         
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
-          <div className="flex-1 flex flex-col pt-4">
+          <div className="pt-4 w-full" style={{ display: 'block' }}>
             {/* Top Row - Greeting + Maya Button */}
             <div className="flex items-start justify-between mb-8">
               <div>
