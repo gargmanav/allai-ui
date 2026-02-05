@@ -438,12 +438,20 @@ export function MayaCarouselLayout({
         {showMayaPanel ? (
           <div className="space-y-4">
             <Card 
-              className="border-violet-200/50 overflow-hidden"
+              className="border-violet-200/50 overflow-hidden relative"
               style={{
                 background: "linear-gradient(145deg, rgba(245,243,255,0.95) 0%, rgba(237,233,254,0.9) 100%)",
               }}
             >
-              <CardContent className="p-5">
+              <div 
+                className="absolute top-0 left-0 right-0 h-1"
+                style={{
+                  background: "linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd, #60a5fa, #3b82f6)",
+                  backgroundSize: "200% 100%",
+                  animation: "shimmer 2s linear infinite",
+                }}
+              />
+              <CardContent className="p-5 pt-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
                     <Sparkles className="h-5 w-5 text-white" />
@@ -502,9 +510,17 @@ export function MayaCarouselLayout({
           </div>
         ) : selectedItem ? (
           <div className="space-y-4">
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden relative">
               <div 
-                className="px-4 py-3 border-b"
+                className="absolute top-0 left-0 right-0 h-1"
+                style={{
+                  background: "linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd, #60a5fa, #3b82f6)",
+                  backgroundSize: "200% 100%",
+                  animation: "shimmer 2s linear infinite",
+                }}
+              />
+              <div 
+                className="px-4 py-3 border-b pt-4"
                 style={{
                   background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
                 }}

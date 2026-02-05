@@ -248,6 +248,16 @@
   }
 }
 
+/* Blue shimmer animation for card top borders */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .running-light-bar {
   background: linear-gradient(
     90deg,
