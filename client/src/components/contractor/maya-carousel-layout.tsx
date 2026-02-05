@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X } from "lucide-react";
 
 interface Item {
   id: string;
@@ -48,6 +49,11 @@ interface MayaCarouselLayoutProps {
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
   itemType: "request" | "quote";
+  showCategoryFilter?: boolean;
+  showPriorityFilter?: boolean;
+  showSearch?: boolean;
+  showSort?: boolean;
+  categories?: string[];
 }
 
 export function MayaCarouselLayout({
@@ -64,10 +70,19 @@ export function MayaCarouselLayout({
   emptyIcon,
   emptyMessage = "No items found",
   itemType,
+  showCategoryFilter = false,
+  showPriorityFilter = false,
+  showSearch = false,
+  showSort = false,
+  categories = [],
 }: MayaCarouselLayoutProps) {
   const [showMayaPanel, setShowMayaPanel] = useState(true);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [internalFilter, setInternalFilter] = useState<string>(externalActiveFilter || "all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
   
   const activeFilter = externalActiveFilter ?? internalFilter;
   
@@ -78,10 +93,65 @@ export function MayaCarouselLayout({
     onFilterChange?.(filterId);
   };
   
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setPriorityFilter("all");
+    setInternalFilter("all");
+    setSelectedItemId(null);
+    setShowMayaPanel(true);
+    onFilterChange?.("all");
+  };
+  
+  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || activeFilter !== "all";
+  
   const filteredItems = useMemo(() => {
-    if (activeFilter === "all") return items;
-    return items.filter(item => item.status.toLowerCase() === activeFilter.toLowerCase());
-  }, [items, activeFilter]);
+    let result = [...items];
+    
+    if (activeFilter !== "all") {
+      result = result.filter(item => item.status.toLowerCase() === activeFilter.toLowerCase());
+    }
+    
+    if (categoryFilter !== "all") {
+      result = result.filter(item => item.category?.toLowerCase() === categoryFilter.toLowerCase());
+    }
+    
+    if (priorityFilter !== "all") {
+      result = result.filter(item => item.priority?.toLowerCase() === priorityFilter.toLowerCase());
+    }
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        item.customerName.toLowerCase().includes(query) ||
+        item.description?.toLowerCase().includes(query)
+      );
+    }
+    
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "newest": return (b.createdAt || "").localeCompare(a.createdAt || "");
+        case "oldest": return (a.createdAt || "").localeCompare(b.createdAt || "");
+        case "highest": return (b.estimatedValue || 0) - (a.estimatedValue || 0);
+        case "lowest": return (a.estimatedValue || 0) - (b.estimatedValue || 0);
+        case "priority": {
+          const priorityOrder: Record<string, number> = { "Urgent": 0, "High": 1, "Normal": 2, "Low": 3 };
+          return (priorityOrder[a.priority || "Normal"] || 2) - (priorityOrder[b.priority || "Normal"] || 2);
+        }
+        default: return 0;
+      }
+    });
+    
+    return result;
+  }, [items, activeFilter, categoryFilter, priorityFilter, searchQuery, sortBy]);
+  
+  const derivedCategories = useMemo(() => {
+    if (categories.length > 0) return categories;
+    const cats = new Set<string>();
+    items.forEach(item => { if (item.category) cats.add(item.category); });
+    return Array.from(cats);
+  }, [items, categories]);
 
   const selectedItem = useMemo(() => 
     filteredItems.find(item => item.id === selectedItemId), 
@@ -170,7 +240,7 @@ export function MayaCarouselLayout({
 
       {filterTabs && filterTabs.length > 0 && (
         <div className="px-6 py-3 border-b bg-muted/20">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {filterTabs.map(tab => (
               <button
                 key={tab.id}
@@ -191,6 +261,85 @@ export function MayaCarouselLayout({
                 )}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {(showSearch || showCategoryFilter || showPriorityFilter || showSort) && (
+        <div className="px-6 py-2 border-b bg-muted/10 flex items-center gap-3 flex-wrap">
+          {showSearch && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={`Search ${itemType}s...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-48 h-8 text-sm rounded-full"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+          
+          {showCategoryFilter && derivedCategories.length > 0 && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-8 px-3 text-sm rounded-full border bg-background"
+            >
+              <option value="all">All Categories</option>
+              {derivedCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          )}
+          
+          {showPriorityFilter && (
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="h-8 px-3 text-sm rounded-full border bg-background"
+            >
+              <option value="all">All Priorities</option>
+              <option value="Urgent">Urgent</option>
+              <option value="High">High</option>
+              <option value="Normal">Normal</option>
+              <option value="Low">Low</option>
+            </select>
+          )}
+          
+          {showSort && (
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-8 px-3 text-sm rounded-full border bg-background"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="highest">Highest Value</option>
+              <option value="lowest">Lowest Value</option>
+              <option value="priority">By Priority</option>
+            </select>
+          )}
+          
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
+            >
+              <X className="h-3 w-3" />
+              Clear filters
+            </button>
+          )}
+          
+          <div className="ml-auto text-sm text-muted-foreground">
+            {filteredItems.length} of {items.length} {itemType}s
           </div>
         </div>
       )}

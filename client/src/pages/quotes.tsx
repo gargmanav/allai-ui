@@ -1,11 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, DollarSign, Calendar, Send, Copy, Check, Trash2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Plus, FileText, DollarSign, Calendar, Send, Copy, Check, Trash2, Sparkles, ArrowRight, Clock, Search, SlidersHorizontal, TrendingUp, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -29,14 +31,27 @@ type Quote = {
   requiredDepositAmount: string;
   expiresAt: string | null;
   createdAt: string;
+  customerId?: string;
+  customer?: { name?: string; company?: string };
 };
+
+interface MayaRecommendation {
+  type: "prioritize" | "followup" | "price" | "expiring";
+  title: string;
+  message: string;
+  quoteId?: string;
+}
 
 export default function QuotesPage() {
   const [_, setLocation] = useLocation();
   const [filterStatus, setFilterStatus] = useState<'all' | QuoteStatus>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+  const [showMayaPanel, setShowMayaPanel] = useState(true);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
+  const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [approvalLink, setApprovalLink] = useState<string>('');
   const [linkCopied, setLinkCopied] = useState(false);
   const { toast } = useToast();
@@ -76,6 +91,7 @@ export default function QuotesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/quotes'] });
       setDeleteDialogOpen(false);
+      setQuoteToDelete(null);
       toast({
         title: "Quote deleted",
         description: "Quote has been deleted successfully",
@@ -92,13 +108,13 @@ export default function QuotesPage() {
 
   const getStatusColor = (status: QuoteStatus) => {
     switch (status) {
-      case 'draft': return 'bg-gray-500 dark:bg-gray-600';
-      case 'sent': return 'bg-blue-500 dark:bg-blue-600';
-      case 'awaiting_response': return 'bg-yellow-500 dark:bg-yellow-600';
-      case 'approved': return 'bg-green-500 dark:bg-green-600';
-      case 'declined': return 'bg-red-500 dark:bg-red-600';
-      case 'expired': return 'bg-orange-500 dark:bg-orange-600';
-      default: return 'bg-gray-500 dark:bg-gray-600';
+      case 'draft': return 'bg-gray-100 text-gray-700';
+      case 'sent': return 'bg-blue-100 text-blue-700';
+      case 'awaiting_response': return 'bg-amber-100 text-amber-700';
+      case 'approved': return 'bg-emerald-100 text-emerald-700';
+      case 'declined': return 'bg-red-100 text-red-700';
+      case 'expired': return 'bg-orange-100 text-orange-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
@@ -106,13 +122,94 @@ export default function QuotesPage() {
     return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  // Apply filters
-  const filteredQuotes = quotes.filter(quote => {
-    if (filterStatus !== 'all' && quote.status !== filterStatus) {
-      return false;
+  const filteredQuotes = useMemo(() => {
+    let result = [...quotes];
+    
+    if (filterStatus !== 'all') {
+      result = result.filter(q => q.status === filterStatus);
     }
-    return true;
-  });
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(q => 
+        q.title.toLowerCase().includes(query) ||
+        q.customer?.name?.toLowerCase().includes(query) ||
+        q.customer?.company?.toLowerCase().includes(query)
+      );
+    }
+    
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'highest': return parseFloat(b.total) - parseFloat(a.total);
+        case 'lowest': return parseFloat(a.total) - parseFloat(b.total);
+        default: return 0;
+      }
+    });
+    
+    return result;
+  }, [quotes, filterStatus, searchQuery, sortBy]);
+
+  const selectedQuote = useMemo(() => 
+    filteredQuotes.find(q => q.id === selectedQuoteId),
+    [filteredQuotes, selectedQuoteId]
+  );
+
+  const mayaRecommendations = useMemo<MayaRecommendation[]>(() => {
+    if (quotes.length === 0) return [];
+    
+    const recommendations: MayaRecommendation[] = [];
+    
+    const highestValue = quotes.reduce((max, q) => 
+      parseFloat(q.total) > parseFloat(max.total) ? q : max, quotes[0]);
+    
+    if (highestValue && parseFloat(highestValue.total) > 0) {
+      recommendations.push({
+        type: "prioritize",
+        title: "Highest Value Quote",
+        message: `"${highestValue.title}" is worth $${parseFloat(highestValue.total).toLocaleString()}. ${highestValue.status === 'draft' ? 'Consider sending it to the customer.' : ''}`,
+        quoteId: highestValue.id,
+      });
+    }
+    
+    const drafts = quotes.filter(q => q.status === 'draft');
+    if (drafts.length > 0) {
+      recommendations.push({
+        type: "followup",
+        title: "Unsent Drafts",
+        message: `You have ${drafts.length} draft quote${drafts.length > 1 ? 's' : ''} ready to send. Sending quotes promptly improves conversion rates.`,
+      });
+    }
+    
+    const expiringSoon = quotes.filter(q => {
+      if (!q.expiresAt) return false;
+      const expiryDate = new Date(q.expiresAt);
+      const daysUntil = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+      return daysUntil > 0 && daysUntil <= 7 && q.status !== 'approved' && q.status !== 'declined';
+    });
+    
+    if (expiringSoon.length > 0) {
+      recommendations.push({
+        type: "expiring",
+        title: "Expiring Soon",
+        message: `${expiringSoon.length} quote${expiringSoon.length > 1 ? 's expire' : ' expires'} within 7 days. Follow up with customers to increase approval chances.`,
+      });
+    }
+    
+    return recommendations.slice(0, 3);
+  }, [quotes]);
+
+  const handleFilterChange = (status: 'all' | QuoteStatus) => {
+    setFilterStatus(status);
+    setSelectedQuoteId(null);
+    setShowMayaPanel(true);
+  };
+
+  const handleQuoteClick = (quoteId: string) => {
+    setSelectedQuoteId(quoteId);
+    setShowMayaPanel(false);
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -132,251 +229,375 @@ export default function QuotesPage() {
     }
   };
 
-  const handleSendQuote = (e: React.MouseEvent, quoteId: string) => {
-    e.stopPropagation(); // Prevent card click
+  const handleSendQuote = (quoteId: string) => {
     sendMutation.mutate(quoteId);
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, quoteId: string) => {
-    e.stopPropagation(); // Prevent card click
-    setSelectedQuoteId(quoteId);
+  const handleDeleteClick = (quoteId: string) => {
+    setQuoteToDelete(quoteId);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = () => {
-    if (selectedQuoteId) {
-      deleteMutation.mutate(selectedQuoteId);
+    if (quoteToDelete) {
+      deleteMutation.mutate(quoteToDelete);
     }
   };
+
+  const colors = [
+    { bg: "bg-blue-500", text: "text-blue-600" },
+    { bg: "bg-emerald-500", text: "text-emerald-600" },
+    { bg: "bg-violet-500", text: "text-violet-600" },
+    { bg: "bg-orange-500", text: "text-orange-600" },
+  ];
+
+  const filterTabs = [
+    { id: 'all' as const, label: 'All', count: quotes.length },
+    { id: 'draft' as const, label: 'Draft', count: quotes.filter(q => q.status === 'draft').length },
+    { id: 'sent' as const, label: 'Sent', count: quotes.filter(q => q.status === 'sent').length },
+    { id: 'awaiting_response' as const, label: 'Awaiting', count: quotes.filter(q => q.status === 'awaiting_response').length },
+    { id: 'approved' as const, label: 'Approved', count: quotes.filter(q => q.status === 'approved').length },
+    { id: 'declined' as const, label: 'Declined', count: quotes.filter(q => q.status === 'declined').length },
+  ];
 
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title="Quotes" />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="mb-4 flex items-center justify-between">
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div 
+            className="px-6 py-4 border-b flex items-center justify-between"
+            style={{
+              background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
+            }}
+          >
             <div>
-              <h1 className="text-3xl font-bold mb-2" data-testid="text-page-title">
-                Quotes
-              </h1>
-              <p className="text-muted-foreground">
-                Create and manage quotes for your customers
-              </p>
+              <h2 className="font-semibold text-xl">Quotes</h2>
+              <p className="text-sm text-muted-foreground">Create and manage quotes for your customers</p>
             </div>
             <Button 
               onClick={() => setLocation('/quotes/new')} 
-              data-testid="button-create-quote"
-              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full px-6 hover:opacity-90 transition-opacity"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full px-6"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Quote
             </Button>
           </div>
 
-          {/* Filter Controls - Pill style */}
-          {quotes.length > 0 && (
-            <div className="mb-6 flex gap-2 flex-wrap" data-testid="filter-controls">
-              <Button
-                variant={filterStatus === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('all')}
-                data-testid="filter-all"
-                className="rounded-full"
-              >
-                All ({quotes.length})
-              </Button>
-              <Button
-                variant={filterStatus === 'draft' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('draft')}
-                data-testid="filter-draft"
-                className="rounded-full"
-              >
-                Draft ({quotes.filter(q => q.status === 'draft').length})
-              </Button>
-              <Button
-                variant={filterStatus === 'awaiting_response' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('awaiting_response')}
-                data-testid="filter-awaiting"
-                className="rounded-full"
-              >
-                Awaiting ({quotes.filter(q => q.status === 'awaiting_response').length})
-              </Button>
-              <Button
-                variant={filterStatus === 'approved' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('approved')}
-                data-testid="filter-approved"
-                className="rounded-full"
-              >
-                Approved ({quotes.filter(q => q.status === 'approved').length})
-              </Button>
-              <Button
-                variant={filterStatus === 'declined' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('declined')}
-                data-testid="filter-declined"
-                className="rounded-full"
-              >
-                Declined ({quotes.filter(q => q.status === 'declined').length})
-              </Button>
-            </div>
-          )}
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading quotes...</p>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!isLoading && quotes.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No quotes yet</h3>
-                <p className="text-muted-foreground mb-4 text-center">
-                  Start creating quotes for your customers to get paid faster
-                </p>
-                <Button 
-                  onClick={() => setLocation('/quotes/new')} 
-                  data-testid="button-create-first-quote"
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full px-6 hover:opacity-90 transition-opacity"
+          <div className="px-6 py-3 border-b bg-muted/20 flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap flex-1">
+              {filterTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => handleFilterChange(tab.id)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all ${
+                    filterStatus === tab.id
+                      ? "bg-violet-100 text-violet-700 ring-1 ring-violet-200"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Quote
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+                      filterStatus === tab.id ? "bg-violet-200" : "bg-muted"
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search quotes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-48 h-9 rounded-full"
+                />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="h-9 px-3 text-sm rounded-full border bg-background"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="highest">Highest Value</option>
+                <option value="lowest">Lowest Value</option>
+              </select>
+            </div>
+          </div>
 
-          {/* Quotes Grid - Maya-style design */}
-          {!isLoading && filteredQuotes.length > 0 && (
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {filteredQuotes.map((quote, index) => {
-                const colors = [
-                  { accent: "from-blue-500 to-blue-600", light: "bg-blue-50 dark:bg-blue-900/20" },
-                  { accent: "from-emerald-500 to-emerald-600", light: "bg-emerald-50 dark:bg-emerald-900/20" },
-                  { accent: "from-violet-500 to-violet-600", light: "bg-violet-50 dark:bg-violet-900/20" },
-                  { accent: "from-amber-500 to-amber-600", light: "bg-amber-50 dark:bg-amber-900/20" },
-                  { accent: "from-rose-500 to-rose-600", light: "bg-rose-50 dark:bg-rose-900/20" },
-                ];
-                const color = colors[index % colors.length];
+          <div className="px-6 py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
+            <div className="flex items-center gap-4 overflow-x-auto pb-2">
+              <button
+                onClick={() => { setShowMayaPanel(true); setSelectedQuoteId(null); }}
+                className="flex flex-col items-center min-w-[80px] group"
+              >
+                <div 
+                  className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    showMayaPanel ? "ring-2 ring-violet-400/70 scale-105" : "hover:scale-105"
+                  }`}
+                  style={{
+                    background: showMayaPanel 
+                      ? "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.35), rgba(167, 139, 250, 0.2) 50%, transparent 80%), linear-gradient(180deg, rgba(245,243,255,0.95), rgba(237,233,254,0.9))"
+                      : "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,248,255,0.95))",
+                    boxShadow: showMayaPanel 
+                      ? "0 8px 24px rgba(139, 92, 246, 0.25), inset 0 2px 4px rgba(255,255,255,0.6)"
+                      : "inset 0 2px 4px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <Sparkles className="h-6 w-6 text-violet-500" />
+                </div>
+                <span className={`text-xs mt-2 font-medium ${showMayaPanel ? "text-violet-600" : "text-foreground"}`}>Maya</span>
+                <span className="text-[10px] text-muted-foreground">AI Advisor</span>
+              </button>
+
+              <div className="w-[2px] h-16 rounded-full" style={{
+                background: "linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.3) 20%, rgba(139, 92, 246, 0.5) 50%, rgba(139, 92, 246, 0.3) 80%, transparent 100%)",
+              }} />
+
+              {filteredQuotes.map((quote, idx) => {
+                const isSelected = selectedQuoteId === quote.id && !showMayaPanel;
+                const color = colors[idx % colors.length];
+                const customerName = quote.customer?.name || quote.customer?.company || quote.title;
+                const initials = customerName.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
                 
                 return (
-                  <div
-                    key={quote.id}
-                    className="group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 50%, rgba(240,245,255,0.85) 100%)',
-                      backdropFilter: 'blur(20px) saturate(180%)',
-                      border: '1px solid rgba(255,255,255,0.8)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)'
-                    }}
-                    onClick={() => setLocation(`/quotes/${quote.id}`)}
-                    data-testid={`card-quote-${quote.id}`}
+                  <button
+                    key={`${quote.id}-${idx}`}
+                    onClick={() => handleQuoteClick(quote.id)}
+                    className="flex flex-col items-center min-w-[80px] group"
                   >
-                    {/* Top accent bar */}
-                    <div className={`h-1.5 bg-gradient-to-r ${color.accent}`} />
-                    
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1 min-w-0 pr-3">
-                          <h3 className="font-semibold text-lg text-gray-900 dark:text-white truncate" data-testid={`text-title-${quote.id}`}>
-                            {quote.title}
-                          </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                            Created {format(new Date(quote.createdAt), 'MMM d, yyyy')}
-                          </p>
-                        </div>
-                        <Badge 
-                          className={`${getStatusColor(quote.status)} text-white px-3 py-1 text-xs font-medium rounded-full`}
-                          data-testid={`badge-status-${quote.id}`}
-                        >
-                          {getStatusLabel(quote.status)}
-                        </Badge>
-                      </div>
-                      
-                      {/* Amount display */}
-                      <div className={`${color.light} rounded-xl p-4 mb-4`}>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Amount</span>
-                          <span className="text-2xl font-bold text-gray-900 dark:text-white" data-testid={`text-total-${quote.id}`}>
-                            ${parseFloat(quote.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        {parseFloat(quote.requiredDepositAmount) > 0 && (
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Required Deposit</span>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300" data-testid={`text-deposit-${quote.id}`}>
-                              ${parseFloat(quote.requiredDepositAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {quote.expiresAt && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-                          <Calendar className="h-4 w-4" />
-                          <span>Expires {format(new Date(quote.expiresAt), 'MMM d, yyyy')}</span>
+                    <div 
+                      className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        isSelected ? "ring-2 ring-gray-300/60 scale-105" : "hover:scale-105"
+                      }`}
+                      style={{
+                        background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                        boxShadow: isSelected 
+                          ? "0 6px 20px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.8)"
+                          : "inset 0 2px 4px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      <span className={`text-sm font-bold ${isSelected ? color.text : "text-gray-500"}`}>
+                        {initials}
+                      </span>
+                      {quote.status === 'draft' && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center">
+                          <span className="text-[8px] text-white font-bold">D</span>
                         </div>
                       )}
-                      
-                      {quote.status === 'draft' && (
-                        <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
-                          <Button
-                            size="sm"
-                            className={`flex-1 bg-gradient-to-r ${color.accent} text-white rounded-full hover:opacity-90 transition-opacity`}
-                            onClick={(e) => handleSendQuote(e, quote.id)}
+                    </div>
+                    <span className={`text-xs mt-2 font-medium truncate max-w-[70px] ${isSelected ? "text-gray-800" : "text-foreground"}`}>
+                      {quote.title.split(" ")[0]}
+                    </span>
+                    <span className={`text-[10px] font-medium ${isSelected ? "text-green-600" : "text-muted-foreground"}`}>
+                      ${parseFloat(quote.total).toLocaleString()}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {filteredQuotes.length === 0 && (
+                <div className="text-sm text-muted-foreground px-4">
+                  No quotes {filterStatus !== 'all' ? `with status "${getStatusLabel(filterStatus)}"` : "found"}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1 p-6">
+            {showMayaPanel ? (
+              <div className="space-y-4 max-w-2xl mx-auto">
+                <Card className="border-violet-200/50 overflow-hidden" style={{
+                  background: "linear-gradient(145deg, rgba(245,243,255,0.95) 0%, rgba(237,233,254,0.9) 100%)",
+                }}>
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                        <Sparkles className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">Maya AI Advisor</h3>
+                        <p className="text-xs text-muted-foreground">Quote insights & recommendations</p>
+                      </div>
+                    </div>
+                    
+                    {mayaRecommendations.length > 0 ? (
+                      <div className="space-y-3">
+                        {mayaRecommendations.map((rec, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-white/70 border border-violet-100">
+                            <div className="flex items-center gap-2 mb-1">
+                              {rec.type === "prioritize" && <TrendingUp className="h-4 w-4 text-green-600" />}
+                              {rec.type === "followup" && <AlertCircle className="h-4 w-4 text-orange-500" />}
+                              {rec.type === "expiring" && <Clock className="h-4 w-4 text-red-500" />}
+                              {rec.type === "price" && <DollarSign className="h-4 w-4 text-violet-500" />}
+                              <span className="text-sm font-medium text-gray-800">{rec.title}</span>
+                            </div>
+                            <p className="text-sm text-gray-600">{rec.message}</p>
+                            {rec.quoteId && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="mt-2 h-7 text-violet-600 hover:text-violet-700 hover:bg-violet-50 px-2"
+                                onClick={() => handleQuoteClick(rec.quoteId!)}
+                              >
+                                View Quote <ArrowRight className="h-3 w-3 ml-1" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        {quotes.length === 0 
+                          ? "No quotes to analyze yet. Create your first quote to get personalized recommendations."
+                          : "Analyzing your quotes... I'll provide recommendations shortly."
+                        }
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="text-center text-sm text-muted-foreground py-4">
+                  Select a quote from above to view details, or{" "}
+                  <button 
+                    onClick={() => setLocation('/quotes/new')}
+                    className="text-violet-600 hover:underline font-medium"
+                  >
+                    create a new quote
+                  </button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Card className="text-center p-4">
+                    <div className="text-2xl font-bold text-gray-900">{quotes.filter(q => q.status === 'draft').length}</div>
+                    <div className="text-sm text-muted-foreground">Drafts</div>
+                  </Card>
+                  <Card className="text-center p-4">
+                    <div className="text-2xl font-bold text-green-600">${quotes.filter(q => q.status === 'approved').reduce((sum, q) => sum + parseFloat(q.total), 0).toLocaleString()}</div>
+                    <div className="text-sm text-muted-foreground">Approved Value</div>
+                  </Card>
+                  <Card className="text-center p-4">
+                    <div className="text-2xl font-bold text-amber-600">{quotes.filter(q => q.status === 'awaiting_response').length}</div>
+                    <div className="text-sm text-muted-foreground">Awaiting Response</div>
+                  </Card>
+                </div>
+              </div>
+            ) : selectedQuote ? (
+              <div className="max-w-2xl mx-auto space-y-4">
+                <Card className="overflow-hidden">
+                  <div className="px-4 py-3 border-b" style={{
+                    background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
+                  }}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">{selectedQuote.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Created {format(new Date(selectedQuote.createdAt), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                      <Badge className={getStatusColor(selectedQuote.status)}>
+                        {getStatusLabel(selectedQuote.status)}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-center gap-4 py-3 px-4 rounded-lg bg-muted/30">
+                      {selectedQuote.status === 'draft' && (
+                        <>
+                          <Button 
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600"
+                            onClick={() => handleSendQuote(selectedQuote.id)}
                             disabled={sendMutation.isPending}
-                            data-testid={`button-send-${quote.id}`}
                           >
                             <Send className="h-4 w-4 mr-2" />
                             Send Quote
                           </Button>
-                          <Button
-                            size="sm"
+                          <Button 
                             variant="outline"
-                            className="rounded-full border-gray-200 dark:border-gray-700"
-                            onClick={(e) => handleDeleteClick(e, quote.id)}
-                            disabled={deleteMutation.isPending}
-                            data-testid={`button-delete-${quote.id}`}
+                            onClick={() => setLocation(`/quotes/${selectedQuote.id}`)}
+                          >
+                            Edit Quote
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteClick(selectedQuote.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
+                        </>
+                      )}
+                      {selectedQuote.status !== 'draft' && (
+                        <Button 
+                          className="flex-1"
+                          variant="outline"
+                          onClick={() => setLocation(`/quotes/${selectedQuote.id}`)}
+                        >
+                          View Full Details
+                        </Button>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
-          {/* No Results After Filtering */}
-          {!isLoading && quotes.length > 0 && filteredQuotes.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No quotes found</h3>
-                <p className="text-muted-foreground mb-4 text-center">
-                  Try adjusting your filters to see more quotes
-                </p>
-                <Button variant="outline" onClick={() => setFilterStatus('all')} data-testid="button-clear-filters">
-                  Clear Filters
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" /> Quote Summary
+                      </h4>
+                      <div className="rounded-lg bg-gradient-to-r from-emerald-50 to-green-50 p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Total Amount</span>
+                          <span className="text-2xl font-bold text-gray-900">
+                            ${parseFloat(selectedQuote.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {parseFloat(selectedQuote.requiredDepositAmount) > 0 && (
+                          <div className="flex justify-between items-center mt-2 pt-2 border-t border-emerald-200">
+                            <span className="text-sm text-gray-500">Required Deposit</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              ${parseFloat(selectedQuote.requiredDepositAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedQuote.expiresAt && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>Expires: {format(new Date(selectedQuote.expiresAt), 'MMMM d, yyyy')}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t">
+                      <Button 
+                        variant="link" 
+                        className="px-0 text-violet-600"
+                        onClick={() => setLocation(`/quotes/${selectedQuote.id}`)}
+                      >
+                        View full quote with line items <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto opacity-50 mb-4" />
+                <p>No quotes found</p>
+              </div>
+            )}
+          </ScrollArea>
         </main>
       </div>
 
-      {/* Approval Link Dialog */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <DialogContent data-testid="dialog-approval-link">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Quote Sent Successfully!</DialogTitle>
             <DialogDescription>
@@ -390,36 +611,23 @@ export default function QuotesPage() {
                 value={approvalLink}
                 readOnly
                 className="flex-1 px-3 py-2 text-sm bg-muted rounded border"
-                data-testid="input-approval-link"
               />
-              <Button
-                size="sm"
-                onClick={handleCopyLink}
-                data-testid="button-copy-link"
-              >
-                {linkCopied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
+              <Button size="sm" onClick={handleCopyLink}>
+                {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
               Your customer can approve or decline the quote using this link.
-              The quote status has been updated to "Awaiting Response".
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={() => setSendDialogOpen(false)} data-testid="button-close-dialog">
-              Close
-            </Button>
+            <Button onClick={() => setSendDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="dialog-delete-confirmation">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Quote</DialogTitle>
             <DialogDescription>
@@ -427,18 +635,13 @@ export default function QuotesPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              data-testid="button-cancel-delete"
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
               disabled={deleteMutation.isPending}
-              data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete Quote"}
             </Button>

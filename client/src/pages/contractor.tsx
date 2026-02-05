@@ -1145,8 +1145,20 @@ export default function Contractor() {
               scheduledDate: job.scheduledDate,
               address: job.address,
               category: job.category,
+              createdAt: job.createdAt,
               color: job.color,
             }))}
+            filterTabs={[
+              { id: "all", label: "All", count: jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length },
+              { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
+              { id: "in review", label: "In Review", count: jobs.filter(j => j.status === "In Review").length },
+              { id: "pending", label: "Pending", count: jobs.filter(j => j.status === "Pending").length },
+            ]}
+            showSearch={true}
+            showCategoryFilter={true}
+            showPriorityFilter={true}
+            showSort={true}
+            categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
             onAccept={(item) => { 
