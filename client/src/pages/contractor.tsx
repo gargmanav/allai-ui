@@ -808,7 +808,7 @@ export default function Contractor() {
               
               return (
                 <div 
-                  className="grid gap-3 sm:gap-4 mb-8"
+                  className="gap-3 sm:gap-4 mb-8 overflow-hidden"
                   style={{ 
                     display: 'grid',
                     gridTemplateColumns: isLargeScreen ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'
@@ -816,7 +816,7 @@ export default function Contractor() {
                 >
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <div 
-                    className="relative"
+                    className="relative min-w-0 overflow-hidden"
                     onMouseEnter={() => setHoveredCard("requests")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -896,7 +896,7 @@ export default function Contractor() {
 
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
                   <div 
-                    className="relative"
+                    className="relative min-w-0 overflow-hidden"
                     onMouseEnter={() => setHoveredCard("quotes")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -973,7 +973,7 @@ export default function Contractor() {
 
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
                   <div 
-                    className="relative"
+                    className="relative min-w-0 overflow-hidden"
                     onMouseEnter={() => setHoveredCard("jobs")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -1050,7 +1050,7 @@ export default function Contractor() {
 
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
                   <div 
-                    className="relative"
+                    className="relative min-w-0 overflow-hidden"
                     onMouseEnter={() => setHoveredCard("invoices")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
