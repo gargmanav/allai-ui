@@ -290,24 +290,127 @@ export function MayaCarouselLayout({
   };
 
   return (
-    <div className="flex h-full">
-      {/* Sticky Maya Sidebar - Desktop */}
-      <div className="hidden lg:flex flex-col w-80 border-r bg-gradient-to-b from-violet-50/50 to-white sticky top-0 h-screen">
-        <div className="px-4 py-3 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80 min-h-[60px] flex items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
-              <Sparkles className="h-5 w-5 text-white maya-sparkle-spin" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-800 text-base">Maya AI Advisor</h3>
-              <p className="text-xs text-muted-foreground">Your intelligent assistant</p>
-            </div>
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Top Title Bar - Spans Full Width */}
+      <div 
+        className="px-4 sm:px-6 py-3 border-b flex items-center justify-between"
+        style={{
+          background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
+          backdropFilter: "blur(24px) saturate(180%)",
+        }}
+      >
+        <div>
+          <h2 className="font-semibold text-lg sm:text-xl">{title}</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
         </div>
         
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Recommendations</h4>
+        <div className="flex items-center gap-2">
+          {/* Mobile Maya Button */}
+          <Sheet open={mayaChatOpen} onOpenChange={setMayaChatOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="lg:hidden h-9 gap-2 touch-manipulation">
+                <Sparkles className="h-4 w-4 text-violet-500" />
+                <span className="hidden sm:inline">Maya</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[320px] p-0">
+              <SheetHeader className="p-4 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-white maya-sparkle-spin" />
+                  </div>
+                  <SheetTitle>Maya AI Advisor</SheetTitle>
+                </div>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100vh-180px)] p-4">
+                <div className="space-y-3">
+                  {mayaRecommendations.map((rec, idx) => (
+                    <div 
+                      key={idx}
+                      className="p-3 rounded-lg bg-white border border-violet-100"
+                      onClick={() => {
+                        if (rec.itemId) handleItemClick(items.find(i => i.id === rec.itemId)!);
+                        setMayaChatOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {rec.type === "prioritize" && <DollarSign className="h-4 w-4 text-green-600" />}
+                        {rec.type === "followup" && <Clock className="h-4 w-4 text-orange-500" />}
+                        {rec.type === "schedule" && <Calendar className="h-4 w-4 text-blue-500" />}
+                        <span className="text-sm font-medium">{rec.title}</span>
+                      </div>
+                      <p className="text-xs text-gray-600">{rec.message}</p>
+                    </div>
+                  ))}
+                  {chatMessages.map((msg, idx) => (
+                    <div 
+                      key={idx}
+                      className={`p-3 rounded-lg text-sm ${msg.role === "user" ? "bg-gray-100 ml-4" : "bg-violet-50"}`}
+                    >
+                      <p>{msg.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={`Ask about ${itemType}s...`}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleMayaChat()}
+                    className="flex-1 h-10"
+                  />
+                  <Button size="icon" className="h-10 w-10 bg-violet-500" onClick={handleMayaChat}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* View Toggle */}
+          <div className="flex items-center bg-muted rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`p-1.5 rounded transition-colors touch-manipulation ${
+                viewMode === "cards" ? "bg-white shadow-sm" : "hover:bg-white/50"
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded transition-colors touch-manipulation ${
+                viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-white/50"
+              }`}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Main Content Area with Maya Sidebar */}
+      <div className="flex flex-1 min-h-0">
+        {/* Sticky Maya Sidebar - Desktop */}
+        <div className="hidden lg:flex flex-col w-80 border-r bg-gradient-to-b from-violet-50/50 to-white">
+          {/* Maya Advisor Label - Aligned with content */}
+          <div className="px-4 py-3 border-b flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-md">
+              <Sparkles className="h-4 w-4 text-white maya-sparkle-spin" />
+            </div>
+            <div>
+              <h3 className="font-medium text-gray-800 text-sm">Maya AI Advisor</h3>
+              <p className="text-[10px] text-muted-foreground">Your intelligent assistant</p>
+            </div>
+          </div>
+        
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Recommendations</h4>
             {mayaRecommendations.length > 0 ? (
               mayaRecommendations.map((rec, idx) => (
                 <div 
@@ -381,7 +484,7 @@ export function MayaCarouselLayout({
           <div className="flex gap-2">
             <Input
               ref={chatInputRef}
-              placeholder="Ask Maya a question..."
+              placeholder={`Ask Maya about ${itemType}s...`}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleMayaChat()}
@@ -397,114 +500,11 @@ export function MayaCarouselLayout({
             </Button>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full min-w-0">
-        {/* Header */}
-        <div 
-          className="px-4 sm:px-6 py-3 border-b flex items-center justify-between min-h-[60px]"
-          style={{
-            background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
-            backdropFilter: "blur(24px) saturate(180%)",
-          }}
-        >
-          <div>
-            <h2 className="font-semibold text-lg">{title}</h2>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Mobile Maya Button */}
-            <Sheet open={mayaChatOpen} onOpenChange={setMayaChatOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="lg:hidden h-9 gap-2 touch-manipulation">
-                  <Sparkles className="h-4 w-4 text-violet-500" />
-                  <span className="hidden sm:inline">Maya</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[320px] p-0">
-                <SheetHeader className="p-4 border-b bg-gradient-to-r from-violet-100/80 to-purple-50/80">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-white maya-sparkle-spin" />
-                    </div>
-                    <SheetTitle>Maya AI Advisor</SheetTitle>
-                  </div>
-                </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-180px)] p-4">
-                  <div className="space-y-3">
-                    {mayaRecommendations.map((rec, idx) => (
-                      <div 
-                        key={idx}
-                        className="p-3 rounded-lg bg-white border border-violet-100"
-                        onClick={() => {
-                          if (rec.itemId) handleItemClick(items.find(i => i.id === rec.itemId)!);
-                          setMayaChatOpen(false);
-                        }}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          {rec.type === "prioritize" && <DollarSign className="h-4 w-4 text-green-600" />}
-                          {rec.type === "followup" && <Clock className="h-4 w-4 text-orange-500" />}
-                          {rec.type === "schedule" && <Calendar className="h-4 w-4 text-blue-500" />}
-                          <span className="text-sm font-medium">{rec.title}</span>
-                        </div>
-                        <p className="text-xs text-gray-600">{rec.message}</p>
-                      </div>
-                    ))}
-                    {chatMessages.map((msg, idx) => (
-                      <div 
-                        key={idx}
-                        className={`p-3 rounded-lg text-sm ${msg.role === "user" ? "bg-gray-100 ml-4" : "bg-violet-50"}`}
-                      >
-                        <p>{msg.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ask Maya..."
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleMayaChat()}
-                      className="flex-1 h-10"
-                    />
-                    <Button size="icon" className="h-10 w-10 bg-violet-500" onClick={handleMayaChat}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* View Toggle */}
-            <div className="flex items-center bg-muted rounded-lg p-1">
-              <button
-                onClick={() => setViewMode("cards")}
-                className={`p-1.5 rounded transition-colors touch-manipulation ${
-                  viewMode === "cards" ? "bg-white shadow-sm" : "hover:bg-white/50"
-                }`}
-                title="Card View"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded transition-colors touch-manipulation ${
-                  viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-white/50"
-                }`}
-                title="List View"
-              >
-                <List className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Tabs */}
-        {filterTabs && filterTabs.length > 0 && (
+        {/* Main Content Column */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          {/* Filter Tabs */}
+          {filterTabs && filterTabs.length > 0 && (
           <div className="px-3 sm:px-6 py-2 sm:py-3 border-b bg-muted/20 overflow-x-auto">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap min-w-max">
               {filterTabs.map(tab => (
