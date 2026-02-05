@@ -58,7 +58,6 @@ import { TeamTimeline } from "@/components/contractor/team-timeline";
 import { Sparkline } from "@/components/contractor/sparkline";
 import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout";
-import { DashboardStatsGrid } from "@/components/contractor/dashboard-stats-grid";
 import { CustomersContent } from "@/pages/customers";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
@@ -202,7 +201,6 @@ export default function Contractor() {
       setShowMayaBubble(false);
     }
   }, [mayaHovered]);
-
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
@@ -772,7 +770,7 @@ export default function Contractor() {
         
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
-          <div className="pt-4 w-full" style={{ display: 'block' }}>
+          <div className="flex-1 flex flex-col pt-4">
             {/* Top Row - Greeting + Maya Button */}
             <div className="flex items-start justify-between mb-8">
               <div>
@@ -819,12 +817,20 @@ export default function Contractor() {
             </div>
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
-            <div className="mb-8">
-              <DashboardStatsGrid>
+            <div className="block w-full mb-8" style={{ display: 'block' }}>
+              <div 
+                key="dashboard-stats-grid" 
+                className="dashboard-stats-grid w-full"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '0.5rem'
+                }}
+              >
               {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
               <div 
                 key="card-requests"
-                className="relative min-w-0 overflow-hidden"
+                className="relative min-w-0"
                 onMouseEnter={() => setHoveredCard("requests")}
                 onMouseLeave={() => setHoveredCard(null)}
               >
@@ -858,17 +864,17 @@ export default function Contractor() {
                       }} 
                     />
                     
-                    <div className="relative p-2 sm:p-4 overflow-hidden">
+                    <div className="relative p-4">
                       {/* Header with icon */}
-                      <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <span className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Requests</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Requests</span>
                         <Briefcase className="h-4 w-4 text-blue-500 group-hover:text-blue-600 transition-colors duration-300" />
                       </div>
                       
                       {/* Primary metric */}
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">New</span>
-                        <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.requestsCount}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.requestsCount}</span>
                       </div>
                       
                       {/* Sub-metrics */}
@@ -905,7 +911,7 @@ export default function Contractor() {
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
                   <div 
                     key="card-quotes"
-                    className="relative min-w-0 overflow-hidden"
+                    className="relative min-w-0"
                     onMouseEnter={() => setHoveredCard("quotes")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -939,15 +945,15 @@ export default function Contractor() {
                       }} 
                     />
                     
-                    <div className="relative p-2 sm:p-4 overflow-hidden">
-                      <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <span className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Quotes</span>
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Quotes</span>
                         <Receipt className="h-4 w-4 text-amber-500 group-hover:text-amber-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">Draft</span>
-                        <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.draftQuotes.length}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.draftQuotes.length}</span>
                       </div>
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
@@ -983,7 +989,7 @@ export default function Contractor() {
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
                   <div 
                     key="card-jobs"
-                    className="relative min-w-0 overflow-hidden"
+                    className="relative min-w-0"
                     onMouseEnter={() => setHoveredCard("jobs")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -1017,15 +1023,15 @@ export default function Contractor() {
                       }} 
                     />
                     
-                    <div className="relative p-2 sm:p-4 overflow-hidden">
-                      <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <span className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Jobs</span>
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Jobs</span>
                         <CheckCircle className="h-4 w-4 text-teal-500 group-hover:text-teal-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">Active</span>
-                        <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.activeJobs.length}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.activeJobs.length}</span>
                       </div>
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
@@ -1061,7 +1067,7 @@ export default function Contractor() {
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
                   <div 
                     key="card-invoices"
-                    className="relative min-w-0 overflow-hidden"
+                    className="relative min-w-0"
                     onMouseEnter={() => setHoveredCard("invoices")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -1095,15 +1101,15 @@ export default function Contractor() {
                       }} 
                     />
                     
-                    <div className="relative p-2 sm:p-4 overflow-hidden">
-                      <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <span className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Invoices</span>
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Invoices</span>
                         <DollarSign className="h-4 w-4 text-violet-500 group-hover:text-violet-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
                         <span className="text-xs text-gray-500 font-medium">Owed</span>
-                        <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.approvedQuotes.length}</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{dashboardStats.approvedQuotes.length}</span>
                       </div>
                       
                       <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
@@ -1135,7 +1141,7 @@ export default function Contractor() {
                     </div>
                   </button>
                 </div>
-              </DashboardStatsGrid>
+              </div>
             </div>
 
             {/* Today's Schedule - Team Timeline with current time indicator */}
