@@ -817,10 +817,11 @@ export default function Contractor() {
             </div>
 
             {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3 mb-8">
+            <div key="dashboard-stats-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3 mb-8 flex-shrink-0">
               {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
               <div 
-                className="relative"
+                key="card-requests"
+                className="relative min-w-0"
                 onMouseEnter={() => setHoveredCard("requests")}
                 onMouseLeave={() => setHoveredCard(null)}
               >
@@ -900,7 +901,8 @@ export default function Contractor() {
 
                   {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
                   <div 
-                    className="relative"
+                    key="card-quotes"
+                    className="relative min-w-0"
                     onMouseEnter={() => setHoveredCard("quotes")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -977,7 +979,8 @@ export default function Contractor() {
 
                   {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
                   <div 
-                    className="relative"
+                    key="card-jobs"
+                    className="relative min-w-0"
                     onMouseEnter={() => setHoveredCard("jobs")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
@@ -1054,7 +1057,8 @@ export default function Contractor() {
 
                   {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
                   <div 
-                    className="relative"
+                    key="card-invoices"
+                    className="relative min-w-0"
                     onMouseEnter={() => setHoveredCard("invoices")}
                     onMouseLeave={() => setHoveredCard(null)}
                   >
