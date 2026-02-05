@@ -695,13 +695,9 @@ export default function Contractor() {
           </div>
         </header>
 
-        {/* Main Content - different layout for customers view and Maya views */}
+        {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
-        <main className={`flex flex-col ${
-          view === "newJobs" || view === "quotes" 
-            ? "pt-14 sm:pt-16 h-screen overflow-hidden" 
-            : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
-        }`}>
+        <main className="pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen flex flex-col">
         
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
