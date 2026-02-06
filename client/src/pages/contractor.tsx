@@ -1320,7 +1320,7 @@ export default function Contractor() {
             showSearch={true}
             showSort={true}
             itemType="quote"
-            onItemSelect={(item) => { navigate(`/quotes?id=${item.id}`); }}
+            onItemSelect={(item) => { navigate(`/quotes/${item.id}`); }}
             onSendQuote={(item) => {
               toast({ title: "Quote Sent", description: `Quote ${item.title} has been sent.` });
             }}
