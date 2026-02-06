@@ -39,7 +39,7 @@ const TIMELINE_END = 23;
 const TOTAL_HOURS = TIMELINE_END - TIMELINE_START;
 
 const TEAM_COLORS = [
-  '#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1', '#14B8A6'
+  '#64748B', '#78716C', '#6B7280', '#71717A', '#737373', '#64748B', '#6B7280', '#78716C'
 ];
 
 export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: TeamTimelineProps) {
@@ -341,7 +341,7 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                             />
                             <div className="flex-1 px-2 py-1 flex items-center gap-1 min-w-0">
                               {isUrgent && (
-                                <span className="flex-shrink-0 px-1 py-0.5 text-[8px] font-bold bg-red-500 text-white rounded">
+                                <span className="flex-shrink-0 px-1 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-700 rounded">
                                   Urgent
                                 </span>
                               )}
@@ -365,7 +365,7 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                                     {apt.title || 'Appointment'}
                                   </h4>
                                   {isUrgent && (
-                                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-white rounded">
+                                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 rounded">
                                       Urgent
                                     </span>
                                   )}

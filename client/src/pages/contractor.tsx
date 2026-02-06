@@ -311,6 +311,8 @@ export default function Contractor() {
   // Calculate counts
   const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).length;
   const activeJobsCount = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).length;
+  const completedJobsCount = jobs.filter(j => j.status === "Completed").length;
+  const allJobsCount = activeJobsCount + completedJobsCount;
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
@@ -574,8 +576,8 @@ export default function Contractor() {
             >
               <CheckCircle className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Jobs</span>
-              {activeJobsCount > 0 && (
-                <Badge className="ml-auto h-5 px-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{activeJobsCount}</Badge>
+              {allJobsCount > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{allJobsCount}</Badge>
               )}
             </Button>
             <Button 
@@ -670,9 +672,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "quotes" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" || view === "newJobs" || view === "quotes" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "quotes" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -699,7 +701,7 @@ export default function Contractor() {
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
         <main className={`flex flex-col ${
-          view === "newJobs" || view === "quotes" 
+          view === "newJobs" || view === "activeJobs" || view === "quotes" 
             ? "flex-1 min-h-0 overflow-hidden" 
             : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
         }`}>
@@ -1024,7 +1026,7 @@ export default function Contractor() {
                         </div>
                         <div className="flex justify-between items-center pt-1">
                           <span className="text-[11px] text-gray-500">Value</span>
-                          <span className="text-sm font-bold text-green-600">${activeJobsValue.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-slate-700">${activeJobsValue.toLocaleString()}</span>
                         </div>
                       </div>
                       
@@ -1199,46 +1201,45 @@ export default function Contractor() {
           />
         )}
 
-        {/* Active Jobs View */}
+        {/* Active Jobs View - Maya Carousel Layout */}
         {view === ("activeJobs" as ViewState) && (
-          <div className="flex-1 flex flex-col items-center pt-8">
-            <div className="w-full max-w-xl">
-              <h2 className="text-2xl font-semibold mb-2">Active Jobs</h2>
-              <p className="text-muted-foreground mb-6">Jobs currently in progress</p>
-              
-              <div className="space-y-4">
-                {jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).map((job) => (
-                  <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
-                            {job.customerInitials}
-                          </div>
-                          <div>
-                            <div className="font-medium">{job.title}</div>
-                            <div className="text-sm text-muted-foreground">{job.customerName}</div>
-                          </div>
-                        </div>
-                        <Badge className="bg-green-100 text-green-700">{job.status}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">{job.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-semibold text-green-600">${job.estimatedValue}</span>
-                        <Button size="sm" className="rounded-full">View Details</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No active jobs</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <MayaCarouselLayout
+            title="Jobs"
+            subtitle="Track and manage your active work"
+            items={jobs.filter(j => ["In Progress", "Scheduled", "Confirmed", "Completed"].includes(j.status)).map(job => ({
+              id: job.id,
+              title: job.title,
+              customerName: job.customerName,
+              customerInitials: job.customerInitials,
+              description: job.description,
+              status: job.status,
+              priority: job.priority,
+              estimatedValue: job.estimatedValue,
+              scheduledDate: job.scheduledDate,
+              address: job.address,
+              category: job.category,
+              createdAt: job.createdAt,
+              color: job.color,
+            }))}
+            filterTabs={[
+              { id: "all", label: "All Jobs", count: allJobsCount },
+              { id: "in progress", label: "In Progress", count: jobs.filter(j => j.status === "In Progress").length },
+              { id: "scheduled", label: "Scheduled", count: jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length },
+              { id: "completed", label: "Completed", count: completedJobsCount },
+            ]}
+            activeFilter="all"
+            showSearch={true}
+            showCategoryFilter={true}
+            showSort={true}
+            categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
+            itemType="job"
+            onItemSelect={(item) => { handleSelectCase(item.id); }}
+            onSchedule={(item) => {
+              setView("calendar");
+            }}
+            emptyIcon={<CheckCircle className="h-12 w-12 mx-auto opacity-50" />}
+            emptyMessage="No active jobs"
+          />
         )}
 
         {/* Calendar/Schedule View */}

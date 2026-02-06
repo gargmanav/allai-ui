@@ -56,7 +56,7 @@ interface MayaCarouselLayoutProps {
   onSchedule?: (item: Item) => void;
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
-  itemType: "request" | "quote";
+  itemType: "request" | "quote" | "job";
   showCategoryFilter?: boolean;
   showPriorityFilter?: boolean;
   showSearch?: boolean;
@@ -162,6 +162,10 @@ export function MayaCarouselLayout({
           return aExp - bExp;
         }
         case "customer": return (a.customerName || "").localeCompare(b.customerName || "");
+        case "status": {
+          const statusOrder: Record<string, number> = { "In Progress": 0, "Scheduled": 1, "Confirmed": 2, "New": 3, "Pending": 4, "Completed": 5 };
+          return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+        }
         default: return 0;
       }
     });
@@ -238,6 +242,50 @@ export function MayaCarouselLayout({
           type: "prioritize",
           title: "Revenue Ready",
           message: `${approved.length} approved quote${approved.length > 1 ? 's' : ''} worth $${totalApproved.toLocaleString()} — time to schedule the work and start earning.`,
+        });
+      }
+    } else if (itemType === "job") {
+      const inProgress = items.filter(item => item.status === "In Progress");
+      const scheduled = items.filter(item => item.status === "Scheduled" || item.status === "Confirmed");
+      const overdue = items.filter(item => {
+        if (!item.scheduledDate || item.status === "Completed") return false;
+        return new Date(item.scheduledDate) < new Date();
+      });
+
+      if (overdue.length > 0) {
+        recommendations.push({
+          type: "followup",
+          title: "Overdue Jobs",
+          message: `${overdue.length} job${overdue.length > 1 ? 's are' : ' is'} past the scheduled date. Review and update these to keep customers informed.`,
+          itemId: overdue[0]?.id,
+        });
+      }
+
+      const highestValue = items.reduce((max, item) =>
+        (item.estimatedValue || 0) > (max.estimatedValue || 0) ? item : max, items[0]);
+      if (highestValue && (highestValue.estimatedValue || 0) > 0) {
+        recommendations.push({
+          type: "prioritize",
+          title: "Highest Value",
+          message: `"${highestValue.title}" is worth $${highestValue.estimatedValue?.toLocaleString()}. Prioritize completion to maximize revenue.`,
+          itemId: highestValue.id,
+        });
+      }
+
+      if (inProgress.length > 0) {
+        const totalValue = inProgress.reduce((s, j) => s + (j.estimatedValue || 0), 0);
+        recommendations.push({
+          type: "price",
+          title: "Active Pipeline",
+          message: `${inProgress.length} job${inProgress.length > 1 ? 's' : ''} in progress worth $${totalValue.toLocaleString()}. Complete these to invoice and collect payment.`,
+        });
+      }
+
+      if (scheduled.length > 0) {
+        recommendations.push({
+          type: "schedule",
+          title: "Coming Up",
+          message: `${scheduled.length} job${scheduled.length > 1 ? 's' : ''} scheduled. Review your timeline to make sure you're prepared.`,
         });
       }
     } else {
@@ -350,6 +398,29 @@ export function MayaCarouselLayout({
         }
         return `No declined quotes — that's a great approval rate! Keep up the excellent work.`;
       }
+    }
+
+    if (type === "job") {
+      if (q.includes("overdue") || q.includes("late") || q.includes("behind")) {
+        const overdue = items.filter(i => i.scheduledDate && new Date(i.scheduledDate) < new Date() && i.status !== "Completed");
+        return overdue.length > 0
+          ? `You have ${overdue.length} overdue job${overdue.length > 1 ? 's' : ''}. I'd suggest contacting those customers to reschedule or provide an update.`
+          : `No overdue jobs — you're on track! Keep up the great work.`;
+      }
+      if (q.includes("complete") || q.includes("finish") || q.includes("done")) {
+        const completed = items.filter(i => i.status === "Completed");
+        const totalCompleted = completed.reduce((s, j) => s + (j.estimatedValue || 0), 0);
+        return `${completed.length} completed job${completed.length > 1 ? 's' : ''} worth $${totalCompleted.toLocaleString()}. Make sure invoices are sent for any completed work to keep cash flowing.`;
+      }
+      if (q.includes("active") || q.includes("progress") || q.includes("current")) {
+        const active = items.filter(i => i.status === "In Progress");
+        const totalActive = active.reduce((s, j) => s + (j.estimatedValue || 0), 0);
+        return `${active.length} job${active.length > 1 ? 's' : ''} currently in progress worth $${totalActive.toLocaleString()}. Focus on completing the highest-value ones first.`;
+      }
+      const inProgress = items.filter(i => i.status === "In Progress").length;
+      const scheduled = items.filter(i => i.status === "Scheduled" || i.status === "Confirmed").length;
+      const completed = items.filter(i => i.status === "Completed").length;
+      return `You have ${items.length} jobs: ${inProgress} in progress, ${scheduled} scheduled, and ${completed} completed. Ask me about overdue jobs, active work, or your revenue.`;
     }
 
     if (q.includes("urgent") || q.includes("priority")) {
@@ -667,8 +738,9 @@ export function MayaCarouselLayout({
                   <option value="highest">Highest Value</option>
                   <option value="lowest">Lowest Value</option>
                   {itemType === "quote" && <option value="expiry">Expiring Soon</option>}
-                  {itemType === "quote" && <option value="customer">By Customer</option>}
+                  {(itemType === "quote" || itemType === "job") && <option value="customer">By Customer</option>}
                   {itemType !== "quote" && <option value="priority">Priority</option>}
+                  {itemType === "job" && <option value="status">By Status</option>}
                 </select>
               )}
 
