@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
-import { MayaPhotoAnalysis } from "./maya-photo-analysis";
+import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
 
 interface AiTriageData {
   urgency?: string;
@@ -997,13 +997,7 @@ export function MayaCarouselLayout({
                       </div>
                     )}
 
-                    {selectedItem.media && selectedItem.media.length > 0 && selectedItem.aiTriageJson?.photoAnalysis ? (
-                      <MayaPhotoAnalysis
-                        media={selectedItem.media}
-                        photoAnalysis={selectedItem.aiTriageJson.photoAnalysis}
-                        mode="contractor"
-                      />
-                    ) : selectedItem.media && selectedItem.media.length > 0 ? (
+                    {selectedItem.media && selectedItem.media.length > 0 && !selectedItem.aiTriageJson?.photoAnalysis && (
                       <div className="mt-4 pt-4 border-t">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Photos</p>
                         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1018,15 +1012,23 @@ export function MayaCarouselLayout({
                           ))}
                         </div>
                       </div>
-                    ) : null}
+                    )}
 
                     {selectedItem.aiTriageJson && (
                       <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
-                            <Sparkles className="h-3 w-3 text-white" />
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                              <Sparkles className="h-3 w-3 text-white" />
+                            </div>
+                            <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</p>
                           </div>
-                          <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</p>
+                          {selectedItem.media && selectedItem.media.length > 0 && (
+                            <PhotoAnalysisButton
+                              media={selectedItem.media}
+                              photoAnalysis={selectedItem.aiTriageJson?.photoAnalysis}
+                            />
+                          )}
                         </div>
                         <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
                           <div className="flex items-center justify-between">

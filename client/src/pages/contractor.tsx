@@ -63,7 +63,7 @@ import { CustomersContent } from "@/pages/customers";
 import { QuickAdd } from "@/components/contractor/quick-add-fab";
 import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
-import { MayaPhotoAnalysis } from "@/components/contractor/maya-photo-analysis";
+import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -1592,30 +1592,23 @@ export default function Contractor() {
               </CardContent>
             </Card>
 
-            {/* Photo Analysis */}
-            {(selectedCase as any).media?.length > 0 && (
-              <Card className="mb-4 border-violet-100 overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-4">
-                    <MayaPhotoAnalysis
-                      media={(selectedCase as any).media}
-                      photoAnalysis={(selectedCase as any).aiTriageJson?.photoAnalysis}
-                      mode="contractor"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* AI Triage Assessment */}
             {(selectedCase as any).aiTriageJson && (
               <Card className="mb-4 border-violet-100">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
-                      <Sparkles className="h-3 w-3 text-white" />
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                        <Sparkles className="h-3 w-3 text-white" />
+                      </div>
+                      <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
                     </div>
-                    <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
+                    {(selectedCase as any).media?.length > 0 && (
+                      <PhotoAnalysisButton
+                        media={(selectedCase as any).media}
+                        photoAnalysis={(selectedCase as any).aiTriageJson?.photoAnalysis}
+                      />
+                    )}
                   </div>
                   <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
                     <div className="flex items-center justify-between">

@@ -1,7 +1,16 @@
 import { useState } from "react";
-import { Sparkles, Camera, Shield, AlertTriangle, Wrench, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { Sparkles, Camera, Shield, AlertTriangle, Wrench, ChevronDown, ChevronUp, Eye, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+interface Annotation {
+  id: number;
+  x: number;
+  y: number;
+  label: string;
+  note: string;
+}
 
 interface PhotoAnalysisProps {
   media: Array<{ id: string; url: string; type: string; caption?: string }>;
@@ -16,14 +25,15 @@ interface PhotoAnalysisProps {
       technicalNotes: string;
       materialsNeeded?: string[];
       codeCompliance?: string;
+      annotations?: Annotation[];
     };
   };
   mode: "tenant" | "contractor";
 }
 
 export function MayaPhotoAnalysis({ media, photoAnalysis, mode }: PhotoAnalysisProps) {
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const images = media.filter(m => m.type?.startsWith("image"));
   if (images.length === 0) return null;
@@ -103,91 +113,217 @@ export function MayaPhotoAnalysis({ media, photoAnalysis, mode }: PhotoAnalysisP
     );
   }
 
-  const contractorAnalysis = photoAnalysis?.contractor;
+  return null;
+}
+
+export function PhotoAnalysisButton({ media, photoAnalysis }: {
+  media: Array<{ id: string; url: string; type: string; caption?: string }>;
+  photoAnalysis?: PhotoAnalysisProps["photoAnalysis"];
+}) {
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [techOpen, setTechOpen] = useState(false);
+
+  const images = media?.filter(m => m.type?.startsWith("image")) || [];
+  const contractor = photoAnalysis?.contractor;
+  if (!contractor && images.length === 0) return null;
+
+  const hasPhotoAnalysis = images.length > 0 && (contractor?.summary || (contractor?.annotations && contractor.annotations.length > 0));
+  const hasTechNotes = contractor?.technicalNotes || (contractor?.materialsNeeded && contractor.materialsNeeded.length > 0) || contractor?.codeCompliance;
+
   return (
-    <div className="mt-4 pt-4 border-t">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between mb-3 group"
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
-            <Camera className="h-3 w-3 text-white" />
-          </div>
-          <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Photo Analysis</span>
-        </div>
-        {expanded ? <ChevronUp className="h-4 w-4 text-violet-400" /> : <ChevronDown className="h-4 w-4 text-violet-400" />}
-      </button>
+    <>
+      <div className="flex items-center gap-1.5">
+        {hasPhotoAnalysis && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setPhotoOpen(true)}
+            className="h-7 px-2 text-violet-600 hover:text-violet-700 hover:bg-violet-50 gap-1.5 text-xs font-medium"
+          >
+            <Camera className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Photos</span>
+          </Button>
+        )}
+        {hasTechNotes && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTechOpen(true)}
+            className="h-7 px-2 text-slate-600 hover:text-slate-700 hover:bg-slate-50 gap-1.5 text-xs font-medium"
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Tech Notes</span>
+          </Button>
+        )}
+      </div>
 
-      {expanded && (
-        <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white overflow-hidden">
-          <div className="p-3 space-y-3">
-            <div className="flex gap-3">
-              <button onClick={() => setLightboxUrl(images[0]?.url)} className="shrink-0 group">
-                <img
-                  src={images[0]?.url}
-                  alt="Submitted photo"
-                  className="w-24 h-24 rounded-lg object-cover border-2 border-violet-200 group-hover:border-violet-400 transition-colors shadow-sm"
-                />
-              </button>
-              <div className="flex-1 min-w-0 space-y-1.5">
+      {hasPhotoAnalysis && (
+        <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
+          <DialogContent className="max-w-lg p-0 overflow-hidden" aria-describedby={undefined}>
+            <DialogHeader className="px-5 pt-5 pb-0">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                  <Camera className="h-3 w-3 text-white" />
+                </div>
+                Photo Analysis
+              </DialogTitle>
+            </DialogHeader>
+            <div className="px-5 pb-5 space-y-4">
+              <AnnotatedImage
+                src={images[0]?.url}
+                annotations={contractor?.annotations || []}
+              />
+
+              <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-violet-500" />
-                  <span className="text-xs font-medium text-violet-600">Visual Assessment</span>
+                  <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                  <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Visual Assessment</span>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed">
-                  {contractorAnalysis?.summary}
-                </p>
+                <p className="text-sm text-slate-700 leading-relaxed">{contractor?.summary}</p>
               </div>
-            </div>
 
-            {contractorAnalysis?.technicalNotes && (
-              <div className="p-2.5 rounded-md bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Wrench className="h-3 w-3 text-slate-500" />
-                  <span className="text-xs font-medium text-slate-600">Technical Notes</span>
+              {contractor?.annotations && contractor.annotations.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Findings</span>
+                  <div className="space-y-2">
+                    {contractor.annotations.map((a) => (
+                      <div key={a.id} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                        <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {a.id}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold text-slate-700 block">{a.label}</span>
+                          <p className="text-xs text-slate-500 leading-relaxed mt-0.5">{a.note}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">{contractorAnalysis.technicalNotes}</p>
-              </div>
-            )}
+              )}
 
-            {contractorAnalysis?.materialsNeeded && contractorAnalysis.materialsNeeded.length > 0 && (
-              <div className="p-2.5 rounded-md bg-slate-50 border border-slate-100">
-                <span className="text-xs font-medium text-slate-600 block mb-1.5">Materials Needed</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {contractorAnalysis.materialsNeeded.map((item, i) => (
-                    <Badge key={i} variant="outline" className="text-[11px] bg-white border-slate-200 text-slate-600">
-                      {item}
-                    </Badge>
+              {images.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pt-2 border-t">
+                  <span className="text-xs text-slate-400 self-center shrink-0">More:</span>
+                  {images.slice(1).map((m) => (
+                    <img key={m.id} src={m.url} alt={m.caption || "Photo"} className="w-14 h-14 rounded-lg object-cover border shrink-0" />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
-            {contractorAnalysis?.codeCompliance && (
-              <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-50/80 border border-amber-100">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                <div>
-                  <span className="text-xs font-medium text-amber-700 block mb-0.5">Code Compliance</span>
-                  <p className="text-xs text-amber-600 leading-relaxed">{contractorAnalysis.codeCompliance}</p>
+      {hasTechNotes && (
+        <Dialog open={techOpen} onOpenChange={setTechOpen}>
+          <DialogContent className="max-w-lg p-0 overflow-hidden" aria-describedby={undefined}>
+            <DialogHeader className="px-5 pt-5 pb-0">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
+                  <ClipboardList className="h-3 w-3 text-white" />
                 </div>
-              </div>
-            )}
+                Technical Notes
+              </DialogTitle>
+            </DialogHeader>
+            <div className="px-5 pb-5 space-y-4">
+              {contractor?.technicalNotes && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Wrench className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inspection Notes</span>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed">{contractor.technicalNotes}</p>
+                </div>
+              )}
 
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pt-1 border-t border-violet-100">
-                <span className="text-xs text-slate-400 self-center shrink-0">More photos:</span>
-                {images.slice(1).map((m) => (
-                  <button key={m.id} onClick={() => setLightboxUrl(m.url)} className="shrink-0 group">
-                    <img src={m.url} alt={m.caption || "Photo"} className="w-16 h-16 rounded-lg object-cover border group-hover:ring-2 ring-violet-300 transition-all" />
-                  </button>
-                ))}
-              </div>
-            )}
+              {contractor?.materialsNeeded && contractor.materialsNeeded.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Materials Needed</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {contractor.materialsNeeded.map((item, i) => (
+                      <Badge key={i} variant="outline" className="text-xs bg-white border-slate-200 text-slate-600 py-1">
+                        {item}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {contractor?.codeCompliance && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="text-xs font-semibold text-amber-700 block mb-0.5">Code Compliance</span>
+                    <p className="text-sm text-amber-600 leading-relaxed">{contractor.codeCompliance}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+function AnnotatedImage({ src, annotations }: { src: string; annotations: Annotation[] }) {
+  const [activeAnnotation, setActiveAnnotation] = useState<number | null>(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  if (!src) return null;
+
+  const active = annotations.find(a => a.id === activeAnnotation);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-lg border border-violet-200 bg-slate-100">
+        <img
+          src={src}
+          alt="Analyzed photo"
+          className="w-full h-auto max-h-[400px] object-contain rounded-lg"
+          onLoad={() => setImgLoaded(true)}
+        />
+
+        {imgLoaded && annotations.map((a) => (
+          <button
+            key={a.id}
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
+            style={{ left: `${a.x}%`, top: `${a.y}%` }}
+            onClick={() => setActiveAnnotation(activeAnnotation === a.id ? null : a.id)}
+            onMouseEnter={() => setActiveAnnotation(a.id)}
+            onMouseLeave={() => setActiveAnnotation(null)}
+          >
+            <span className={`flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold shadow-lg ring-2 ring-white/80 transition-all cursor-pointer ${
+              activeAnnotation === a.id 
+                ? "bg-red-600 scale-125" 
+                : "bg-red-500/90 hover:bg-red-600 hover:scale-110 animate-pulse hover:animate-none"
+            }`}>
+              {a.id}
+            </span>
+          </button>
+        ))}
+
+        {annotations.length > 0 && imgLoaded && (
+          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1.5">
+            <Eye className="h-3 w-3 text-violet-300" />
+            <span className="text-[10px] text-white/90 font-medium">{annotations.length} issue{annotations.length !== 1 ? 's' : ''} found</span>
+          </div>
+        )}
+      </div>
+
+      {active && (
+        <div className="rounded-lg bg-slate-900 text-white p-3 shadow-lg animate-in fade-in-0 slide-in-from-top-1 duration-200">
+          <div className="flex items-start gap-2.5">
+            <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+              {active.id}
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-violet-300">{active.label}</p>
+              <p className="text-xs leading-relaxed text-slate-300 mt-0.5">{active.note}</p>
+            </div>
           </div>
         </div>
       )}
-      <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </div>
   );
 }
@@ -196,7 +332,8 @@ function ImageLightbox({ url, onClose }: { url: string | null; onClose: () => vo
   if (!url) return null;
   return (
     <Dialog open={!!url} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl p-2 bg-black/95 border-none">
+      <DialogContent className="max-w-3xl p-2 bg-black/95 border-none" aria-describedby={undefined}>
+        <DialogTitle className="sr-only">Photo viewer</DialogTitle>
         <img src={url} alt="Full size" className="w-full h-auto max-h-[80vh] object-contain rounded" />
       </DialogContent>
     </Dialog>
