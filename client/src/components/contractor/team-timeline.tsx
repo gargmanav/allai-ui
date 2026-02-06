@@ -209,10 +209,10 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
         }}
       >
         <div className="overflow-x-auto">
-          <div style={{ minWidth: TOTAL_HOURS * HOUR_WIDTH + 100 }}>
+          <div style={{ minWidth: TOTAL_HOURS * HOUR_WIDTH + 60 }}>
             <div className="flex items-center border-b border-gray-100 bg-gray-50/50">
-              <div className="w-24 flex-shrink-0 px-3 py-2">
-                <Clock className="h-3.5 w-3.5 text-gray-400" />
+              <div className="w-14 flex-shrink-0 px-2 py-2 sticky left-0 z-20 bg-gray-50/95 backdrop-blur-sm">
+                <Clock className="h-3.5 w-3.5 text-gray-400 mx-auto" />
               </div>
               <div className="flex-1 relative flex">
                 {timelineMarkers.map((hour) => (
@@ -239,7 +239,13 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                   key={member.id} 
                   className={`flex items-center min-h-[52px] ${idx < teamMembers.length - 1 ? 'border-b border-gray-100' : ''}`}
                 >
-                  <div className="w-14 flex-shrink-0 px-2 py-2 flex items-center justify-center group/avatar relative">
+                  <div className="w-14 flex-shrink-0 px-2 py-2 flex items-center justify-center group/avatar sticky left-0 z-20"
+                    style={{
+                      background: 'rgba(255,255,255,0.95)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                    }}
+                  >
                     <div 
                       className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg"
                       style={{ 
