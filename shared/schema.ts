@@ -1363,8 +1363,15 @@ export const messageThreads = pgTable("message_threads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").notNull().references(() => organizations.id),
   subject: varchar("subject"),
-  isDirect: boolean("is_direct").notNull().default(true), // true for 1:1, false for group
+  isDirect: boolean("is_direct").notNull().default(true),
   lastMessageAt: timestamp("last_message_at"),
+  caseId: varchar("case_id").references(() => smartCases.id),
+  quoteId: varchar("quote_id"),
+  customerId: varchar("customer_id"),
+  homeownerUserId: varchar("homeowner_user_id").references(() => users.id),
+  contractorUserId: varchar("contractor_user_id").references(() => users.id),
+  stage: varchar("stage").default("request"),
+  lastMessagePreview: text("last_message_preview"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
