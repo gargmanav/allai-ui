@@ -327,6 +327,12 @@ export interface IStorage {
   getThreadMessages(threadId: string): Promise<ChatMessage[]>;
   sendMessage(message: InsertChatMessage): Promise<ChatMessage>;
   markThreadAsRead(threadId: string, userId: string): Promise<void>;
+  findOrCreateThread(opts: { orgId: string; caseId?: string; quoteId?: string; customerId?: string; homeownerUserId: string; contractorUserId: string; subject?: string }): Promise<MessageThread>;
+  getContractorConversations(contractorUserId: string): Promise<any[]>;
+  getHomeownerConversations(homeownerUserId: string): Promise<any[]>;
+  getUnreadCountsByThread(userId: string): Promise<Record<string, number>>;
+  getUnreadCountForCase(contractorUserId: string, caseId: string): Promise<number>;
+  updateThreadStage(threadId: string, stage: string, quoteId?: string): Promise<void>;
   
   // Approval Policy operations
   getApprovalPolicies(orgId: string): Promise<ApprovalPolicy[]>;
@@ -3628,9 +3634,11 @@ export class DatabaseStorage implements IStorage {
   async sendMessage(message: InsertChatMessage): Promise<ChatMessage> {
     const [created] = await db.insert(chatMessages).values(message).returning();
     
-    // Update thread's lastMessageAt
     await db.update(messageThreads)
-      .set({ lastMessageAt: created.createdAt })
+      .set({
+        lastMessageAt: created.createdAt,
+        lastMessagePreview: created.body.substring(0, 100),
+      })
       .where(eq(messageThreads.id, message.threadId!));
     
     return created;
@@ -3643,6 +3651,157 @@ export class DatabaseStorage implements IStorage {
         eq(threadParticipants.threadId, threadId),
         eq(threadParticipants.userId, userId)
       ));
+  }
+
+  async findOrCreateThread(opts: { orgId: string; caseId?: string; quoteId?: string; customerId?: string; homeownerUserId: string; contractorUserId: string; subject?: string }): Promise<MessageThread> {
+    const conditions: any[] = [
+      eq(messageThreads.homeownerUserId, opts.homeownerUserId),
+      eq(messageThreads.contractorUserId, opts.contractorUserId),
+    ];
+    if (opts.caseId) conditions.push(eq(messageThreads.caseId, opts.caseId));
+
+    const [existing] = await db.select().from(messageThreads).where(and(...conditions));
+    if (existing) return existing;
+
+    const [created] = await db.insert(messageThreads).values({
+      orgId: opts.orgId,
+      subject: opts.subject || 'Conversation',
+      isDirect: true,
+      caseId: opts.caseId,
+      quoteId: opts.quoteId,
+      customerId: opts.customerId,
+      homeownerUserId: opts.homeownerUserId,
+      contractorUserId: opts.contractorUserId,
+      stage: opts.quoteId ? 'quote' : 'request',
+      lastMessageAt: new Date(),
+    }).returning();
+
+    await db.insert(threadParticipants).values([
+      { threadId: created.id, userId: opts.homeownerUserId },
+      { threadId: created.id, userId: opts.contractorUserId },
+    ]);
+
+    return created;
+  }
+
+  async getContractorConversations(contractorUserId: string): Promise<any[]> {
+    const threads = await db.select({
+      thread: messageThreads,
+    }).from(messageThreads)
+      .where(eq(messageThreads.contractorUserId, contractorUserId))
+      .orderBy(desc(messageThreads.lastMessageAt));
+
+    const results = [];
+    for (const { thread } of threads) {
+      const unreadCount = await db.select({ count: sql<number>`count(*)` })
+        .from(chatMessages)
+        .innerJoin(threadParticipants, and(
+          eq(threadParticipants.threadId, thread.id),
+          eq(threadParticipants.userId, contractorUserId)
+        ))
+        .where(and(
+          eq(chatMessages.threadId, thread.id),
+          sql`${chatMessages.senderId} != ${contractorUserId}`,
+          sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
+        ));
+
+      let homeownerName = 'Homeowner';
+      if (thread.homeownerUserId) {
+        const [user] = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username })
+          .from(users).where(eq(users.id, thread.homeownerUserId));
+        if (user) homeownerName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.username || 'Homeowner');
+      }
+
+      results.push({
+        ...thread,
+        homeownerName,
+        unreadCount: Number(unreadCount[0]?.count || 0),
+      });
+    }
+    return results;
+  }
+
+  async getHomeownerConversations(homeownerUserId: string): Promise<any[]> {
+    const threads = await db.select({
+      thread: messageThreads,
+    }).from(messageThreads)
+      .where(eq(messageThreads.homeownerUserId, homeownerUserId))
+      .orderBy(desc(messageThreads.lastMessageAt));
+
+    const results = [];
+    for (const { thread } of threads) {
+      const unreadCount = await db.select({ count: sql<number>`count(*)` })
+        .from(chatMessages)
+        .innerJoin(threadParticipants, and(
+          eq(threadParticipants.threadId, thread.id),
+          eq(threadParticipants.userId, homeownerUserId)
+        ))
+        .where(and(
+          eq(chatMessages.threadId, thread.id),
+          sql`${chatMessages.senderId} != ${homeownerUserId}`,
+          sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
+        ));
+
+      let contractorName = 'Contractor';
+      if (thread.contractorUserId) {
+        const [user] = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username })
+          .from(users).where(eq(users.id, thread.contractorUserId));
+        if (user) contractorName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.username || 'Contractor');
+      }
+
+      results.push({
+        ...thread,
+        contractorName,
+        unreadCount: Number(unreadCount[0]?.count || 0),
+      });
+    }
+    return results;
+  }
+
+  async getUnreadCountsByThread(userId: string): Promise<Record<string, number>> {
+    const rows = await db.select({
+      threadId: chatMessages.threadId,
+      count: sql<number>`count(*)`,
+    })
+      .from(chatMessages)
+      .innerJoin(threadParticipants, and(
+        eq(threadParticipants.threadId, chatMessages.threadId),
+        eq(threadParticipants.userId, userId)
+      ))
+      .where(and(
+        sql`${chatMessages.senderId} != ${userId}`,
+        sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
+      ))
+      .groupBy(chatMessages.threadId);
+
+    const result: Record<string, number> = {};
+    for (const row of rows) {
+      result[row.threadId] = Number(row.count);
+    }
+    return result;
+  }
+
+  async getUnreadCountForCase(contractorUserId: string, caseId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)` })
+      .from(chatMessages)
+      .innerJoin(messageThreads, eq(messageThreads.id, chatMessages.threadId))
+      .innerJoin(threadParticipants, and(
+        eq(threadParticipants.threadId, chatMessages.threadId),
+        eq(threadParticipants.userId, contractorUserId)
+      ))
+      .where(and(
+        eq(messageThreads.caseId, caseId),
+        eq(messageThreads.contractorUserId, contractorUserId),
+        sql`${chatMessages.senderId} != ${contractorUserId}`,
+        sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
+      ));
+    return Number(row?.count || 0);
+  }
+
+  async updateThreadStage(threadId: string, stage: string, quoteId?: string): Promise<void> {
+    const updates: any = { stage };
+    if (quoteId) updates.quoteId = quoteId;
+    await db.update(messageThreads).set(updates).where(eq(messageThreads.id, threadId));
   }
 
   // Approval Policy operations

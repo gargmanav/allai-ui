@@ -17,6 +17,7 @@ import propertyOwnerRouter from "./routes/property-owner";
 import propertyOwnerAuthRouter from "./routes/property-owner-auth";
 import tenantRouter from "./routes/tenant";
 import tenantAuthRouter from "./routes/tenant-auth";
+import messagingRouter from "./routes/messaging";
 import { eq, and, or, desc } from "drizzle-orm";
 import { 
   insertOrganizationSchema,
@@ -286,6 +287,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Tenant routes
   app.use('/api/tenant', tenantRouter);
+
+  // Messaging routes
+  app.use('/api/messaging', messagingRouter);
 
   // Contractor specialties - Public route for signup
   app.get('/api/contractor-specialties', async (req, res) => {

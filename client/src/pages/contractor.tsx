@@ -40,7 +40,8 @@ import {
   Edit2,
   Trash2,
   Phone,
-  UserPlus
+  UserPlus,
+  Loader2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -61,6 +62,7 @@ import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout
 import { CustomersContent } from "@/pages/customers";
 import { QuickAdd } from "@/components/contractor/quick-add-fab";
 import { TeamView } from "@/components/contractor/team-view";
+import { ThreadChat } from "@/components/contractor/thread-chat";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -352,8 +354,15 @@ export default function Contractor() {
     return upcoming[0] || null;
   }, [appointments]);
 
-  // Placeholder for unread messages - would come from real messaging system
-  const totalUnreadMessages = 0;
+  const conversationsQuery = useQuery<any[]>({
+    queryKey: ["/api/messaging/conversations"],
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+  const totalUnreadMessages = useMemo(() => {
+    if (!conversationsQuery.data) return 0;
+    return conversationsQuery.data.reduce((s: number, c: any) => s + (c.unreadCount || 0), 0);
+  }, [conversationsQuery.data]);
 
   // Quick categories with real counts - 8 items in 2 rows of 4
   const quickCategories = [
@@ -1173,6 +1182,8 @@ export default function Contractor() {
               category: job.category,
               createdAt: job.createdAt,
               color: job.color,
+              reporterUserId: (job as any).reporterUserId,
+              orgId: (job as any).orgId,
             }))}
             filterTabs={[
               { id: "all", label: "All", count: jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length },
@@ -1221,6 +1232,8 @@ export default function Contractor() {
               category: job.category,
               createdAt: job.createdAt,
               color: job.color,
+              reporterUserId: (job as any).reporterUserId,
+              orgId: (job as any).orgId,
             }))}
             filterTabs={[
               { id: "all", label: "All Jobs", count: allJobsCount },
@@ -1337,31 +1350,96 @@ export default function Contractor() {
 
         {/* Messages View */}
         {view === ("messages" as ViewState) && (
-          <div className="flex-1 flex flex-col items-center pt-8">
-            <div className="w-full max-w-xl">
-              <h2 className="text-2xl font-semibold mb-2">Messages</h2>
-              <p className="text-muted-foreground mb-6">{totalUnreadMessages} unread messages</p>
-              
-              <div className="space-y-2">
-                {jobs.length > 0 ? jobs.map((job) => (
-                    <Card key={job.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => { handleSelectCase(job.id); setView("landing"); }}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full ${job.color.bg} flex items-center justify-center text-white font-medium`}>
-                            {job.customerInitials}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium">{job.customerName}</div>
-                            <p className="text-sm text-muted-foreground truncate">{job.title}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )) : (
-                    <div className="text-center text-muted-foreground py-8">
-                      No messages yet
+          <div className="flex-1 flex flex-col pt-4 px-4 max-w-3xl mx-auto w-full">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-semibold">Messages</h2>
+                <p className="text-sm text-muted-foreground">{totalUnreadMessages} unread</p>
+              </div>
+            </div>
+
+            <div className="flex-1 flex gap-4 min-h-0">
+              <div className="w-full sm:w-80 flex flex-col border rounded-lg bg-white overflow-hidden shrink-0">
+                <div className="overflow-y-auto flex-1">
+                  {conversationsQuery.isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                     </div>
+                  ) : (conversationsQuery.data || []).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No conversations yet</p>
+                    </div>
+                  ) : (
+                    (conversationsQuery.data || []).map((conv: any) => {
+                      const isActive = selectedCaseId === conv.caseId;
+                      return (
+                        <button
+                          key={conv.id}
+                          onClick={() => {
+                            if (conv.caseId) handleSelectCase(conv.caseId);
+                          }}
+                          className={`w-full text-left px-4 py-3 border-b hover:bg-slate-50 transition-colors ${isActive ? "bg-violet-50 border-l-2 border-l-violet-500" : ""}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-b from-white to-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold shrink-0 shadow-sm">
+                              {(conv.homeownerName || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm truncate ${conv.unreadCount > 0 ? "font-semibold" : "font-medium"}`}>
+                                  {conv.homeownerName}
+                                </span>
+                                {conv.unreadCount > 0 && (
+                                  <span className="shrink-0 inline-flex items-center justify-center min-w-[16px] h-4 px-1 bg-violet-500 text-white text-[10px] font-bold rounded-full">
+                                    {conv.unreadCount}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">{conv.lastMessagePreview || conv.subject || "No messages"}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 capitalize">{conv.stage || "request"}</Badge>
+                                {conv.lastMessageAt && (
+                                  <span className="text-[10px] text-slate-400">
+                                    {new Date(conv.lastMessageAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
                   )}
+                </div>
+              </div>
+
+              <div className="hidden sm:flex flex-1 flex-col min-h-0">
+                {selectedCaseId ? (
+                  (() => {
+                    const conv = (conversationsQuery.data || []).find((c: any) => c.caseId === selectedCaseId);
+                    if (!conv) return (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        <p>Select a conversation</p>
+                      </div>
+                    );
+                    return (
+                      <ThreadChat
+                        caseId={conv.caseId}
+                        homeownerUserId={conv.homeownerUserId}
+                        orgId={conv.orgId}
+                        subject={conv.subject}
+                      />
+                    );
+                  })()
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground border rounded-lg bg-white">
+                    <div className="text-center">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Select a conversation to read messages</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

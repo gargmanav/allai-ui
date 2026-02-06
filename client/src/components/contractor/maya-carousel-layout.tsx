@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit } from "lucide-react";
+import { ThreadChat } from "./thread-chat";
 
 interface Item {
   id: string;
@@ -27,6 +29,8 @@ interface Item {
   taxAmount?: number;
   total?: number;
   expiresAt?: string;
+  reporterUserId?: string;
+  orgId?: string;
 }
 
 interface MayaRecommendation {
@@ -86,6 +90,24 @@ export function MayaCarouselLayout({
 }: MayaCarouselLayoutProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [internalFilter, setInternalFilter] = useState<string>(initialActiveFilter || "all");
+
+  const unreadQuery = useQuery<any[]>({
+    queryKey: ["/api/messaging/conversations"],
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+
+  const unreadByCaseId = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (unreadQuery.data && Array.isArray(unreadQuery.data)) {
+      for (const conv of unreadQuery.data) {
+        if (conv.caseId && conv.unreadCount > 0) {
+          map[conv.caseId] = (map[conv.caseId] || 0) + conv.unreadCount;
+        }
+      }
+    }
+    return map;
+  }, [unreadQuery.data]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -320,8 +342,18 @@ export function MayaCarouselLayout({
       }
     }
     
+    const totalUnread = Object.values(unreadByCaseId).reduce((s, c) => s + c, 0);
+    const unreadCaseCount = Object.keys(unreadByCaseId).length;
+    if (totalUnread > 0) {
+      recommendations.unshift({
+        type: "followup",
+        title: "Messages Waiting",
+        message: `${unreadCaseCount} homeowner${unreadCaseCount > 1 ? 's are' : ' is'} waiting for your reply (${totalUnread} unread message${totalUnread > 1 ? 's' : ''}). Quick responses improve your ratings.`,
+      });
+    }
+
     return recommendations.slice(0, 3);
-  }, [items, itemType]);
+  }, [items, itemType, unreadByCaseId]);
 
   const handleItemClick = (item: Item) => {
     setSelectedItemId(item.id);
@@ -837,9 +869,14 @@ export function MayaCarouselLayout({
                         <span className={`text-sm font-bold ${isSelected ? item.color.text : "text-gray-500"}`}>
                           {item.customerInitials}
                         </span>
-                        {item.priority === "Urgent" && (
+                        {item.priority === "Urgent" && !unreadByCaseId[item.id] && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] text-white font-bold">!</span>
+                          </div>
+                        )}
+                        {unreadByCaseId[item.id] > 0 && (
+                          <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-violet-500 rounded-full flex items-center justify-center px-1 border-2 border-white">
+                            <span className="text-[9px] text-white font-bold">{unreadByCaseId[item.id]}</span>
                           </div>
                         )}
                         {itemType === "quote" && getStatusDot(item.status) && (
@@ -940,6 +977,18 @@ export function MayaCarouselLayout({
                 </Card>
               )}
 
+              {selectedItem && selectedItem.reporterUserId && (
+                <div className="mt-3">
+                  <ThreadChat
+                    caseId={selectedItem.id}
+                    homeownerUserId={selectedItem.reporterUserId}
+                    orgId={selectedItem.orgId}
+                    subject={selectedItem.title}
+                    compact
+                  />
+                </div>
+              )}
+
               {!selectedItem && filteredItems.length > 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -989,7 +1038,14 @@ export function MayaCarouselLayout({
                               {item.customerInitials}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium truncate">{item.customerName}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium truncate">{item.customerName}</p>
+                                {unreadByCaseId[item.id] > 0 && (
+                                  <span className="shrink-0 inline-flex items-center justify-center min-w-[16px] h-4 px-1 bg-violet-500 text-white text-[10px] font-bold rounded-full">
+                                    {unreadByCaseId[item.id]}
+                                  </span>
+                                )}
+                              </div>
                               {itemType !== "quote" && (
                                 <p className="text-xs text-muted-foreground truncate sm:hidden">{item.category}</p>
                               )}

@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { ThreadChat } from "@/components/contractor/thread-chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -199,6 +200,23 @@ export default function Homeowner() {
     queryKey: ["/api/property-owner/cases"],
     enabled: !!user,
   });
+
+  const { data: homeownerConversations = [] } = useQuery<any[]>({
+    queryKey: ["/api/messaging/conversations"],
+    staleTime: 30000,
+    refetchInterval: 30000,
+    enabled: !!user,
+  });
+
+  const unreadByCaseId = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const conv of homeownerConversations) {
+      if (conv.caseId && conv.unreadCount > 0) {
+        map[conv.caseId] = (map[conv.caseId] || 0) + conv.unreadCount;
+      }
+    }
+    return map;
+  }, [homeownerConversations]);
 
   const triageMutation = useMutation({
     mutationFn: async (data: { description: string; category?: string }) => {
@@ -886,7 +904,14 @@ export default function Homeowner() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-medium">{request.title}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">{request.title}</h3>
+                              {unreadByCaseId[request.id] > 0 && (
+                                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-violet-500 text-white text-[10px] font-bold rounded-full">
+                                  {unreadByCaseId[request.id]}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground mt-1">
                               {request.property?.name || "Your Property"}
                             </p>
@@ -1454,6 +1479,16 @@ export default function Homeowner() {
                 )}
               </div>
             </div>
+
+            {selectedRequest && homeownerConversations.some((c: any) => c.caseId === selectedRequest.id) && (
+              <div className="px-4 pb-4">
+                <ThreadChat
+                  caseId={selectedRequest.id}
+                  orgId={selectedRequest.orgId}
+                  subject={selectedRequest.title}
+                />
+              </div>
+            )}
           </div>
         )}
       </main>
