@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users } from '@shared/schema';
-import { eq, and, or, desc } from 'drizzle-orm';
+import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users, quotes, quoteLineItems } from '@shared/schema';
+import { eq, and, or, desc, isNull } from 'drizzle-orm';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -114,12 +115,18 @@ router.get('/cases', async (req: any, res) => {
 
     const propertyIds = userProperties.map(p => p.id);
 
-    if (propertyIds.length === 0) {
-      return res.json([]);
+    const ownershipConditions = [
+      eq(smartCases.reporterUserId, userId),
+    ];
+    if (propertyIds.length > 0) {
+      ownershipConditions.push(...propertyIds.map(id => eq(smartCases.propertyId, id)));
     }
 
     const cases = await db.query.smartCases.findMany({
-      where: or(...propertyIds.map(id => eq(smartCases.propertyId, id))),
+      where: and(
+        eq(smartCases.orgId, membership.orgId),
+        or(...ownershipConditions)
+      ),
       with: {
         property: true,
       },
@@ -130,6 +137,240 @@ router.get('/cases', async (req: any, res) => {
   } catch (error) {
     console.error('Error fetching cases:', error);
     res.status(500).json({ error: 'Failed to fetch cases' });
+  }
+});
+
+// Create a new case/request from homeowner
+router.post('/cases', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    const createCaseSchema = z.object({
+      title: z.string().max(200).optional(),
+      description: z.string().max(5000).optional(),
+      category: z.string().max(100).optional(),
+      priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
+      aiTriageJson: z.any().optional(),
+    }).refine(data => data.title || data.description, {
+      message: 'Title or description is required',
+    });
+
+    const parsed = createCaseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid data' });
+    }
+
+    const { title, description, category, aiTriageJson, priority } = parsed.data;
+
+    const caseId = uuidv4();
+    const [newCase] = await db.insert(smartCases).values({
+      id: caseId,
+      orgId: membership.orgId,
+      reporterUserId: userId,
+      title: title || (description ? description.slice(0, 80) : 'New Request'),
+      description: description || '',
+      category: category || null,
+      priority: priority || 'Medium',
+      status: 'Open',
+      aiTriageJson: aiTriageJson || null,
+      postedAt: new Date(),
+    }).returning();
+
+    res.status(201).json(newCase);
+  } catch (error) {
+    console.error('Error creating case:', error);
+    res.status(500).json({ error: 'Failed to create case' });
+  }
+});
+
+// Get quotes for a specific case
+router.get('/cases/:caseId/quotes', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId } = req.params;
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    // Verify the case belongs to this org
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    // Get all quotes for this case with line items
+    const caseQuotes = await db.query.quotes.findMany({
+      where: and(
+        eq(quotes.caseId, caseId),
+        isNull(quotes.archivedAt)
+      ),
+      with: {
+        lineItems: true,
+      },
+      orderBy: [desc(quotes.createdAt)],
+    });
+
+    // Enrich quotes with contractor info
+    const enrichedQuotes = await Promise.all(caseQuotes.map(async (quote) => {
+      const contractor = await db.query.users.findFirst({
+        where: eq(users.id, quote.contractorId),
+      });
+      return {
+        ...quote,
+        contractorName: contractor ? `${contractor.firstName} ${contractor.lastName}`.trim() : 'Unknown Contractor',
+        contractorFirstName: contractor?.firstName || 'Unknown',
+        contractorEmail: contractor?.email || '',
+      };
+    }));
+
+    res.json(enrichedQuotes);
+  } catch (error) {
+    console.error('Error fetching case quotes:', error);
+    res.status(500).json({ error: 'Failed to fetch quotes' });
+  }
+});
+
+// Accept a quote for a case
+router.post('/cases/:caseId/quotes/:quoteId/accept', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId, quoteId } = req.params;
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    // Verify the case belongs to this user in this org
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId),
+        eq(smartCases.reporterUserId, userId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    // Get the quote
+    const quote = await db.query.quotes.findFirst({
+      where: and(
+        eq(quotes.id, quoteId),
+        eq(quotes.caseId, caseId)
+      ),
+    });
+
+    if (!quote) {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    // Accept this quote
+    await db.update(quotes)
+      .set({ status: 'approved', approvedAt: new Date(), updatedAt: new Date() })
+      .where(eq(quotes.id, quoteId));
+
+    // Decline all other quotes for this case
+    const otherQuotes = await db.query.quotes.findMany({
+      where: and(
+        eq(quotes.caseId, caseId),
+        isNull(quotes.archivedAt)
+      ),
+    });
+    for (const otherQuote of otherQuotes) {
+      if (otherQuote.id !== quoteId) {
+        await db.update(quotes)
+          .set({ status: 'declined', declinedAt: new Date(), updatedAt: new Date() })
+          .where(eq(quotes.id, otherQuote.id));
+      }
+    }
+
+    // Assign contractor to the case and update status
+    await db.update(smartCases)
+      .set({ 
+        assignedContractorId: quote.contractorId, 
+        status: 'In Progress',
+        estimatedCost: quote.total ? String(quote.total) : null,
+        updatedAt: new Date() 
+      })
+      .where(eq(smartCases.id, caseId));
+
+    res.json({ success: true, message: 'Quote accepted' });
+  } catch (error) {
+    console.error('Error accepting quote:', error);
+    res.status(500).json({ error: 'Failed to accept quote' });
+  }
+});
+
+// Decline a quote
+router.post('/cases/:caseId/quotes/:quoteId/decline', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId, quoteId } = req.params;
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId),
+        eq(smartCases.reporterUserId, userId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    await db.update(quotes)
+      .set({ status: 'declined', declinedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.caseId, caseId)));
+
+    res.json({ success: true, message: 'Quote declined' });
+  } catch (error) {
+    console.error('Error declining quote:', error);
+    res.status(500).json({ error: 'Failed to decline quote' });
   }
 });
 

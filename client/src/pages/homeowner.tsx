@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from "react";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Plus, Pencil, Trash2, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Menu, 
@@ -67,85 +67,6 @@ interface ChatMessage {
   isRead?: boolean;
 }
 
-interface ContractorQuote {
-  id: string;
-  contractorId: string;
-  contractorName: string;
-  contractorInitials: string;
-  contractorColor: string;
-  glowColor: string;
-  ringColor: string;
-  bgColor: string;
-  textColor: string;
-  quote: number;
-  availability: string;
-  estimatedDays: number;
-  messages: ChatMessage[];
-  status: "pending" | "accepted" | "declined";
-}
-
-const mockContractorQuotes: ContractorQuote[] = [
-  {
-    id: "quote-1",
-    contractorId: "contractor-1",
-    contractorName: "Mike's Roofing",
-    contractorInitials: "MR",
-    contractorColor: "bg-blue-500",
-    glowColor: "rgba(59, 130, 246, 0.5)",
-    ringColor: "ring-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
-    textColor: "text-blue-600 dark:text-blue-400",
-    quote: 850,
-    availability: "Available Mon-Wed",
-    estimatedDays: 2,
-    status: "pending",
-    messages: [
-      { id: "m1", sender: "contractor", message: "Hi Sarah! I've reviewed your roof leak issue. Based on your description, it sounds like the flashing around the chimney may need repair. I can come out Monday to take a closer look.", timestamp: new Date("2025-11-12T10:30:00"), isRead: false },
-      { id: "m2", sender: "homeowner", message: "That sounds great! What time works for you?", timestamp: new Date("2025-11-12T11:15:00"), isRead: true },
-      { id: "m3", sender: "contractor", message: "I can be there around 9 AM. The inspection is free, and I'll give you a detailed quote on the spot. If it's just the flashing, we're looking at around $850.", timestamp: new Date("2025-11-12T11:45:00"), isRead: false },
-    ],
-  },
-  {
-    id: "quote-2",
-    contractorId: "contractor-2",
-    contractorName: "Premier Roofing Co",
-    contractorInitials: "PR",
-    contractorColor: "bg-emerald-500",
-    glowColor: "rgba(16, 185, 129, 0.5)",
-    ringColor: "ring-emerald-400",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
-    textColor: "text-emerald-600 dark:text-emerald-400",
-    quote: 1200,
-    availability: "Available Thursday",
-    estimatedDays: 1,
-    status: "pending",
-    messages: [
-      { id: "m4", sender: "contractor", message: "Hello! Thanks for reaching out. We specialize in roof repairs and have 15 years of experience. For water stains appearing after rain, it could be a few things - damaged shingles, worn flashing, or gutter issues.", timestamp: new Date("2025-11-12T09:00:00"), isRead: false },
-      { id: "m5", sender: "homeowner", message: "What would repair typically cost?", timestamp: new Date("2025-11-12T09:30:00"), isRead: true },
-      { id: "m6", sender: "contractor", message: "For a typical flashing repair, we charge $1,200 which includes a 5-year warranty on our work. We use premium materials and can usually complete the work in one day.", timestamp: new Date("2025-11-12T10:00:00"), isRead: false },
-    ],
-  },
-  {
-    id: "quote-3",
-    contractorId: "contractor-3",
-    contractorName: "Budget Roof Repair",
-    contractorInitials: "BR",
-    contractorColor: "bg-orange-500",
-    glowColor: "rgba(249, 115, 22, 0.5)",
-    ringColor: "ring-orange-400",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
-    textColor: "text-orange-600 dark:text-orange-400",
-    quote: 550,
-    availability: "Available tomorrow",
-    estimatedDays: 3,
-    status: "pending",
-    messages: [
-      { id: "m7", sender: "contractor", message: "Hey! Saw your request. I can come by tomorrow to check out that leak. I'm the most affordable option in the area.", timestamp: new Date("2025-11-12T14:00:00"), isRead: false },
-      { id: "m8", sender: "homeowner", message: "What's your estimate looking like?", timestamp: new Date("2025-11-12T14:30:00"), isRead: true },
-      { id: "m9", sender: "contractor", message: "I can do it for $550. Might take a couple extra days since I work solo, but I'll get it done right.", timestamp: new Date("2025-11-12T15:00:00"), isRead: false },
-    ],
-  },
-];
 
 export default function Homeowner() {
   const { user, logout } = useAuth();
@@ -160,8 +81,6 @@ export default function Homeowner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedContractorId, setSelectedContractorId] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState("");
-  const [contractorQuotes, setContractorQuotes] = useState<ContractorQuote[]>(mockContractorQuotes);
   const [showMayaPanel, setShowMayaPanel] = useState(false);
   const [mayaChatMessages, setMayaChatMessages] = useState<ChatMessage[]>([]);
   const [mayaChatInput, setMayaChatInput] = useState("");
@@ -170,7 +89,7 @@ export default function Homeowner() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const mayaChatEndRef = useRef<HTMLDivElement>(null);
 
-  const firstName = "Sarah"; // Temporarily hardcoded for demo view
+  const firstName = user?.firstName || "there";
 
   const categories = [
     { id: "plumbing", label: "Plumbing", icon: Droplets, color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30", badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300", ringColor: "ring-blue-400", glowColor: "rgba(59, 130, 246, 0.4)" },
@@ -208,6 +127,12 @@ export default function Homeowner() {
     enabled: !!user,
   });
 
+  const { data: caseQuotes = [] } = useQuery<any[]>({
+    queryKey: ["/api/property-owner/cases", selectedRequest?.id, "quotes"],
+    enabled: !!selectedRequest?.id,
+    refetchInterval: 15000,
+  });
+
   const unreadByCaseId = useMemo(() => {
     const map: Record<string, number> = {};
     for (const conv of homeownerConversations) {
@@ -238,6 +163,55 @@ export default function Homeowner() {
         variant: "destructive",
       });
       setIsAnalyzing(false);
+    },
+  });
+
+  const createCaseMutation = useMutation({
+    mutationFn: async (data: { title: string; description: string; category?: string; aiTriageJson?: any; priority?: string }) => {
+      const response = await apiRequest("POST", "/api/property-owner/cases", data);
+      return response.json();
+    },
+    onSuccess: (newCase) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases"] });
+      setSelectedRequest(newCase);
+      setView("requestDetail");
+      toast({ title: "Request submitted", description: "Your request has been saved. Contractors will be able to see it." });
+    },
+    onError: () => {
+      toast({ title: "Failed to submit", description: "Could not save your request. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const acceptQuoteMutation = useMutation({
+    mutationFn: async ({ caseId, quoteId }: { caseId: string; quoteId: string }) => {
+      const response = await apiRequest("POST", `/api/property-owner/cases/${caseId}/quotes/${quoteId}/accept`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases"] });
+      if (selectedRequest?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
+      }
+      toast({ title: "Quote accepted!", description: "The contractor has been notified and will begin work soon." });
+    },
+    onError: () => {
+      toast({ title: "Failed to accept quote", variant: "destructive" });
+    },
+  });
+
+  const declineQuoteMutation = useMutation({
+    mutationFn: async ({ caseId, quoteId }: { caseId: string; quoteId: string }) => {
+      const response = await apiRequest("POST", `/api/property-owner/cases/${caseId}/quotes/${quoteId}/decline`);
+      return response.json();
+    },
+    onSuccess: () => {
+      if (selectedRequest?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
+      }
+      toast({ title: "Quote declined" });
+    },
+    onError: () => {
+      toast({ title: "Failed to decline quote", variant: "destructive" });
     },
   });
 
@@ -369,7 +343,7 @@ export default function Homeowner() {
                   className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
                   onClick={() => {
                     setSelectedRequest(request);
-                    setSelectedContractorId(mockContractorQuotes[0]?.contractorId || null);
+                    setSelectedContractorId(null);
                     setView("requestDetail");
                   }}
                 >
@@ -759,9 +733,22 @@ export default function Homeowner() {
               <Button 
                 size="lg" 
                 className="w-full h-14 text-lg rounded-full"
-                onClick={() => setView("contractors")}
+                disabled={createCaseMutation.isPending}
+                onClick={() => {
+                  createCaseMutation.mutate({
+                    title: problemDescription.slice(0, 80),
+                    description: problemDescription,
+                    category: selectedCategories.length > 0 ? selectedCategories[0] : triageResult?.category || undefined,
+                    aiTriageJson: triageResult,
+                    priority: triageResult?.urgency === 'critical' || triageResult?.urgency === 'emergency' ? 'Critical' : 
+                              triageResult?.urgency === 'high' || triageResult?.urgency === 'urgent' ? 'High' : 'Medium',
+                  });
+                }}
               >
-                Find a Professional
+                {createCaseMutation.isPending ? (
+                  <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                ) : null}
+                {createCaseMutation.isPending ? "Submitting..." : "Submit & Find a Professional"}
               </Button>
 
               {/* Chat Option */}
@@ -897,7 +884,7 @@ export default function Homeowner() {
                       className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                       onClick={() => {
                         setSelectedRequest(request);
-                        setSelectedContractorId(mockContractorQuotes[0]?.contractorId || null);
+                        setSelectedContractorId(null);
                         setView("requestDetail");
                       }}
                     >
@@ -1017,24 +1004,23 @@ export default function Homeowner() {
                   />
                 </div>
 
-                {/* Contractor bubbles - neutral when unselected, subtle color when selected */}
-                {contractorQuotes.map((quote) => {
+                {/* Contractor bubbles */}
+                {caseQuotes.map((quote: any) => {
                   const isSelected = selectedContractorId === quote.contractorId && !showMayaPanel;
-                  // Create subtle glow by reducing opacity
-                  const subtleGlow = quote.glowColor.replace("0.5", "0.15");
-                  const subtleShadow = quote.glowColor.replace("0.5", "0.1");
+                  const initials = (quote.contractorFirstName?.[0] || 'C').toUpperCase() + (quote.contractorName?.split(' ')[1]?.[0] || '').toUpperCase();
+                  const colors = [
+                    { text: "text-blue-600", glow: "rgba(59, 130, 246, 0.15)", shadow: "rgba(59, 130, 246, 0.1)" },
+                    { text: "text-emerald-600", glow: "rgba(16, 185, 129, 0.15)", shadow: "rgba(16, 185, 129, 0.1)" },
+                    { text: "text-orange-600", glow: "rgba(249, 115, 22, 0.15)", shadow: "rgba(249, 115, 22, 0.1)" },
+                    { text: "text-pink-600", glow: "rgba(236, 72, 153, 0.15)", shadow: "rgba(236, 72, 153, 0.1)" },
+                  ];
+                  const colorSet = colors[caseQuotes.indexOf(quote) % colors.length];
                   return (
                     <button
-                      key={quote.contractorId}
+                      key={quote.id}
                       onClick={() => {
                         setSelectedContractorId(quote.contractorId);
                         setShowMayaPanel(false);
-                        // Mark all contractor messages as read when clicking on them
-                        setContractorQuotes(prev => prev.map(q => 
-                          q.contractorId === quote.contractorId 
-                            ? { ...q, messages: q.messages.map(m => ({ ...m, isRead: true })) }
-                            : q
-                        ));
                       }}
                       className="flex flex-col items-center min-w-[80px] group"
                     >
@@ -1044,31 +1030,34 @@ export default function Homeowner() {
                         }`}
                         style={{
                           background: isSelected 
-                            ? `radial-gradient(ellipse at 30% 20%, ${subtleGlow}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,252,0.95))`
+                            ? `radial-gradient(ellipse at 30% 20%, ${colorSet.glow}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,252,0.95))`
                             : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
                           backdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           WebkitBackdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           boxShadow: isSelected 
-                            ? `0 6px 20px ${subtleShadow}, inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)`
+                            ? `0 6px 20px ${colorSet.shadow}, inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)`
                             : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? quote.textColor : "text-gray-500"}`}>
-                          {quote.contractorInitials}
+                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? colorSet.text : "text-gray-500"}`}>
+                          {initials}
                         </span>
-                        {quote.messages.filter(m => m.sender === "contractor" && !m.isRead).length > 0 && (
-                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
-                            <span className="text-[10px] text-white font-medium">{quote.messages.filter(m => m.sender === "contractor" && !m.isRead).length}</span>
-                          </div>
-                        )}
                       </div>
-                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? quote.textColor : "text-foreground"}`}>
-                        {quote.contractorName.split(" ")[0]}
+                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? colorSet.text : "text-foreground"}`}>
+                        {quote.contractorFirstName}
                       </span>
-                      <span className={`text-[10px] font-medium transition-colors duration-300 ${isSelected ? quote.textColor : "text-muted-foreground"}`}>${quote.quote}</span>
+                      <span className={`text-[10px] font-medium transition-colors duration-300 ${isSelected ? colorSet.text : "text-muted-foreground"}`}>
+                        ${Number(quote.total || 0).toLocaleString()}
+                      </span>
                     </button>
                   );
                 })}
+                {caseQuotes.length === 0 && (
+                  <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    Waiting for contractor quotes...
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1079,16 +1068,26 @@ export default function Homeowner() {
                 <ScrollArea className="flex-1 p-4">
                   {selectedContractorId && !showMayaPanel && (
                     <div className="space-y-4">
-                      {/* Contractor info card - subtle frosted glass */}
                       {(() => {
-                        const quote = contractorQuotes.find(q => q.contractorId === selectedContractorId);
-                        if (!quote) return null;
-                        const subtleGlow = quote.glowColor.replace("0.5", "0.08");
+                        const quote = caseQuotes.find((q: any) => q.contractorId === selectedContractorId);
+                        if (!quote) return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p className="text-sm">No quote details available</p>
+                          </div>
+                        );
+                        const colors = [
+                          { text: "text-blue-600", glow: "rgba(59, 130, 246, 0.08)" },
+                          { text: "text-emerald-600", glow: "rgba(16, 185, 129, 0.08)" },
+                          { text: "text-orange-600", glow: "rgba(249, 115, 22, 0.08)" },
+                          { text: "text-pink-600", glow: "rgba(236, 72, 153, 0.08)" },
+                        ];
+                        const colorSet = colors[caseQuotes.indexOf(quote) % colors.length];
+                        const initials = (quote.contractorFirstName?.[0] || 'C').toUpperCase() + (quote.contractorName?.split(' ')[1]?.[0] || '').toUpperCase();
                         return (
                           <div 
                             className="mb-4 rounded-2xl p-4 border border-gray-200/60"
                             style={{
-                              background: `radial-gradient(ellipse at 20% 20%, ${subtleGlow}, transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,250,252,0.9))`,
+                              background: `radial-gradient(ellipse at 20% 20%, ${colorSet.glow}, transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,250,252,0.9))`,
                               backdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
                               WebkitBackdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
                               boxShadow: "inset 0 1px 2px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.04)",
@@ -1098,56 +1097,66 @@ export default function Homeowner() {
                               <div 
                                 className="w-12 h-12 rounded-full flex items-center justify-center"
                                 style={{
-                                  background: `radial-gradient(ellipse at 30% 20%, ${quote.glowColor.replace("0.5", "0.2")}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,248,250,0.95))`,
+                                  background: `radial-gradient(ellipse at 30% 20%, ${colorSet.glow}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,248,250,0.95))`,
                                   boxShadow: "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                                 }}
                               >
-                                <span className={`text-sm font-bold ${quote.textColor}`}>{quote.contractorInitials}</span>
+                                <span className={`text-sm font-bold ${colorSet.text}`}>{initials}</span>
                               </div>
                               <div className="flex-1">
                                 <h4 className="font-semibold text-foreground">{quote.contractorName}</h4>
-                                <p className="text-sm text-muted-foreground">{quote.availability}</p>
+                                {quote.scopeOfWork && <p className="text-sm text-muted-foreground line-clamp-1">{quote.scopeOfWork}</p>}
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-xl text-foreground">${quote.quote}</p>
-                                <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""} est.</p>
+                                <p className="font-bold text-xl text-foreground">${Number(quote.total || 0).toLocaleString()}</p>
+                                {quote.estimatedDays && <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""} est.</p>}
                               </div>
                             </div>
-                            <div className="flex gap-2 mt-4">
-                              <Button size="sm" className="flex-1">
-                                Accept Quote
-                              </Button>
-                              <Button size="sm" variant="outline" className="flex-1">
-                                Decline
-                              </Button>
-                            </div>
+                            {quote.status === 'approved' ? (
+                              <div className="mt-4 p-2 bg-green-50 border border-green-200 rounded-lg text-center">
+                                <span className="text-sm font-medium text-green-700 flex items-center justify-center gap-1">
+                                  <CheckCircle className="h-4 w-4" /> Quote Accepted
+                                </span>
+                              </div>
+                            ) : quote.status === 'declined' ? (
+                              <div className="mt-4 p-2 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                                <span className="text-sm font-medium text-gray-500">Declined</span>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 mt-4">
+                                <Button 
+                                  size="sm" 
+                                  className="flex-1"
+                                  disabled={acceptQuoteMutation.isPending}
+                                  onClick={() => acceptQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                >
+                                  {acceptQuoteMutation.isPending ? "Accepting..." : "Accept Quote"}
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="flex-1"
+                                  disabled={declineQuoteMutation.isPending}
+                                  onClick={() => declineQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                >
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
+                            {quote.lineItems && quote.lineItems.length > 0 && (
+                              <div className="mt-3 pt-3 border-t space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Line Items</p>
+                                {quote.lineItems.map((item: any) => (
+                                  <div key={item.id} className="flex justify-between text-xs">
+                                    <span>{item.description}</span>
+                                    <span className="font-medium">${Number(item.amount || 0).toLocaleString()}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
-
-                      {/* Chat messages */}
-                      {contractorQuotes
-                        .find(q => q.contractorId === selectedContractorId)
-                        ?.messages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex ${msg.sender === "homeowner" ? "justify-end" : "justify-start"}`}
-                          >
-                            <div
-                              className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                                msg.sender === "homeowner"
-                                  ? "bg-primary text-primary-foreground rounded-br-md"
-                                  : "bg-muted rounded-bl-md"
-                              }`}
-                            >
-                              <p className="text-sm">{msg.message}</p>
-                              <p className={`text-[10px] mt-1 ${msg.sender === "homeowner" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                                {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      <div ref={chatEndRef} />
                     </div>
                   )}
 
@@ -1181,15 +1190,15 @@ export default function Homeowner() {
                           <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
                             <h5 className="font-medium text-xs mb-2 text-violet-600">Quote Comparison</h5>
                             <div className="space-y-1">
-                              {contractorQuotes.map((quote) => (
+                              {caseQuotes.map((quote: any) => (
                                 <div key={quote.id} className="flex justify-between items-center text-xs">
-                                  <span className="text-muted-foreground truncate">{quote.contractorName}</span>
-                                  <span className="font-medium">${quote.quote}</span>
+                                  <span className="text-muted-foreground truncate">{quote.contractorName || 'Contractor'}</span>
+                                  <span className="font-medium">${Number(quote.total || 0).toLocaleString()}</span>
                                 </div>
                               ))}
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t">
-                              Avg: ${Math.round(contractorQuotes.reduce((a, b) => a + b.quote, 0) / contractorQuotes.length)}
+                              Avg: ${Math.round(caseQuotes.reduce((a: number, b: any) => a + Number(b.total || 0), 0) / (caseQuotes.length || 1))}
                             </p>
                           </div>
 
@@ -1268,66 +1277,14 @@ export default function Homeowner() {
                 </ScrollArea>
 
                 {/* Chat Input - Contractor */}
-                {selectedContractorId && !showMayaPanel && (
+                {selectedContractorId && !showMayaPanel && selectedRequest && (
                   <div className="p-4 border-t">
-                    <div className="relative">
-                      <Input
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder={`Message ${contractorQuotes.find(q => q.contractorId === selectedContractorId)?.contractorName || "contractor"}...`}
-                        className="h-12 pl-4 pr-24 rounded-full"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && chatInput.trim()) {
-                            const newMessage: ChatMessage = {
-                              id: `msg-${Date.now()}`,
-                              sender: "homeowner",
-                              message: chatInput,
-                              timestamp: new Date(),
-                            };
-                            setContractorQuotes(prev => prev.map(q => 
-                              q.contractorId === selectedContractorId 
-                                ? { ...q, messages: [...q.messages, newMessage] }
-                                : q
-                            ));
-                            setChatInput("");
-                            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-                          }
-                        }}
-                      />
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary"
-                          onClick={() => setShowMayaPanel(true)}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="icon" 
-                          className="h-10 w-10 rounded-full"
-                          onClick={() => {
-                            if (chatInput.trim()) {
-                              const newMessage: ChatMessage = {
-                                id: `msg-${Date.now()}`,
-                                sender: "homeowner",
-                                message: chatInput,
-                                timestamp: new Date(),
-                              };
-                              setContractorQuotes(prev => prev.map(q => 
-                                q.contractorId === selectedContractorId 
-                                  ? { ...q, messages: [...q.messages, newMessage] }
-                                  : q
-                              ));
-                              setChatInput("");
-                              setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-                            }
-                          }}
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                    <ThreadChat
+                      caseId={selectedRequest.id}
+                      orgId={selectedRequest.orgId}
+                      subject={selectedRequest.title}
+                      contractorUserId={selectedContractorId}
+                    />
                   </div>
                 )}
 
@@ -1357,30 +1314,14 @@ export default function Homeowner() {
                             try {
                               const res = await apiRequest("POST", "/api/homeowner/maya-chat", {
                                 message: userMessage,
-                                quotes: contractorQuotes.map(q => ({
-                                  name: q.contractorName,
-                                  quote: q.quote,
-                                  availability: q.availability,
+                                quotes: caseQuotes.map((q: any) => ({
+                                  name: q.contractorName || 'Contractor',
+                                  quote: Number(q.total || 0),
                                   estimatedDays: q.estimatedDays,
                                 })),
                                 requestDescription: selectedRequest?.description || "",
                               });
                               const response = await res.json();
-                              
-                              // Handle broadcast action - add message to all contractor threads
-                              if (response.action === 'broadcast' && response.broadcastMessage) {
-                                const broadcastMsg = response.broadcastMessage;
-                                setContractorQuotes(prev => prev.map(q => ({
-                                  ...q,
-                                  messages: [...q.messages, {
-                                    id: `broadcast-${q.contractorId}-${Date.now()}`,
-                                    sender: "homeowner" as const,
-                                    message: broadcastMsg,
-                                    timestamp: new Date(),
-                                    isRead: true,
-                                  }]
-                                })));
-                              }
                               
                               const mayaResponse: ChatMessage = {
                                 id: `maya-resp-${Date.now()}`,
@@ -1393,7 +1334,7 @@ export default function Homeowner() {
                               const fallbackResponse: ChatMessage = {
                                 id: `maya-resp-${Date.now()}`,
                                 sender: "contractor",
-                                message: "I'd be happy to help! Based on the quotes you've received, Mike's Roofing at $850 offers the best value with quick availability. Would you like me to help you compare specific aspects or draft a message to send to all contractors?",
+                                message: "I'd be happy to help! Let me know what you'd like to compare about the quotes you've received.",
                                 timestamp: new Date(),
                               };
                               setMayaChatMessages(prev => [...prev, fallbackResponse]);
@@ -1425,30 +1366,14 @@ export default function Homeowner() {
                             try {
                               const res = await apiRequest("POST", "/api/homeowner/maya-chat", {
                                 message: userMessage,
-                                quotes: contractorQuotes.map(q => ({
-                                  name: q.contractorName,
-                                  quote: q.quote,
-                                  availability: q.availability,
+                                quotes: caseQuotes.map((q: any) => ({
+                                  name: q.contractorName || 'Contractor',
+                                  quote: Number(q.total || 0),
                                   estimatedDays: q.estimatedDays,
                                 })),
                                 requestDescription: selectedRequest?.description || "",
                               });
                               const response = await res.json();
-                              
-                              // Handle broadcast action - add message to all contractor threads
-                              if (response.action === 'broadcast' && response.broadcastMessage) {
-                                const broadcastMsg = response.broadcastMessage;
-                                setContractorQuotes(prev => prev.map(q => ({
-                                  ...q,
-                                  messages: [...q.messages, {
-                                    id: `broadcast-${q.contractorId}-${Date.now()}`,
-                                    sender: "homeowner" as const,
-                                    message: broadcastMsg,
-                                    timestamp: new Date(),
-                                    isRead: true,
-                                  }]
-                                })));
-                              }
                               
                               const mayaResponse: ChatMessage = {
                                 id: `maya-resp-${Date.now()}`,
@@ -1461,7 +1386,7 @@ export default function Homeowner() {
                               const fallbackResponse: ChatMessage = {
                                 id: `maya-resp-${Date.now()}`,
                                 sender: "contractor",
-                                message: "I'd be happy to help! Based on the quotes you've received, Mike's Roofing at $850 offers the best value with quick availability. Would you like me to help you compare specific aspects or draft a message to send to all contractors?",
+                                message: "I'd be happy to help! Let me know what you'd like to compare about the quotes you've received.",
                                 timestamp: new Date(),
                               };
                               setMayaChatMessages(prev => [...prev, fallbackResponse]);
@@ -1480,15 +1405,6 @@ export default function Homeowner() {
               </div>
             </div>
 
-            {selectedRequest && homeownerConversations.some((c: any) => c.caseId === selectedRequest.id) && (
-              <div className="px-4 pb-4">
-                <ThreadChat
-                  caseId={selectedRequest.id}
-                  orgId={selectedRequest.orgId}
-                  subject={selectedRequest.title}
-                />
-              </div>
-            )}
           </div>
         )}
       </main>
