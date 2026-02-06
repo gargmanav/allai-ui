@@ -1,15 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
-import Sidebar from "@/components/layout/sidebar";
-import Header from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, FileText } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -149,7 +147,7 @@ export default function QuoteFormPage() {
         title: isEditMode ? "Quote updated" : "Quote created",
         description: isEditMode ? "Quote has been updated successfully." : "Quote has been created successfully.",
       });
-      setLocation('/quotes');
+      setLocation('/contractor?view=quotes');
     },
     onError: (error) => {
       toast({
@@ -230,306 +228,312 @@ export default function QuoteFormPage() {
 
   if (isEditMode && isLoadingQuote) {
     return (
-      <div className="flex h-screen bg-background">
-        <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header title="Edit Quote" />
-          <main className="flex-1 p-6 overflow-auto flex items-center justify-center">
-            <p className="text-muted-foreground">Loading quote...</p>
-          </main>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <FileText className="h-8 w-8 mx-auto mb-3 text-violet-400 animate-pulse" />
+          <p className="text-muted-foreground">Loading quote...</p>
         </div>
       </div>
     );
   }
 
+  const frostedCard = "rounded-xl border border-white/60 shadow-sm" +
+    " bg-white/70 backdrop-blur-sm";
+
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title={isEditMode ? "Edit Quote" : "New Quote"} />
-        <main className="flex-1 p-6 overflow-auto">
-          <Button
-            variant="ghost"
-            onClick={() => setLocation('/quotes')}
-            className="mb-4"
-            data-testid="button-back"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Quotes
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation('/contractor?view=quotes')}
+              className="gap-1.5 text-slate-600 hover:text-slate-900"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div className="h-5 w-px bg-slate-200" />
+            <h1 className="text-xl font-semibold text-slate-800">
+              {isEditMode ? "Edit Quote" : "New Quote"}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation('/contractor?view=quotes')}
+              className="text-slate-600"
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={saveMutation.isPending}
+              onClick={handleSubmit as any}
+              className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5"
+              data-testid="button-save"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saveMutation.isPending ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
+            </Button>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-6">
-            {/* Header Section */}
-            <div className="bg-card border rounded-lg p-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <Label>Customer *</Label>
-                  <Select value={customerId} onValueChange={setCustomerId}>
-                    <SelectTrigger data-testid="select-customer">
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {getCustomerDisplayName(customer)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Quote Title (Optional)</Label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Auto-generated if empty"
-                    data-testid="input-title"
-                  />
-                </div>
-                <div>
-                  <Label>Valid Until (Optional)</Label>
-                  <Input
-                    type="date"
-                    value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
-                    data-testid="input-expires-at"
-                  />
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className={`${frostedCard} p-5`}>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label className="text-xs font-medium text-slate-500 mb-1.5 block">Customer *</Label>
+                <Select value={customerId} onValueChange={setCustomerId}>
+                  <SelectTrigger data-testid="select-customer" className="bg-white/80">
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {getCustomerDisplayName(customer)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-500 mb-1.5 block">Quote Title (Optional)</Label>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Auto-generated if empty"
+                  className="bg-white/80"
+                  data-testid="input-title"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-500 mb-1.5 block">Valid Until (Optional)</Label>
+                <Input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="bg-white/80"
+                  data-testid="input-expires-at"
+                />
               </div>
             </div>
+          </div>
 
-            {/* Line Items Section */}
-            <div className="bg-card border rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Line Items</h3>
-              
-              <Table className="mb-4">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[300px]">Product / Service</TableHead>
-                    <TableHead className="text-right w-[100px]">Qty.</TableHead>
-                    <TableHead className="text-right w-[120px]">Unit Price</TableHead>
-                    <TableHead className="text-right w-[120px]">Total</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+          <div className={`${frostedCard} p-5`}>
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Line Items</h3>
+            
+            <Table className="mb-4">
+              <TableHeader>
+                <TableRow className="border-slate-100">
+                  <TableHead className="w-[300px] text-xs text-slate-500">Product / Service</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs text-slate-500">Qty.</TableHead>
+                  <TableHead className="text-right w-[120px] text-xs text-slate-500">Unit Price</TableHead>
+                  <TableHead className="text-right w-[120px] text-xs text-slate-500">Total</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lineItems.map((item, index) => (
+                  <TableRow key={index} className="border-slate-100" data-testid={`line-item-${index}`}>
+                    <TableCell>
+                      <div className="space-y-1.5">
+                        <Input
+                          value={item.name}
+                          onChange={(e) => updateLineItem(index, 'name', e.target.value)}
+                          placeholder="Item name"
+                          className="font-medium bg-white/80 h-9"
+                          data-testid={`input-name-${index}`}
+                        />
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                          placeholder="Description (optional)"
+                          className="text-sm bg-white/80 h-8 text-slate-500"
+                          data-testid={`input-description-${index}`}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={item.quantity}
+                        onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => { try { e.target.select(); } catch {} }}
+                        className="text-right w-20 bg-white/80 h-9"
+                        data-testid={`input-qty-${index}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => { try { e.target.select(); } catch {} }}
+                        className="text-right w-24 bg-white/80 h-9"
+                        data-testid={`input-price-${index}`}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-slate-700" data-testid={`text-total-${index}`}>
+                      ${item.total.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hover:bg-red-50"
+                        onClick={() => removeLineItem(index)}
+                        data-testid={`button-remove-${index}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lineItems.map((item, index) => (
-                    <TableRow key={index} data-testid={`line-item-${index}`}>
-                      <TableCell>
-                        <div className="space-y-2">
-                          <Input
-                            value={item.name}
-                            onChange={(e) => updateLineItem(index, 'name', e.target.value)}
-                            placeholder="Item name"
-                            className="font-medium"
-                            data-testid={`input-name-${index}`}
-                          />
-                          <Input
-                            value={item.description}
-                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                            placeholder="Description (optional)"
-                            className="text-sm"
-                            data-testid={`input-description-${index}`}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="1"
-                          value={item.quantity}
-                          onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                          onFocus={(e) => { try { e.target.select(); } catch {} }}
-                          className="text-right w-20"
-                          data-testid={`input-qty-${index}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          onFocus={(e) => { try { e.target.select(); } catch {} }}
-                          className="text-right w-24"
-                          data-testid={`input-price-${index}`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium" data-testid={`text-total-${index}`}>
-                        ${item.total.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeLineItem(index)}
-                          data-testid={`button-remove-${index}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                ))}
+              </TableBody>
+            </Table>
 
-              {/* Add Line Item Button */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addLineItem}
-                data-testid="button-add-item"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Line Item
-              </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addLineItem}
+              className="gap-1.5 text-violet-600 border-violet-200 hover:bg-violet-50"
+              data-testid="button-add-item"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Line Item
+            </Button>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className={`${frostedCard} p-4`}>
+                <Label className="text-xs font-medium text-slate-500 mb-2 block">Client Message</Label>
+                <Textarea
+                  placeholder="Message that the customer will see..."
+                  value={clientMessage}
+                  onChange={(e) => setClientMessage(e.target.value)}
+                  rows={4}
+                  className="bg-white/80 resize-none"
+                  data-testid="input-client-message"
+                />
+              </div>
+              <div className={`${frostedCard} p-4`}>
+                <Label className="text-xs font-medium text-slate-500 mb-1 block">Internal Notes</Label>
+                <p className="text-[11px] text-slate-400 mb-2">Only visible to your team</p>
+                <Textarea
+                  placeholder="Internal notes for your team..."
+                  value={internalNotes}
+                  onChange={(e) => setInternalNotes(e.target.value)}
+                  rows={3}
+                  className="bg-white/80 resize-none"
+                  data-testid="input-internal-notes"
+                />
+              </div>
             </div>
 
-            {/* Bottom Section: Messages & Totals */}
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Left: Messages */}
+            <div className={`${frostedCard} p-5`}>
               <div className="space-y-4">
-                <div className="bg-card border rounded-lg p-4">
-                  <Label className="mb-2 block">Client Message</Label>
-                  <Textarea
-                    placeholder="Message that the customer will see..."
-                    value={clientMessage}
-                    onChange={(e) => setClientMessage(e.target.value)}
-                    rows={4}
-                    data-testid="input-client-message"
-                  />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Subtotal:</span>
+                  <span className="text-lg font-semibold text-slate-800" data-testid="text-subtotal">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="bg-card border rounded-lg p-4">
-                  <Label className="mb-2 block">Internal Notes</Label>
-                  <p className="text-sm text-muted-foreground mb-2">Only visible to your team</p>
-                  <Textarea
-                    placeholder="Internal notes for your team..."
-                    value={internalNotes}
-                    onChange={(e) => setInternalNotes(e.target.value)}
-                    rows={3}
-                    data-testid="input-internal-notes"
-                  />
-                </div>
-              </div>
 
-              {/* Right: Totals */}
-              <div className="bg-card border rounded-lg p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between text-lg">
-                    <span>Subtotal:</span>
-                    <span className="font-semibold" data-testid="text-subtotal">${subtotal.toFixed(2)}</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="discount-amount" className="flex-1 text-sm text-slate-600">Discount:</Label>
+                    <Input
+                      id="discount-amount"
+                      type="number"
+                      step="0.01"
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                      onFocus={(e) => { try { e.target.select(); } catch {} }}
+                      className="w-28 text-right bg-white/80 h-8 text-sm"
+                      data-testid="input-discount"
+                    />
                   </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-end">
+                      <span className="text-xs text-red-500">-${discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="discount-amount" className="flex-1">Discount:</Label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="tax-percent" className="flex-1 text-sm text-slate-600">Tax (%):</Label>
+                    <Input
+                      id="tax-percent"
+                      type="number"
+                      step="0.01"
+                      value={taxPercent}
+                      onChange={(e) => setTaxPercent(parseFloat(e.target.value) || 0)}
+                      onFocus={(e) => { try { e.target.select(); } catch {} }}
+                      className="w-28 text-right bg-white/80 h-8 text-sm"
+                      data-testid="input-tax-percent"
+                    />
+                  </div>
+                  {taxPercent > 0 && (
+                    <div className="flex justify-end">
+                      <span className="text-xs text-slate-500" data-testid="text-tax-amount">${taxAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold text-slate-700">Total:</span>
+                    <span className="text-xl font-bold text-slate-900" data-testid="text-total">${total.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4 space-y-3">
+                  <Label htmlFor="deposit-type" className="text-xs font-medium text-slate-500">Required Deposit</Label>
+                  <div className="flex items-center gap-2">
+                    <Select value={depositType} onValueChange={(value: any) => setDepositType(value)}>
+                      <SelectTrigger id="deposit-type" data-testid="select-deposit-type" className="flex-1 bg-white/80 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Deposit</SelectItem>
+                        <SelectItem value="percent">Percentage (%)</SelectItem>
+                        <SelectItem value="fixed">Fixed ($)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {depositType !== 'none' && (
                       <Input
-                        id="discount-amount"
+                        id="deposit-value"
                         type="number"
                         step="0.01"
-                        value={discountAmount}
-                        onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                        placeholder={depositType === 'percent' ? '25' : '500'}
+                        value={depositValue}
+                        onChange={(e) => setDepositValue(parseFloat(e.target.value) || 0)}
                         onFocus={(e) => { try { e.target.select(); } catch {} }}
-                        className="w-32 text-right"
-                        data-testid="input-discount"
+                        className="w-28 bg-white/80 h-9"
+                        data-testid="input-deposit-value"
                       />
-                    </div>
-                    {discountAmount > 0 && (
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span></span>
-                        <span>-${discountAmount.toFixed(2)}</span>
-                      </div>
                     )}
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="tax-percent" className="flex-1">Tax (%):</Label>
-                      <Input
-                        id="tax-percent"
-                        type="number"
-                        step="0.01"
-                        value={taxPercent}
-                        onChange={(e) => setTaxPercent(parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => { try { e.target.select(); } catch {} }}
-                        className="w-32 text-right"
-                        data-testid="input-tax-percent"
-                      />
-                    </div>
-                    {taxPercent > 0 && (
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span></span>
-                        <span data-testid="text-tax-amount">${taxAmount.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between text-xl font-bold">
-                      <span>Total:</span>
-                      <span data-testid="text-total">${total.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4 space-y-3">
-                    <Label htmlFor="deposit-type">Required Deposit</Label>
-                    <div className="flex items-center gap-2">
-                      <Select value={depositType} onValueChange={(value: any) => setDepositType(value)}>
-                        <SelectTrigger id="deposit-type" data-testid="select-deposit-type" className="flex-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No Deposit</SelectItem>
-                          <SelectItem value="percent">Percentage (%)</SelectItem>
-                          <SelectItem value="fixed">Fixed ($)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {depositType !== 'none' && (
-                        <Input
-                          id="deposit-value"
-                          type="number"
-                          step="0.01"
-                          placeholder={depositType === 'percent' ? '25' : '500'}
-                          value={depositValue}
-                          onChange={(e) => setDepositValue(parseFloat(e.target.value) || 0)}
-                          onFocus={(e) => { try { e.target.select(); } catch {} }}
-                          className="w-32"
-                          data-testid="input-deposit-value"
-                        />
-                      )}
-                    </div>
-                    {depositType !== 'none' && requiredDepositAmount > 0 && (
-                      <p className="text-sm text-muted-foreground" data-testid="text-deposit-calculated">
-                        Deposit Amount: ${requiredDepositAmount.toFixed(2)}
-                      </p>
-                    )}
-                  </div>
+                  {depositType !== 'none' && requiredDepositAmount > 0 && (
+                    <p className="text-xs text-slate-500" data-testid="text-deposit-calculated">
+                      Deposit Amount: ${requiredDepositAmount.toFixed(2)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setLocation('/quotes')}
-                data-testid="button-cancel"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={saveMutation.isPending}
-                data-testid="button-save"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saveMutation.isPending ? 'Saving...' : isEditMode ? 'Update Quote' : 'Save Quote'}
-              </Button>
-            </div>
-          </form>
-        </main>
+          </div>
+        </form>
       </div>
     </div>
   );
