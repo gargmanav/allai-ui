@@ -228,20 +228,21 @@ export default function QuoteFormPage() {
 
   if (isEditMode && isLoadingQuote) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/20 to-blue-50/30 flex items-center justify-center">
         <div className="text-center">
-          <FileText className="h-8 w-8 mx-auto mb-3 text-violet-400 animate-pulse" />
+          <FileText className="h-8 w-8 mx-auto mb-3 text-sky-400 animate-pulse" />
           <p className="text-muted-foreground">Loading quote...</p>
         </div>
       </div>
     );
   }
 
-  const frostedCard = "rounded-xl border border-slate-200/80 shadow-md shadow-slate-200/50" +
-    " bg-white/80 backdrop-blur-md ring-1 ring-white/50";
+  const frostedCard = "rounded-xl border border-slate-200/70 shadow-lg shadow-slate-200/40" +
+    " bg-white/85 backdrop-blur-md ring-1 ring-white/60" +
+    " [box-shadow:0_1px_0_0_rgba(255,255,255,0.8)_inset,0_-1px_3px_0_rgba(148,163,184,0.1)_inset,0_4px_12px_-2px_rgba(100,116,139,0.12)]";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100/80 via-white to-violet-50/40">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/20 to-blue-50/30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -275,7 +276,7 @@ export default function QuoteFormPage() {
               size="sm"
               disabled={saveMutation.isPending}
               onClick={handleSubmit as any}
-              className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5"
+              className="bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-600 hover:to-blue-600 text-white gap-1.5 shadow-sm"
               data-testid="button-save"
             >
               <Save className="h-3.5 w-3.5" />
@@ -406,7 +407,7 @@ export default function QuoteFormPage() {
               variant="outline"
               size="sm"
               onClick={addLineItem}
-              className="gap-1.5 text-violet-600 border-violet-200 hover:bg-violet-50"
+              className="gap-1.5 text-sky-600 border-sky-200 hover:bg-sky-50"
               data-testid="button-add-item"
             >
               <Plus className="h-3.5 w-3.5" />
