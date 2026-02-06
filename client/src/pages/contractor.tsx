@@ -1310,8 +1310,10 @@ export default function Contractor() {
             filterTabs={[
               { id: "all", label: "All", count: quotes.length },
               { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
-              { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent").length },
+              { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
               { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved").length },
+              { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
+              { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
             ]}
             itemType="quote"
             onItemSelect={(item) => { navigate(`/quotes?id=${item.id}`); }}

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2 } from "lucide-react";
+import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit } from "lucide-react";
 
 interface Item {
   id: string;
@@ -35,6 +35,7 @@ interface MayaRecommendation {
   message: string;
   itemId?: string;
 }
+
 
 interface MayaChatMessage {
   role: "user" | "maya";
@@ -119,7 +120,11 @@ export function MayaCarouselLayout({
     let result = [...items];
     
     if (activeFilter !== "all") {
-      result = result.filter(item => item.status.toLowerCase() === activeFilter.toLowerCase());
+      if (activeFilter === "sent") {
+        result = result.filter(item => item.status.toLowerCase() === "sent" || item.status.toLowerCase() === "awaiting_response");
+      } else {
+        result = result.filter(item => item.status.toLowerCase() === activeFilter.toLowerCase());
+      }
     }
     
     if (categoryFilter !== "all") {
@@ -135,7 +140,9 @@ export function MayaCarouselLayout({
       result = result.filter(item => 
         item.title.toLowerCase().includes(query) ||
         item.customerName.toLowerCase().includes(query) ||
-        item.description?.toLowerCase().includes(query)
+        item.description?.toLowerCase().includes(query) ||
+        (item.estimatedValue && item.estimatedValue.toString().includes(query)) ||
+        (item.total && item.total.toString().includes(query))
       );
     }
     
@@ -149,6 +156,12 @@ export function MayaCarouselLayout({
           const priorityOrder: Record<string, number> = { "Urgent": 0, "High": 1, "Normal": 2, "Low": 3 };
           return (priorityOrder[a.priority || "Normal"] || 2) - (priorityOrder[b.priority || "Normal"] || 2);
         }
+        case "expiry": {
+          const aExp = a.expiresAt ? new Date(a.expiresAt).getTime() : Infinity;
+          const bExp = b.expiresAt ? new Date(b.expiresAt).getTime() : Infinity;
+          return aExp - bExp;
+        }
+        case "customer": return (a.customerName || "").localeCompare(b.customerName || "");
         default: return 0;
       }
     });
@@ -173,34 +186,90 @@ export function MayaCarouselLayout({
     
     const recommendations: MayaRecommendation[] = [];
     
-    const highestValue = items.reduce((max, item) => 
-      (item.estimatedValue || 0) > (max.estimatedValue || 0) ? item : max, items[0]);
-    
-    if (highestValue && (highestValue.estimatedValue || 0) > 0) {
-      recommendations.push({
-        type: "prioritize",
-        title: "Highest Value",
-        message: `"${highestValue.title}" has the highest potential value at $${highestValue.estimatedValue?.toLocaleString()}. Consider prioritizing this ${itemType}.`,
-        itemId: highestValue.id,
+    if (itemType === "quote") {
+      const now = new Date();
+      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const expiringSoon = items.filter(item => {
+        if (!item.expiresAt || item.status === "Approved" || item.status === "Declined" || item.status === "Expired") return false;
+        const exp = new Date(item.expiresAt);
+        return exp <= weekFromNow && exp >= now;
       });
-    }
-    
-    const urgentItems = items.filter(item => item.priority === "Urgent" || item.priority === "High");
-    if (urgentItems.length > 0) {
-      recommendations.push({
-        type: "followup",
-        title: "Urgent Attention",
-        message: `You have ${urgentItems.length} urgent ${itemType}${urgentItems.length > 1 ? 's' : ''} that need immediate attention.`,
+      if (expiringSoon.length > 0) {
+        const soonest = expiringSoon.sort((a, b) => new Date(a.expiresAt!).getTime() - new Date(b.expiresAt!).getTime())[0];
+        recommendations.push({
+          type: "followup",
+          title: "Expiring Soon",
+          message: `${expiringSoon.length} quote${expiringSoon.length > 1 ? 's expire' : ' expires'} within 7 days. "${soonest.title}" expires first — consider following up with ${soonest.customerName}.`,
+          itemId: soonest.id,
+        });
+      }
+
+      const sentQuotes = items.filter(item => item.status === "Sent" || item.status === "Awaiting_response");
+      const oldSent = sentQuotes.filter(item => {
+        if (!item.createdAt) return false;
+        const created = new Date(item.createdAt);
+        const daysSince = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+        return daysSince >= 3;
       });
-    }
-    
-    const unscheduled = items.filter(item => !item.scheduledDate && item.status !== "Completed");
-    if (unscheduled.length > 0) {
-      recommendations.push({
-        type: "schedule",
-        title: "Schedule Suggestion",
-        message: `${unscheduled.length} ${itemType}${unscheduled.length > 1 ? 's are' : ' is'} not yet scheduled. Would you like me to suggest optimal times?`,
-      });
+      if (oldSent.length > 0) {
+        recommendations.push({
+          type: "followup",
+          title: "Follow Up Needed",
+          message: `${oldSent.length} sent quote${oldSent.length > 1 ? 's have' : ' has'} had no response for 3+ days. A quick follow-up can increase your approval rate.`,
+          itemId: oldSent[0]?.id,
+        });
+      }
+
+      const drafts = items.filter(item => item.status === "Draft");
+      if (drafts.length > 0) {
+        const highestDraft = drafts.reduce((max, d) => (d.estimatedValue || 0) > (max.estimatedValue || 0) ? d : max, drafts[0]);
+        recommendations.push({
+          type: "price",
+          title: "Drafts Ready to Send",
+          message: `You have ${drafts.length} draft quote${drafts.length > 1 ? 's' : ''} worth $${drafts.reduce((s, d) => s + (d.estimatedValue || 0), 0).toLocaleString()}. "${highestDraft.title}" ($${(highestDraft.estimatedValue || 0).toLocaleString()}) is your highest — ready to send?`,
+          itemId: highestDraft.id,
+        });
+      }
+
+      const approved = items.filter(item => item.status === "Approved");
+      if (approved.length > 0) {
+        const totalApproved = approved.reduce((s, a) => s + (a.estimatedValue || 0), 0);
+        recommendations.push({
+          type: "prioritize",
+          title: "Revenue Ready",
+          message: `${approved.length} approved quote${approved.length > 1 ? 's' : ''} worth $${totalApproved.toLocaleString()} — time to schedule the work and start earning.`,
+        });
+      }
+    } else {
+      const highestValue = items.reduce((max, item) => 
+        (item.estimatedValue || 0) > (max.estimatedValue || 0) ? item : max, items[0]);
+      
+      if (highestValue && (highestValue.estimatedValue || 0) > 0) {
+        recommendations.push({
+          type: "prioritize",
+          title: "Highest Value",
+          message: `"${highestValue.title}" has the highest potential value at $${highestValue.estimatedValue?.toLocaleString()}. Consider prioritizing this ${itemType}.`,
+          itemId: highestValue.id,
+        });
+      }
+      
+      const urgentItems = items.filter(item => item.priority === "Urgent" || item.priority === "High");
+      if (urgentItems.length > 0) {
+        recommendations.push({
+          type: "followup",
+          title: "Urgent Attention",
+          message: `You have ${urgentItems.length} urgent ${itemType}${urgentItems.length > 1 ? 's' : ''} that need immediate attention.`,
+        });
+      }
+      
+      const unscheduled = items.filter(item => !item.scheduledDate && item.status !== "Completed");
+      if (unscheduled.length > 0) {
+        recommendations.push({
+          type: "schedule",
+          title: "Schedule Suggestion",
+          message: `${unscheduled.length} ${itemType}${unscheduled.length > 1 ? 's are' : ' is'} not yet scheduled. Would you like me to suggest optimal times?`,
+        });
+      }
     }
     
     return recommendations.slice(0, 3);
@@ -240,14 +309,64 @@ export function MayaCarouselLayout({
   const generateMayaResponse = (question: string, items: Item[], type: string): string => {
     const q = question.toLowerCase();
     
+    if (type === "quote") {
+      if (q.includes("expir") || q.includes("deadline") || q.includes("due")) {
+        const now = new Date();
+        const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const expiring = items.filter(i => i.expiresAt && new Date(i.expiresAt) <= weekFromNow && new Date(i.expiresAt) >= now);
+        if (expiring.length > 0) {
+          return `${expiring.length} quote${expiring.length > 1 ? 's are' : ' is'} expiring within the next week. I'd suggest reaching out to those customers soon to keep the deals moving forward.`;
+        }
+        return `None of your current quotes are expiring soon. You're in good shape!`;
+      }
+
+      if (q.includes("draft") || q.includes("finish") || q.includes("incomplete")) {
+        const drafts = items.filter(i => i.status === "Draft");
+        if (drafts.length > 0) {
+          const totalDraftValue = drafts.reduce((s, d) => s + (d.estimatedValue || 0), 0);
+          return `You have ${drafts.length} draft quote${drafts.length > 1 ? 's' : ''} worth $${totalDraftValue.toLocaleString()} total. Finishing and sending these could bring in significant revenue. Want me to help you prioritize which ones to complete first?`;
+        }
+        return `All your quotes have been sent — no drafts remaining. Great job staying on top of things!`;
+      }
+
+      if (q.includes("follow") || q.includes("response") || q.includes("waiting") || q.includes("pending")) {
+        const sent = items.filter(i => i.status === "Sent" || i.status === "Awaiting_response");
+        if (sent.length > 0) {
+          return `You have ${sent.length} quote${sent.length > 1 ? 's' : ''} awaiting customer response. A friendly follow-up after 3-5 days can significantly improve your close rate. Consider calling rather than emailing for higher-value quotes.`;
+        }
+        return `All your sent quotes have received responses. Check your approved quotes to schedule the work!`;
+      }
+
+      if (q.includes("approved") || q.includes("won") || q.includes("accepted")) {
+        const approved = items.filter(i => i.status === "Approved");
+        const total = approved.reduce((s, a) => s + (a.estimatedValue || 0), 0);
+        return `You have ${approved.length} approved quote${approved.length > 1 ? 's' : ''} worth $${total.toLocaleString()}. These are ready to be scheduled and converted into active jobs. The sooner you start, the happier your customers will be.`;
+      }
+
+      if (q.includes("declined") || q.includes("lost") || q.includes("rejected")) {
+        const declined = items.filter(i => i.status === "Declined");
+        if (declined.length > 0) {
+          return `${declined.length} quote${declined.length > 1 ? 's were' : ' was'} declined. Common reasons include pricing, timing, or scope. Consider creating revised quotes with adjusted pricing or phased approaches for these customers.`;
+        }
+        return `No declined quotes — that's a great approval rate! Keep up the excellent work.`;
+      }
+    }
+
     if (q.includes("urgent") || q.includes("priority")) {
       const urgentCount = items.filter(i => i.priority === "Urgent" || i.priority === "High").length;
       return `You have ${urgentCount} high-priority ${type}s that need attention. I recommend focusing on these first to maintain customer satisfaction.`;
     }
     
-    if (q.includes("value") || q.includes("money") || q.includes("revenue")) {
+    if (q.includes("value") || q.includes("money") || q.includes("revenue") || q.includes("total") || q.includes("worth")) {
       const totalValue = items.reduce((sum, i) => sum + (i.estimatedValue || 0), 0);
-      return `Your current ${type}s represent a total potential value of $${totalValue.toLocaleString()}. The highest value opportunity is worth $${Math.max(...items.map(i => i.estimatedValue || 0)).toLocaleString()}.`;
+      const highest = Math.max(...items.map(i => i.estimatedValue || 0));
+      if (type === "quote") {
+        const byStatus: Record<string, number> = {};
+        items.forEach(i => { byStatus[i.status] = (byStatus[i.status] || 0) + (i.estimatedValue || 0); });
+        const breakdown = Object.entries(byStatus).map(([s, v]) => `${s}: $${v.toLocaleString()}`).join(", ");
+        return `Your quotes total $${totalValue.toLocaleString()}. Breakdown by status — ${breakdown}. Focus on getting drafts sent and following up on pending quotes to maximize revenue.`;
+      }
+      return `Your current ${type}s represent a total potential value of $${totalValue.toLocaleString()}. The highest value opportunity is worth $${highest.toLocaleString()}.`;
     }
     
     if (q.includes("schedule") || q.includes("time") || q.includes("when")) {
@@ -260,6 +379,13 @@ export function MayaCarouselLayout({
       items.forEach(i => { catCounts[i.category || "General"] = (catCounts[i.category || "General"] || 0) + 1; });
       const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
       return `Your most common category is "${topCat?.[0]}" with ${topCat?.[1]} ${type}s. Consider specializing in this area or hiring help for it.`;
+    }
+
+    if (type === "quote") {
+      const drafts = items.filter(i => i.status === "Draft").length;
+      const sent = items.filter(i => i.status === "Sent" || i.status === "Awaiting_response").length;
+      const approved = items.filter(i => i.status === "Approved").length;
+      return `You have ${items.length} quotes: ${drafts} drafts, ${sent} sent and awaiting response, and ${approved} approved. Try asking me about expiring quotes, follow-ups, drafts, or your revenue breakdown.`;
     }
     
     return `Based on your ${items.length} current ${type}s, I recommend prioritizing high-value opportunities and urgent requests. Would you like specific recommendations for scheduling or pricing?`;
@@ -280,12 +406,24 @@ export function MayaCarouselLayout({
       case "New": case "Submitted": return "bg-slate-100 text-slate-600";
       case "In Progress": case "Active": return "bg-slate-100 text-slate-700";
       case "Scheduled": return "bg-slate-100 text-slate-600";
-      case "Draft": return "bg-slate-50 text-slate-500";
-      case "Sent": return "bg-slate-100 text-slate-600";
-      case "Approved": return "bg-green-50 text-green-600";
-      case "Declined": case "Expired": return "bg-red-50 text-red-500";
+      case "Draft": return "bg-slate-100 text-slate-500 border-slate-200";
+      case "Sent": case "Awaiting_response": return "bg-blue-50 text-blue-600 border-blue-200";
+      case "Approved": return "bg-green-50 text-green-600 border-green-200";
+      case "Declined": return "bg-red-50 text-red-600 border-red-200";
+      case "Expired": return "bg-amber-50 text-amber-600 border-amber-200";
       case "In Review": return "bg-slate-100 text-slate-600";
       default: return "bg-slate-50 text-slate-500";
+    }
+  };
+
+  const getStatusDot = (status: string) => {
+    switch (status) {
+      case "Draft": return "bg-slate-400";
+      case "Sent": case "Awaiting_response": return "bg-blue-500";
+      case "Approved": return "bg-green-500";
+      case "Declined": return "bg-red-500";
+      case "Expired": return "bg-amber-500";
+      default: return "";
     }
   };
 
@@ -335,8 +473,9 @@ export function MayaCarouselLayout({
                     >
                       <div className="flex items-center gap-2 mb-1">
                         {rec.type === "prioritize" && <DollarSign className="h-4 w-4 text-green-600" />}
-                        {rec.type === "followup" && <Clock className="h-4 w-4 text-orange-500" />}
+                        {rec.type === "followup" && <AlertTriangle className="h-4 w-4 text-orange-500" />}
                         {rec.type === "schedule" && <Calendar className="h-4 w-4 text-blue-500" />}
+                        {rec.type === "price" && <FileEdit className="h-4 w-4 text-violet-500" />}
                         <span className="text-sm font-medium">{rec.title}</span>
                       </div>
                       <p className="text-xs text-gray-600">{rec.message}</p>
@@ -399,8 +538,9 @@ export function MayaCarouselLayout({
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {rec.type === "prioritize" && <DollarSign className="h-4 w-4 text-green-600" />}
-                    {rec.type === "followup" && <Clock className="h-4 w-4 text-orange-500" />}
+                    {rec.type === "followup" && <AlertTriangle className="h-4 w-4 text-orange-500" />}
                     {rec.type === "schedule" && <Calendar className="h-4 w-4 text-blue-500" />}
+                    {rec.type === "price" && <FileEdit className="h-4 w-4 text-violet-500" />}
                     <span className="text-sm font-medium text-gray-800">{rec.title}</span>
                   </div>
                   <p className="text-xs text-gray-600 line-clamp-2">{rec.message}</p>
@@ -526,7 +666,9 @@ export function MayaCarouselLayout({
                   <option value="oldest">Oldest</option>
                   <option value="highest">Highest Value</option>
                   <option value="lowest">Lowest Value</option>
-                  <option value="priority">Priority</option>
+                  {itemType === "quote" && <option value="expiry">Expiring Soon</option>}
+                  {itemType === "quote" && <option value="customer">By Customer</option>}
+                  {itemType !== "quote" && <option value="priority">Priority</option>}
                 </select>
               )}
 
@@ -628,11 +770,14 @@ export function MayaCarouselLayout({
                             <span className="text-[8px] text-white font-bold">!</span>
                           </div>
                         )}
+                        {itemType === "quote" && getStatusDot(item.status) && (
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${getStatusDot(item.status)} rounded-full border-2 border-white`} />
+                        )}
                       </div>
                       <span className={`text-xs mt-2 font-medium truncate max-w-[65px] ${isSelected ? "text-violet-700" : "text-foreground"}`}>
                         {item.customerName.split(" ")[0]}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">{item.status}</span>
+                      <span className={`text-[10px] ${itemType === "quote" ? getStatusDot(item.status).replace("bg-", "text-") : "text-muted-foreground"}`}>{item.status}</span>
                       <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>
                         ${(item.estimatedValue || 0).toLocaleString()}
                       </span>
