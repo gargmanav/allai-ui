@@ -486,7 +486,7 @@ export function MayaCarouselLayout({
           {/* Unified Toolbar - View dropdown + Search + Category + Sort + Cards/List toggle */}
           <div className="shrink-0 px-4 py-3 border-b bg-white">
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              {/* View Dropdown - replaces filter tab pills */}
+              {/* View Dropdown */}
               {filterTabs && filterTabs.length > 0 && (
                 <select
                   value={activeFilter}
@@ -499,24 +499,6 @@ export function MayaCarouselLayout({
                     </option>
                   ))}
                 </select>
-              )}
-
-              {/* Search */}
-              {showSearch && (
-                <div className="relative flex-1 min-w-[120px] max-w-[200px]">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 h-8 text-xs border-slate-200 bg-slate-50 focus:bg-white"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded">
-                      <X className="h-3 w-3 text-slate-400" />
-                    </button>
-                  )}
-                </div>
               )}
 
               {/* Category Filter */}
@@ -559,11 +541,25 @@ export function MayaCarouselLayout({
                 </button>
               )}
 
-              {/* Count + Cards/List Toggle - pushed right */}
+              {/* Right side: Search + Cards/List Toggle */}
               <div className="flex items-center gap-2 ml-auto shrink-0">
-                <span className="text-xs text-slate-400 whitespace-nowrap">
-                  {filteredItems.length} of {items.length}
-                </span>
+                {/* Search */}
+                {showSearch && (
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 h-8 w-32 text-xs border-slate-200 bg-slate-50 focus:bg-white focus:w-44 transition-all"
+                    />
+                    {searchQuery && (
+                      <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded">
+                        <X className="h-3 w-3 text-slate-400" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center bg-muted rounded-md p-0.5">
                   <button
                     onClick={() => setViewMode("cards")}
@@ -587,6 +583,15 @@ export function MayaCarouselLayout({
               </div>
             </div>
           </div>
+
+          {/* Subtle count line below toolbar */}
+          {(filteredItems.length !== items.length || hasActiveFilters) && (
+            <div className="px-4 py-1 bg-slate-50/80 border-b">
+              <span className="text-[11px] text-slate-400">
+                Showing {filteredItems.length} of {items.length} {itemType}s
+              </span>
+            </div>
+          )}
 
         {/* Content Area - scrollable with sticky headers above */}
         <div className="flex-1 overflow-y-auto min-h-0">
