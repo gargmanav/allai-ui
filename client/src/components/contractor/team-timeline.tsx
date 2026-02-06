@@ -241,8 +241,15 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                 >
                   <div className="w-24 flex-shrink-0 px-3 py-2 flex items-center gap-2">
                     <div 
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0"
-                      style={{ backgroundColor: teamColor }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.75)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(200, 210, 220, 0.5)',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.8)',
+                        color: '#475569',
+                      }}
                     >
                       {initials}
                     </div>
