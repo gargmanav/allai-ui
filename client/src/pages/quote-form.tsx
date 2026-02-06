@@ -91,7 +91,11 @@ export default function QuoteFormPage() {
         displayOrder: item.displayOrder,
       }));
       
-      setLineItems(mappedLineItems);
+      if (mappedLineItems.length === 0) {
+        setLineItems([{ name: "", description: "", quantity: 1, unitPrice: 0, total: 0, displayOrder: 0 }]);
+      } else {
+        setLineItems(mappedLineItems);
+      }
     }
   }, [isEditMode, existingQuoteData]);
 
@@ -331,14 +335,14 @@ export default function QuoteFormPage() {
           <div className={`${frostedCard} p-5`}>
             <h3 className="text-sm font-semibold text-slate-700 mb-4">Line Items</h3>
             
-            <Table className="mb-4">
+            <Table className="mb-4 table-fixed">
               <TableHeader>
                 <TableRow className="border-slate-100">
-                  <TableHead className="w-[300px] text-xs text-slate-500">Product / Service</TableHead>
-                  <TableHead className="text-right w-[100px] text-xs text-slate-500">Qty.</TableHead>
-                  <TableHead className="text-right w-[120px] text-xs text-slate-500">Unit Price</TableHead>
-                  <TableHead className="text-right w-[120px] text-xs text-slate-500">Total</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="text-xs text-slate-500" style={{ width: '40%' }}>Product / Service</TableHead>
+                  <TableHead className="text-center text-xs text-slate-500" style={{ width: '15%' }}>Qty.</TableHead>
+                  <TableHead className="text-center text-xs text-slate-500" style={{ width: '18%' }}>Unit Price</TableHead>
+                  <TableHead className="text-right text-xs text-slate-500" style={{ width: '15%' }}>Total</TableHead>
+                  <TableHead style={{ width: '12%' }}></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -362,32 +366,32 @@ export default function QuoteFormPage() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>
                       <Input
                         type="number"
                         step="1"
                         value={item.quantity}
                         onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                         onFocus={(e) => { try { e.target.select(); } catch {} }}
-                        className="text-right w-20 ml-auto bg-white/80 h-9"
+                        className="text-center bg-white/80 h-9 w-full"
                         data-testid={`input-qty-${index}`}
                       />
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>
                       <Input
                         type="number"
                         step="0.01"
                         value={item.unitPrice}
                         onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                         onFocus={(e) => { try { e.target.select(); } catch {} }}
-                        className="text-right w-24 ml-auto bg-white/80 h-9"
+                        className="text-center bg-white/80 h-9 w-full"
                         data-testid={`input-price-${index}`}
                       />
                     </TableCell>
                     <TableCell className="text-right font-semibold text-slate-700" data-testid={`text-total-${index}`}>
                       ${item.total.toFixed(2)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-center">
                       <Button
                         type="button"
                         variant="ghost"
