@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
+import { MayaPhotoAnalysis } from "./maya-photo-analysis";
 
 interface AiTriageData {
   urgency?: string;
@@ -16,6 +17,10 @@ interface AiTriageData {
   estimatedTime?: string;
   suggestedActions?: string[];
   safetyNotes?: string;
+  photoAnalysis?: {
+    tenant?: { summary: string; advice: string; safetyLevel?: string };
+    contractor?: { summary: string; technicalNotes: string; materialsNeeded?: string[]; codeCompliance?: string };
+  };
 }
 
 interface CaseMediaItem {
@@ -992,7 +997,13 @@ export function MayaCarouselLayout({
                       </div>
                     )}
 
-                    {selectedItem.media && selectedItem.media.length > 0 && (
+                    {selectedItem.media && selectedItem.media.length > 0 && selectedItem.aiTriageJson?.photoAnalysis ? (
+                      <MayaPhotoAnalysis
+                        media={selectedItem.media}
+                        photoAnalysis={selectedItem.aiTriageJson.photoAnalysis}
+                        mode="contractor"
+                      />
+                    ) : selectedItem.media && selectedItem.media.length > 0 ? (
                       <div className="mt-4 pt-4 border-t">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Photos</p>
                         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1007,7 +1018,7 @@ export function MayaCarouselLayout({
                           ))}
                         </div>
                       </div>
-                    )}
+                    ) : null}
 
                     {selectedItem.aiTriageJson && (
                       <div className="mt-4 pt-4 border-t">

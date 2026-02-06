@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, AlertTriangle, CheckCircle, Wrench, Bot, Send, Home, Building, Camera, Loader2, MessageSquare, Bell, Plus, ChevronLeft, ChevronRight, User, LogOut, Settings } from "lucide-react";
+import { MayaPhotoAnalysis } from "@/components/contractor/maya-photo-analysis";
 import { LiveNotification } from "@/components/ui/live-notification";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,12 @@ interface TenantCase {
   createdAt: string;
   updatedAt: string;
   assignedContractorId?: string;
+  aiTriageJson?: {
+    photoAnalysis?: {
+      tenant?: { summary: string; advice: string; safetyLevel?: string };
+    };
+  };
+  media?: Array<{ id: string; url: string; type: string; caption?: string }>;
 }
 
 interface TenantAppointment {
@@ -850,6 +857,16 @@ export default function TenantDashboard() {
                                   <span>Submitted: {format(new Date(c.createdAt), 'MMM d, yyyy')}</span>
                                   {c.buildingName && <span>📍 {c.buildingName}</span>}
                                 </div>
+
+                                {c.media && c.media.length > 0 && (
+                                  <div className="mt-2">
+                                    <MayaPhotoAnalysis
+                                      media={c.media}
+                                      photoAnalysis={c.aiTriageJson?.photoAnalysis}
+                                      mode="tenant"
+                                    />
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </CardContent>

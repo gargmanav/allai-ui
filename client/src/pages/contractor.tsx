@@ -63,6 +63,7 @@ import { CustomersContent } from "@/pages/customers";
 import { QuickAdd } from "@/components/contractor/quick-add-fab";
 import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
+import { MayaPhotoAnalysis } from "@/components/contractor/maya-photo-analysis";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -1590,6 +1591,21 @@ export default function Contractor() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Photo Analysis */}
+            {(selectedCase as any).media?.length > 0 && (
+              <Card className="mb-4 border-violet-100 overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="p-4">
+                    <MayaPhotoAnalysis
+                      media={(selectedCase as any).media}
+                      photoAnalysis={(selectedCase as any).aiTriageJson?.photoAnalysis}
+                      mode="contractor"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* AI Triage Assessment */}
             {(selectedCase as any).aiTriageJson && (
