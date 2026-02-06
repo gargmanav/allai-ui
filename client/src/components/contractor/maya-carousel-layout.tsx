@@ -69,7 +69,7 @@ export function MayaCarouselLayout({
   subtitle,
   items,
   filterTabs,
-  activeFilter: externalActiveFilter,
+  activeFilter: initialActiveFilter,
   onFilterChange,
   onItemSelect,
   onAccept,
@@ -85,7 +85,7 @@ export function MayaCarouselLayout({
   categories = [],
 }: MayaCarouselLayoutProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [internalFilter, setInternalFilter] = useState<string>(externalActiveFilter || "all");
+  const [internalFilter, setInternalFilter] = useState<string>(initialActiveFilter || "all");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -97,7 +97,7 @@ export function MayaCarouselLayout({
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
   
-  const activeFilter = externalActiveFilter ?? internalFilter;
+  const activeFilter = internalFilter;
   
   const handleFilterChange = (filterId: string) => {
     setInternalFilter(filterId);
