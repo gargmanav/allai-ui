@@ -239,21 +239,32 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                   key={member.id} 
                   className={`flex items-center min-h-[52px] ${idx < teamMembers.length - 1 ? 'border-b border-gray-100' : ''}`}
                 >
-                  <div className="w-24 flex-shrink-0 px-3 py-2 flex items-center gap-2">
+                  <div className="w-14 flex-shrink-0 px-2 py-2 flex items-center justify-center group/avatar relative">
                     <div 
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg"
                       style={{ 
-                        background: 'rgba(255, 255, 255, 0.75)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(200, 210, 220, 0.5)',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.8)',
-                        color: '#475569',
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,245,250,0.7) 50%, rgba(230,238,248,0.6) 100%)',
+                        backdropFilter: 'blur(24px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                        border: '1.5px solid rgba(255, 255, 255, 0.8)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04), inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -1px 2px rgba(148,163,184,0.1)',
+                        color: '#334155',
                       }}
+                      title={member.name}
                     >
                       {initials}
                     </div>
-                    <span className="text-xs font-medium text-gray-700 truncate">{member.name}</span>
+                    <div className="absolute left-full ml-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/avatar:opacity-100 transition-all duration-200 pointer-events-none z-30 whitespace-nowrap px-2 py-1 rounded-md text-xs font-medium text-slate-700"
+                      style={{
+                        background: 'rgba(255,255,255,0.92)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(200,210,220,0.4)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      {member.name}
+                    </div>
                   </div>
 
                   <div className="flex-1 relative h-12">
