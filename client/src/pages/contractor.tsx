@@ -1184,6 +1184,8 @@ export default function Contractor() {
               color: job.color,
               reporterUserId: (job as any).reporterUserId,
               orgId: (job as any).orgId,
+              aiTriageJson: (job as any).aiTriageJson,
+              media: (job as any).media,
             }))}
             filterTabs={[
               { id: "all", label: "All", count: jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length },
@@ -1234,6 +1236,8 @@ export default function Contractor() {
               color: job.color,
               reporterUserId: (job as any).reporterUserId,
               orgId: (job as any).orgId,
+              aiTriageJson: (job as any).aiTriageJson,
+              media: (job as any).media,
             }))}
             filterTabs={[
               { id: "all", label: "All Jobs", count: allJobsCount },
@@ -1586,6 +1590,72 @@ export default function Contractor() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI Triage Assessment */}
+            {(selectedCase as any).aiTriageJson && (
+              <Card className="mb-4 border-violet-100">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                      <Sparkles className="h-3 w-3 text-white" />
+                    </div>
+                    <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
+                  </div>
+                  <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Urgency</span>
+                      <Badge className={
+                        (selectedCase as any).aiTriageJson.urgency === "critical" ? "bg-red-100 text-red-700 border-red-200" :
+                        (selectedCase as any).aiTriageJson.urgency === "high" ? "bg-orange-100 text-orange-700 border-orange-200" :
+                        (selectedCase as any).aiTriageJson.urgency === "moderate" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                        "bg-green-100 text-green-700 border-green-200"
+                      }>
+                        {(selectedCase as any).aiTriageJson.urgency || "Unknown"}
+                      </Badge>
+                    </div>
+                    {(selectedCase as any).aiTriageJson.rootCause && (
+                      <div>
+                        <span className="text-xs text-slate-500 block mb-0.5">Likely Cause</span>
+                        <p className="text-sm text-slate-700">{(selectedCase as any).aiTriageJson.rootCause}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-4">
+                      {(selectedCase as any).aiTriageJson.estimatedCost && (
+                        <div>
+                          <span className="text-xs text-slate-500 block">Est. Cost</span>
+                          <p className="text-sm font-medium text-slate-700">{(selectedCase as any).aiTriageJson.estimatedCost}</p>
+                        </div>
+                      )}
+                      {(selectedCase as any).aiTriageJson.estimatedTime && (
+                        <div>
+                          <span className="text-xs text-slate-500 block">Est. Time</span>
+                          <p className="text-sm font-medium text-slate-700">{(selectedCase as any).aiTriageJson.estimatedTime}</p>
+                        </div>
+                      )}
+                    </div>
+                    {(selectedCase as any).aiTriageJson.suggestedActions?.length > 0 && (
+                      <div>
+                        <span className="text-xs text-slate-500 block mb-1">Suggested Steps</span>
+                        <ul className="space-y-1">
+                          {(selectedCase as any).aiTriageJson.suggestedActions.map((action: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                              <CheckCircle className="h-3.5 w-3.5 text-violet-400 mt-0.5 shrink-0" />
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(selectedCase as any).aiTriageJson.safetyNotes && (
+                      <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 border border-amber-200">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <p className="text-xs text-amber-700">{(selectedCase as any).aiTriageJson.safetyNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Messages Thread */}
             <ThreadChat

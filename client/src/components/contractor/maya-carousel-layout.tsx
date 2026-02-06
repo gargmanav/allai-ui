@@ -9,6 +9,22 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
 
+interface AiTriageData {
+  urgency?: string;
+  rootCause?: string;
+  estimatedCost?: string;
+  estimatedTime?: string;
+  suggestedActions?: string[];
+  safetyNotes?: string;
+}
+
+interface CaseMediaItem {
+  id: string;
+  url: string;
+  type?: string;
+  caption?: string;
+}
+
 interface Item {
   id: string;
   title: string;
@@ -31,6 +47,8 @@ interface Item {
   expiresAt?: string;
   reporterUserId?: string;
   orgId?: string;
+  aiTriageJson?: AiTriageData | null;
+  media?: CaseMediaItem[];
 }
 
 interface MayaRecommendation {
@@ -971,6 +989,86 @@ export function MayaCarouselLayout({
                     {selectedItem.description && (
                       <div className="mt-4 pt-4 border-t">
                         <p className="text-sm text-gray-600">{selectedItem.description}</p>
+                      </div>
+                    )}
+
+                    {selectedItem.media && selectedItem.media.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Photos</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {selectedItem.media.map((m) => (
+                            <a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                              {m.type?.startsWith("video") ? (
+                                <video src={m.url} className="w-24 h-24 rounded-lg object-cover border" />
+                              ) : (
+                                <img src={m.url} alt={m.caption || "Attachment"} className="w-24 h-24 rounded-lg object-cover border" />
+                              )}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedItem.aiTriageJson && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                            <Sparkles className="h-3 w-3 text-white" />
+                          </div>
+                          <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</p>
+                        </div>
+                        <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-500">Urgency</span>
+                            <Badge className={
+                              selectedItem.aiTriageJson.urgency === "critical" ? "bg-red-100 text-red-700 border-red-200" :
+                              selectedItem.aiTriageJson.urgency === "high" ? "bg-orange-100 text-orange-700 border-orange-200" :
+                              selectedItem.aiTriageJson.urgency === "moderate" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                              "bg-green-100 text-green-700 border-green-200"
+                            }>
+                              {selectedItem.aiTriageJson.urgency || "Unknown"}
+                            </Badge>
+                          </div>
+                          {selectedItem.aiTriageJson.rootCause && (
+                            <div>
+                              <span className="text-xs text-slate-500 block mb-0.5">Likely Cause</span>
+                              <p className="text-sm text-slate-700">{selectedItem.aiTriageJson.rootCause}</p>
+                            </div>
+                          )}
+                          <div className="flex gap-4">
+                            {selectedItem.aiTriageJson.estimatedCost && (
+                              <div>
+                                <span className="text-xs text-slate-500 block">Est. Cost</span>
+                                <p className="text-sm font-medium text-slate-700">{selectedItem.aiTriageJson.estimatedCost}</p>
+                              </div>
+                            )}
+                            {selectedItem.aiTriageJson.estimatedTime && (
+                              <div>
+                                <span className="text-xs text-slate-500 block">Est. Time</span>
+                                <p className="text-sm font-medium text-slate-700">{selectedItem.aiTriageJson.estimatedTime}</p>
+                              </div>
+                            )}
+                          </div>
+                          {selectedItem.aiTriageJson.suggestedActions && selectedItem.aiTriageJson.suggestedActions.length > 0 && (
+                            <div>
+                              <span className="text-xs text-slate-500 block mb-1">Suggested Steps</span>
+                              <ul className="space-y-1">
+                                {selectedItem.aiTriageJson.suggestedActions.map((action, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                    <CheckCircle className="h-3.5 w-3.5 text-violet-400 mt-0.5 shrink-0" />
+                                    <span>{action}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {selectedItem.aiTriageJson.safetyNotes && (
+                            <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 border border-amber-200">
+                              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                              <p className="text-xs text-amber-700">{selectedItem.aiTriageJson.safetyNotes}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </CardContent>

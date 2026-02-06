@@ -19,6 +19,7 @@ router.get('/cases', requireAuth, requireRole('contractor'), async (req: Authent
         property: true,
         unit: true,
         customer: true,
+        media: true,
       },
       orderBy: (cases, { desc }) => [desc(cases.createdAt)],
     });

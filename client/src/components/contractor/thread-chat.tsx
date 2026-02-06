@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,7 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
   const { user } = useAuth();
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const resolvedContractor = contractorUserId || (user?.primaryRole === "contractor" ? user?.id : undefined);
   const resolvedHomeowner = homeownerUserId || (user?.primaryRole !== "contractor" ? user?.id : undefined);
@@ -38,7 +39,8 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
       return res.json();
     },
     enabled: !!resolvedHomeowner && !!resolvedContractor && !!caseId,
-    staleTime: 30000,
+    staleTime: 60000,
+    gcTime: 120000,
   });
 
   const threadId = threadQuery.data?.id;
@@ -51,7 +53,8 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
       return res.json();
     },
     enabled: !!threadId,
-    refetchInterval: 10000,
+    refetchInterval: 15000,
+    staleTime: 10000,
   });
 
   const sendMutation = useMutation({
@@ -61,7 +64,6 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/messaging/unread-counts"] });
       setMessage("");
     },
   });
@@ -72,17 +74,21 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     }
   }, [messagesQuery.data]);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (!message.trim() || !threadId) return;
     sendMutation.mutate(message.trim());
-  };
+  }, [message, threadId, sendMutation]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  };
+  }, [handleSend]);
+
+  const stopPropagation = useCallback((e: React.MouseEvent | React.FocusEvent | React.TouchEvent) => {
+    e.stopPropagation();
+  }, []);
 
   const messages = messagesQuery.data || [];
 
@@ -91,10 +97,15 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
   }
 
   return (
-    <div className={`border rounded-lg bg-white ${compact ? "" : "mt-4"}`}>
-      <div className="px-3 py-2 border-b bg-slate-50/80 flex items-center gap-2">
+    <div
+      className={`border rounded-lg bg-white dark:bg-slate-900 ${compact ? "" : "mt-4"}`}
+      onClick={stopPropagation}
+      onMouseDown={stopPropagation}
+      onTouchStart={stopPropagation}
+    >
+      <div className="px-3 py-2 border-b bg-slate-50/80 dark:bg-slate-800/80 flex items-center gap-2">
         <MessageCircle className="h-4 w-4 text-violet-500" />
-        <span className="text-sm font-medium text-slate-700">Messages</span>
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Messages</span>
         {messages.length > 0 && (
           <span className="text-xs text-slate-400 ml-auto">{messages.length}</span>
         )}
@@ -120,7 +131,7 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
                   className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm ${
                     isMe
                       ? "bg-violet-500 text-white rounded-br-sm"
-                      : "bg-slate-100 text-slate-800 rounded-bl-sm"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-sm"
                   }`}
                 >
                   <p className="break-words">{msg.body}</p>
@@ -134,11 +145,15 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
         )}
       </div>
 
-      <div className="px-3 py-2 border-t flex gap-2">
+      <div className="px-3 py-2 border-t flex gap-2" onClick={stopPropagation} onMouseDown={stopPropagation}>
         <Input
+          ref={inputRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={stopPropagation}
+          onClick={stopPropagation}
+          onMouseDown={stopPropagation}
           placeholder="Type a message..."
           className="h-9 text-sm"
           disabled={!threadId || sendMutation.isPending}
@@ -146,7 +161,7 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
         <Button
           size="sm"
           className="h-9 px-3 bg-violet-500 hover:bg-violet-600"
-          onClick={handleSend}
+          onClick={(e) => { stopPropagation(e); handleSend(); }}
           disabled={!message.trim() || !threadId || sendMutation.isPending}
         >
           {sendMutation.isPending ? (
