@@ -1,14 +1,12 @@
 import { Router } from "express";
 import { storage } from "../storage";
+import { requireAuth } from "../middleware/rbac";
 
 const router = Router();
 
-function requireUser(req: any, res: any, next: any) {
-  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
-  next();
-}
+router.use(requireAuth);
 
-router.get("/conversations", requireUser, async (req: any, res) => {
+router.get("/conversations", async (req: any, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
@@ -26,7 +24,7 @@ router.get("/conversations", requireUser, async (req: any, res) => {
   }
 });
 
-router.get("/conversations/:threadId/messages", requireUser, async (req: any, res) => {
+router.get("/conversations/:threadId/messages", async (req: any, res) => {
   try {
     const { threadId } = req.params;
     const thread = await storage.getMessageThread(threadId);
@@ -48,7 +46,7 @@ router.get("/conversations/:threadId/messages", requireUser, async (req: any, re
   }
 });
 
-router.post("/conversations/:threadId/messages", requireUser, async (req: any, res) => {
+router.post("/conversations/:threadId/messages", async (req: any, res) => {
   try {
     const { threadId } = req.params;
     const { body } = req.body;
@@ -78,7 +76,7 @@ router.post("/conversations/:threadId/messages", requireUser, async (req: any, r
   }
 });
 
-router.post("/conversations/find-or-create", requireUser, async (req: any, res) => {
+router.post("/conversations/find-or-create", async (req: any, res) => {
   try {
     const { caseId, quoteId, customerId, homeownerUserId, contractorUserId, subject, orgId } = req.body;
     const userId = req.user.id;
@@ -112,7 +110,7 @@ router.post("/conversations/find-or-create", requireUser, async (req: any, res) 
   }
 });
 
-router.get("/unread-counts", requireUser, async (req: any, res) => {
+router.get("/unread-counts", async (req: any, res) => {
   try {
     const counts = await storage.getUnreadCountsByThread(req.user.id);
     res.json(counts);
@@ -122,7 +120,7 @@ router.get("/unread-counts", requireUser, async (req: any, res) => {
   }
 });
 
-router.get("/unread-count/case/:caseId", requireUser, async (req: any, res) => {
+router.get("/unread-count/case/:caseId", async (req: any, res) => {
   try {
     const count = await storage.getUnreadCountForCase(req.user.id, req.params.caseId);
     res.json({ count });
@@ -132,7 +130,7 @@ router.get("/unread-count/case/:caseId", requireUser, async (req: any, res) => {
   }
 });
 
-router.post("/conversations/:threadId/read", requireUser, async (req: any, res) => {
+router.post("/conversations/:threadId/read", async (req: any, res) => {
   try {
     await storage.markThreadAsRead(req.params.threadId, req.user.id);
     res.json({ success: true });
@@ -142,7 +140,7 @@ router.post("/conversations/:threadId/read", requireUser, async (req: any, res) 
   }
 });
 
-router.patch("/conversations/:threadId/stage", requireUser, async (req: any, res) => {
+router.patch("/conversations/:threadId/stage", async (req: any, res) => {
   try {
     const { stage, quoteId } = req.body;
     if (!stage) return res.status(400).json({ error: "Stage is required" });

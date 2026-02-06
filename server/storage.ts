@@ -3685,117 +3685,106 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContractorConversations(contractorUserId: string): Promise<any[]> {
-    const threads = await db.select({
-      thread: messageThreads,
-    }).from(messageThreads)
-      .where(eq(messageThreads.contractorUserId, contractorUserId))
-      .orderBy(desc(messageThreads.lastMessageAt));
-
-    const results = [];
-    for (const { thread } of threads) {
-      const unreadCount = await db.select({ count: sql<number>`count(*)` })
-        .from(chatMessages)
-        .innerJoin(threadParticipants, and(
-          eq(threadParticipants.threadId, thread.id),
-          eq(threadParticipants.userId, contractorUserId)
-        ))
-        .where(and(
-          eq(chatMessages.threadId, thread.id),
-          sql`${chatMessages.senderId} != ${contractorUserId}`,
-          sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
-        ));
-
-      let homeownerName = 'Homeowner';
-      if (thread.homeownerUserId) {
-        const [user] = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username })
-          .from(users).where(eq(users.id, thread.homeownerUserId));
-        if (user) homeownerName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.username || 'Homeowner');
-      }
-
-      results.push({
-        ...thread,
-        homeownerName,
-        unreadCount: Number(unreadCount[0]?.count || 0),
-      });
-    }
-    return results;
+    const result = await db.execute(sql`
+      SELECT 
+        mt.*,
+        COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email, 'Homeowner') as "homeownerName",
+        COALESCE((
+          SELECT count(*)::int FROM chat_messages cm
+          INNER JOIN thread_participants tp ON tp.thread_id = mt.id AND tp.user_id = ${contractorUserId}
+          WHERE cm.thread_id = mt.id
+            AND cm.sender_id != ${contractorUserId}
+            AND (cm.created_at > tp.last_read_at OR tp.last_read_at IS NULL)
+        ), 0) as "unreadCount"
+      FROM message_threads mt
+      LEFT JOIN users u ON u.id = mt.homeowner_user_id
+      WHERE mt.contractor_user_id = ${contractorUserId}
+      ORDER BY mt.last_message_at DESC NULLS LAST
+    `);
+    return (result.rows || []).map((row: any) => ({
+      id: row.id,
+      orgId: row.org_id,
+      subject: row.subject,
+      isDirect: row.is_direct,
+      lastMessageAt: row.last_message_at,
+      caseId: row.case_id,
+      quoteId: row.quote_id,
+      customerId: row.customer_id,
+      homeownerUserId: row.homeowner_user_id,
+      contractorUserId: row.contractor_user_id,
+      stage: row.stage,
+      lastMessagePreview: row.last_message_preview,
+      createdAt: row.created_at,
+      homeownerName: row.homeownerName,
+      unreadCount: Number(row.unreadCount || 0),
+    }));
   }
 
   async getHomeownerConversations(homeownerUserId: string): Promise<any[]> {
-    const threads = await db.select({
-      thread: messageThreads,
-    }).from(messageThreads)
-      .where(eq(messageThreads.homeownerUserId, homeownerUserId))
-      .orderBy(desc(messageThreads.lastMessageAt));
-
-    const results = [];
-    for (const { thread } of threads) {
-      const unreadCount = await db.select({ count: sql<number>`count(*)` })
-        .from(chatMessages)
-        .innerJoin(threadParticipants, and(
-          eq(threadParticipants.threadId, thread.id),
-          eq(threadParticipants.userId, homeownerUserId)
-        ))
-        .where(and(
-          eq(chatMessages.threadId, thread.id),
-          sql`${chatMessages.senderId} != ${homeownerUserId}`,
-          sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
-        ));
-
-      let contractorName = 'Contractor';
-      if (thread.contractorUserId) {
-        const [user] = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username })
-          .from(users).where(eq(users.id, thread.contractorUserId));
-        if (user) contractorName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.username || 'Contractor');
-      }
-
-      results.push({
-        ...thread,
-        contractorName,
-        unreadCount: Number(unreadCount[0]?.count || 0),
-      });
-    }
-    return results;
+    const result = await db.execute(sql`
+      SELECT 
+        mt.*,
+        COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email, 'Contractor') as "contractorName",
+        COALESCE((
+          SELECT count(*)::int FROM chat_messages cm
+          INNER JOIN thread_participants tp ON tp.thread_id = mt.id AND tp.user_id = ${homeownerUserId}
+          WHERE cm.thread_id = mt.id
+            AND cm.sender_id != ${homeownerUserId}
+            AND (cm.created_at > tp.last_read_at OR tp.last_read_at IS NULL)
+        ), 0) as "unreadCount"
+      FROM message_threads mt
+      LEFT JOIN users u ON u.id = mt.contractor_user_id
+      WHERE mt.homeowner_user_id = ${homeownerUserId}
+      ORDER BY mt.last_message_at DESC NULLS LAST
+    `);
+    return (result.rows || []).map((row: any) => ({
+      id: row.id,
+      orgId: row.org_id,
+      subject: row.subject,
+      isDirect: row.is_direct,
+      lastMessageAt: row.last_message_at,
+      caseId: row.case_id,
+      quoteId: row.quote_id,
+      customerId: row.customer_id,
+      homeownerUserId: row.homeowner_user_id,
+      contractorUserId: row.contractor_user_id,
+      stage: row.stage,
+      lastMessagePreview: row.last_message_preview,
+      createdAt: row.created_at,
+      contractorName: row.contractorName,
+      unreadCount: Number(row.unreadCount || 0),
+    }));
   }
 
   async getUnreadCountsByThread(userId: string): Promise<Record<string, number>> {
-    const rows = await db.select({
-      threadId: chatMessages.threadId,
-      count: sql<number>`count(*)`,
-    })
-      .from(chatMessages)
-      .innerJoin(threadParticipants, and(
-        eq(threadParticipants.threadId, chatMessages.threadId),
-        eq(threadParticipants.userId, userId)
-      ))
-      .where(and(
-        sql`${chatMessages.senderId} != ${userId}`,
-        sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
-      ))
-      .groupBy(chatMessages.threadId);
+    const rows = await db.execute(sql`
+      SELECT cm.thread_id as "threadId", count(*)::int as count
+      FROM chat_messages cm
+      INNER JOIN thread_participants tp ON tp.thread_id = cm.thread_id AND tp.user_id = ${userId}
+      WHERE cm.sender_id != ${userId}
+        AND (cm.created_at > tp.last_read_at OR tp.last_read_at IS NULL)
+      GROUP BY cm.thread_id
+    `);
 
     const result: Record<string, number> = {};
-    for (const row of rows) {
-      result[row.threadId] = Number(row.count);
+    for (const row of (rows.rows || [])) {
+      result[row.threadId as string] = Number(row.count);
     }
     return result;
   }
 
   async getUnreadCountForCase(contractorUserId: string, caseId: string): Promise<number> {
-    const [row] = await db.select({ count: sql<number>`count(*)` })
-      .from(chatMessages)
-      .innerJoin(messageThreads, eq(messageThreads.id, chatMessages.threadId))
-      .innerJoin(threadParticipants, and(
-        eq(threadParticipants.threadId, chatMessages.threadId),
-        eq(threadParticipants.userId, contractorUserId)
-      ))
-      .where(and(
-        eq(messageThreads.caseId, caseId),
-        eq(messageThreads.contractorUserId, contractorUserId),
-        sql`${chatMessages.senderId} != ${contractorUserId}`,
-        sql`(${chatMessages.createdAt} > ${threadParticipants.lastReadAt} OR ${threadParticipants.lastReadAt} IS NULL)`
-      ));
-    return Number(row?.count || 0);
+    const result = await db.execute(sql`
+      SELECT count(*)::int as count
+      FROM chat_messages cm
+      INNER JOIN message_threads mt ON mt.id = cm.thread_id
+      INNER JOIN thread_participants tp ON tp.thread_id = cm.thread_id AND tp.user_id = ${contractorUserId}
+      WHERE mt.case_id = ${caseId}
+        AND mt.contractor_user_id = ${contractorUserId}
+        AND cm.sender_id != ${contractorUserId}
+        AND (cm.created_at > tp.last_read_at OR tp.last_read_at IS NULL)
+    `);
+    return Number(result.rows?.[0]?.count || 0);
   }
 
   async updateThreadStage(threadId: string, stage: string, quoteId?: string): Promise<void> {

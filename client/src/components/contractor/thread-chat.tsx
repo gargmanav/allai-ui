@@ -21,8 +21,8 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const resolvedContractor = contractorUserId || (user?.role === "contractor" ? user?.id : undefined);
-  const resolvedHomeowner = homeownerUserId || (user?.role !== "contractor" ? user?.id : undefined);
+  const resolvedContractor = contractorUserId || (user?.primaryRole === "contractor" ? user?.id : undefined);
+  const resolvedHomeowner = homeownerUserId || (user?.primaryRole !== "contractor" ? user?.id : undefined);
 
   const threadQuery = useQuery({
     queryKey: ["/api/messaging/conversations/find-or-create", caseId, resolvedHomeowner, resolvedContractor],
