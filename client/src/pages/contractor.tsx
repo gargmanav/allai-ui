@@ -60,6 +60,7 @@ import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout";
 import { CustomersContent } from "@/pages/customers";
 import { QuickAdd } from "@/components/contractor/quick-add-fab";
+import { TeamView } from "@/components/contractor/team-view";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -310,7 +311,8 @@ export default function Contractor() {
 
   // Calculate counts
   const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).length;
-  const activeJobsCount = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status)).length;
+  const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
+  const activeJobsCount = activeJobs.length;
   const completedJobsCount = jobs.filter(j => j.status === "Completed").length;
   const allJobsCount = activeJobsCount + completedJobsCount;
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
@@ -672,9 +674,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -768,7 +770,6 @@ export default function Contractor() {
               const sentQuotes = quotes.filter(q => q.status === 'sent');
               const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
               
-              const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
               const activeJobsValue = activeJobs.reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
               
               const approvedQuotes = quotes.filter(q => q.status === 'approved');
@@ -1366,194 +1367,14 @@ export default function Contractor() {
           </div>
         )}
 
-        {/* Team View - Members + Calendar */}
+        {/* Team View - Maya Sidebar + Members/Calendar */}
         {view === ("team" as ViewState) && (
-          <div className="flex-1 flex flex-col pt-4 px-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-semibold">Team</h2>
-                <p className="text-muted-foreground">Manage your team members and view schedules</p>
-              </div>
-            </div>
-            
-            <Tabs defaultValue="members" className="flex-1 flex flex-col">
-              <TabsList className="w-fit mb-4">
-                <TabsTrigger value="members" className="gap-2">
-                  <Users className="h-4 w-4" />
-                  Members
-                </TabsTrigger>
-                <TabsTrigger value="calendar" className="gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Calendar
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="members" className="flex-1">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    {(teamData?.allMembers?.length || 0) + 1} team member{(teamData?.allMembers?.length || 0) !== 0 ? 's' : ''}
-                  </p>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="gap-2 bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600">
-                        <UserPlus className="h-4 w-4" />
-                        Add Team Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Team Member</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="memberName">Name</Label>
-                          <Input id="memberName" placeholder="Enter name" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="memberEmail">Email</Label>
-                          <Input id="memberEmail" type="email" placeholder="email@example.com" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="memberPhone">Phone</Label>
-                          <Input id="memberPhone" placeholder="(555) 123-4567" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="memberRole">Role</Label>
-                          <Input id="memberRole" placeholder="e.g. Technician, Apprentice" />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button variant="outline">Cancel</Button>
-                        </DialogClose>
-                        <Button onClick={() => toast({ title: "Coming Soon", description: "Team member management is being implemented" })}>
-                          Add Member
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                
-                <div className="grid gap-4">
-                  {/* You (owner) card */}
-                  <Card className="border-2 border-violet-200 dark:border-violet-800/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold"
-                          style={{ backgroundColor: '#8B5CF6' }}
-                        >
-                          {getInitials([user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You')}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">
-                              {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You'}
-                            </h3>
-                            <Badge variant="secondary" className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                              Owner
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{user?.email || ''}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Team members */}
-                  {(teamData?.allMembers || []).map((member) => (
-                    <Card key={member.id} className="group hover:border-violet-200 dark:hover:border-violet-800/50 transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div 
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold"
-                            style={{ backgroundColor: member.color }}
-                          >
-                            {getInitials(member.name)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{member.name}</h3>
-                              {member.role && (
-                                <Badge variant="secondary">{member.role}</Badge>
-                              )}
-                              {member.hasLogin && (
-                                <Badge variant="outline" className="text-emerald-600 border-emerald-300">
-                                  Has Login
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              {member.email && (
-                                <span className="flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  {member.email}
-                                </span>
-                              )}
-                              {member.phone && (
-                                <span className="flex items-center gap-1">
-                                  <Phone className="h-3 w-3" />
-                                  {member.phone}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => toast({ title: "Edit Member", description: "Editing coming soon" })}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => toast({ title: "Remove Member", description: "Removal coming soon" })}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  
-                  {(teamData?.allMembers?.length || 0) === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                      <p>No team members yet</p>
-                      <p className="text-sm">Add team members to assign jobs and track schedules</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="calendar" className="flex-1">
-                <TeamCalendar
-                  teamMembers={[
-                    { 
-                      id: user?.id || '', 
-                      name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'You', 
-                      role: 'Lead', 
-                      color: '#8B5CF6' 
-                    },
-                    ...(teamData?.allMembers || []).map(m => ({
-                      id: m.memberId,
-                      name: m.name,
-                      role: m.role || undefined,
-                      color: m.color,
-                    }))
-                  ]}
-                  appointments={teamAppointments}
-                  onAppointmentClick={(apt) => {
-                    toast({ title: apt.title || 'Appointment', description: apt.customerName || apt.address || '' });
-                  }}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
+          <TeamView
+            user={user}
+            teamData={teamData}
+            teamAppointments={teamAppointments}
+            activeJobs={activeJobs}
+          />
         )}
 
         {/* Job Detail View - When customer bubble is selected */}
