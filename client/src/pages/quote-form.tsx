@@ -46,7 +46,9 @@ export default function QuoteFormPage() {
   const [taxPercent, setTaxPercent] = useState(0);
   const [depositType, setDepositType] = useState<'none' | 'percent' | 'fixed'>('none');
   const [depositValue, setDepositValue] = useState(0);
-  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    { name: "", description: "", quantity: 1, unitPrice: 0, total: 0, displayOrder: 0 },
+  ]);
 
   // Removed separate form state - editing happens directly in the table
 
@@ -360,25 +362,25 @@ export default function QuoteFormPage() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <Input
                         type="number"
                         step="1"
                         value={item.quantity}
                         onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                         onFocus={(e) => { try { e.target.select(); } catch {} }}
-                        className="text-right w-20 bg-white/80 h-9"
+                        className="text-right w-20 ml-auto bg-white/80 h-9"
                         data-testid={`input-qty-${index}`}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <Input
                         type="number"
                         step="0.01"
                         value={item.unitPrice}
                         onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                         onFocus={(e) => { try { e.target.select(); } catch {} }}
-                        className="text-right w-24 bg-white/80 h-9"
+                        className="text-right w-24 ml-auto bg-white/80 h-9"
                         data-testid={`input-price-${index}`}
                       />
                     </TableCell>
