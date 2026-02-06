@@ -296,16 +296,24 @@ export default function Contractor() {
     return uniqueCases.map((c, index) => {
       const color = getBubbleColor(index);
       const customerName = c.customer?.name || c.buildingName || "New Job";
-      // Parse estimatedCost as number to prevent string concatenation
       const parsedCost = typeof c.estimatedCost === 'string' 
         ? parseFloat(c.estimatedCost) || 0 
         : (c.estimatedCost || 0);
+      let estimatedValue = parsedCost;
+      if (estimatedValue === 0 && (c as any).aiTriageJson?.estimatedCost) {
+        const costStr = (c as any).aiTriageJson.estimatedCost as string;
+        const nums = costStr.match(/[\d,]+/g);
+        if (nums && nums.length > 0) {
+          const highest = Math.max(...nums.map(n => parseFloat(n.replace(/,/g, '')) || 0));
+          if (highest > 0) estimatedValue = highest;
+        }
+      }
       return {
         ...c,
         customerName,
         customerInitials: getInitials(customerName),
         color,
-        estimatedValue: parsedCost,
+        estimatedValue,
       };
     });
   }, [cases, marketplaceCases]);
@@ -1551,15 +1559,16 @@ export default function Contractor() {
                 </div>
                 <div className="flex gap-3">
                   <Button 
-                    className="flex-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                    variant="outline"
+                    className="flex-1 rounded-full border-violet-200 text-violet-700 hover:bg-violet-50"
                     onClick={() => acceptCaseMutation.mutate(selectedCase.id)}
                     disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept Job"}
+                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept"}
                   </Button>
                   <Button variant="outline" className="rounded-full">
-                    Send Quote
+                    Quote
                   </Button>
                   <Button variant="outline" className="rounded-full">
                     Schedule

@@ -952,7 +952,7 @@ export function MayaCarouselLayout({
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 mb-4">
                       {onAccept && (
-                        <Button className="flex-1 bg-green-500 hover:bg-green-600 h-11 touch-manipulation" onClick={() => onAccept(selectedItem)}>
+                        <Button variant="outline" className="flex-1 border-violet-200 text-violet-700 hover:bg-violet-50 h-11 touch-manipulation" onClick={() => onAccept(selectedItem)}>
                           <CheckCircle className="h-4 w-4 mr-2" /> Accept
                         </Button>
                       )}
@@ -975,7 +975,12 @@ export function MayaCarouselLayout({
                       </div>
                       <div>
                         <span className="text-muted-foreground">Value:</span>
-                        <p className="font-bold text-slate-800">${(selectedItem.estimatedValue || 0).toLocaleString()}</p>
+                        <p className="font-bold text-slate-800">
+                          {selectedItem.aiTriageJson?.estimatedCost && (selectedItem.estimatedValue || 0) > 0 && !selectedItem.total
+                            ? selectedItem.aiTriageJson.estimatedCost
+                            : `$${(selectedItem.estimatedValue || 0).toLocaleString()}`
+                          }
+                        </p>
                       </div>
                       {selectedItem.phone && (
                         <div className="flex items-center gap-2">
@@ -1275,7 +1280,7 @@ export function MayaCarouselLayout({
                     <p className="text-sm text-gray-600 mb-3">{selectedItem.description || "No description provided"}</p>
                     <div className="flex gap-2">
                       {onAccept && (
-                        <Button size="sm" className="bg-green-500 hover:bg-green-600 h-9 touch-manipulation" onClick={() => onAccept(selectedItem)}>
+                        <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 h-9 touch-manipulation" onClick={() => onAccept(selectedItem)}>
                           <CheckCircle className="h-3 w-3 mr-1" /> Accept
                         </Button>
                       )}

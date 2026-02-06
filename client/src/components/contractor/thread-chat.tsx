@@ -62,16 +62,33 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
       const res = await apiRequest("POST", `/api/messaging/conversations/${threadId}/messages`, { body });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
+    onMutate: async (body: string) => {
       setMessage("");
+      await queryClient.cancelQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
+      const prev = queryClient.getQueryData(["/api/messaging/conversations", threadId, "messages"]);
+      queryClient.setQueryData(["/api/messaging/conversations", threadId, "messages"], (old: any[] = []) => [
+        ...old,
+        { id: `temp-${Date.now()}`, threadId, senderId: user?.id, body, createdAt: new Date().toISOString() },
+      ]);
+      return { prev };
+    },
+    onError: (_err, _body, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(["/api/messaging/conversations", threadId, "messages"], context.prev);
+      }
+      setMessage(_body || "");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
     },
   });
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }, 50);
   }, [messagesQuery.data]);
 
   const handleSend = useCallback(() => {
