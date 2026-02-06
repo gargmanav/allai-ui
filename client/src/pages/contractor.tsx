@@ -1564,7 +1564,7 @@ export default function Contractor() {
             </Card>
 
             {/* Job Details */}
-            <Card className="flex-1 flex flex-col min-h-[200px]">
+            <Card className="mb-4">
               <CardContent className="p-4">
                 <h3 className="font-medium mb-3">Job Details</h3>
                 <div className="space-y-3 text-sm text-muted-foreground">
@@ -1586,6 +1586,14 @@ export default function Contractor() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Messages Thread */}
+            <ThreadChat
+              caseId={selectedCase.id}
+              homeownerUserId={(selectedCase as any).reporterUserId}
+              orgId={(selectedCase as any).orgId}
+              subject={selectedCase.title}
+            />
           </div>
         )}
 

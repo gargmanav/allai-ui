@@ -18,10 +18,15 @@ router.get('/cases', requireAuth, requireRole('contractor'), async (req: Authent
       with: {
         property: true,
         unit: true,
+        customer: true,
       },
       orderBy: (cases, { desc }) => [desc(cases.createdAt)],
     });
-    res.json(cases);
+    const mapped = cases.map(c => ({
+      ...c,
+      customer: c.customer ? { id: c.customer.id, name: [c.customer.firstName, c.customer.lastName].filter(Boolean).join(' ') || c.customer.email || 'Customer', email: c.customer.email, phone: c.customer.phone } : undefined,
+    }));
+    res.json(mapped);
   } catch (error) {
     console.error('Error fetching contractor cases:', error);
     res.status(500).json({ error: 'Failed to fetch contractor cases' });
@@ -49,10 +54,15 @@ router.get('/assigned-cases', requireAuth, requireRole('contractor'), async (req
       with: {
         property: true,
         unit: true,
+        customer: true,
       },
       orderBy: (cases, { desc }) => [desc(cases.createdAt)],
     });
-    res.json(cases);
+    const mapped = cases.map(c => ({
+      ...c,
+      customer: c.customer ? { id: c.customer.id, name: [c.customer.firstName, c.customer.lastName].filter(Boolean).join(' ') || c.customer.email || 'Customer', email: c.customer.email, phone: c.customer.phone } : undefined,
+    }));
+    res.json(mapped);
   } catch (error) {
     console.error('Error fetching assigned cases:', error);
     res.status(500).json({ error: 'Failed to fetch assigned cases' });

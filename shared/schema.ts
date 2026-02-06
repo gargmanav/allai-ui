@@ -1105,9 +1105,10 @@ export const smartCasesRelations = relations(smartCases, ({ one, many }) => ({
   organization: one(organizations, { fields: [smartCases.orgId], references: [organizations.id] }),
   unit: one(units, { fields: [smartCases.unitId], references: [units.id] }),
   property: one(properties, { fields: [smartCases.propertyId], references: [properties.id] }),
+  customer: one(contractorCustomers, { fields: [smartCases.customerId], references: [contractorCustomers.id] }),
   media: many(caseMedia),
   events: many(caseEvents),
-  quotes: many(quotes), // Contractor proposals for this work order
+  quotes: many(quotes),
 }));
 
 // Quote relations
