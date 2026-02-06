@@ -251,11 +251,13 @@
 .running-light-bar {
   background: linear-gradient(
     90deg,
-    rgba(139, 92, 246, 0.6) 0%,
-    rgba(16, 185, 129, 0.6) 25%,
-    rgba(59, 130, 246, 0.6) 50%,
-    rgba(139, 92, 246, 0.6) 75%,
-    rgba(16, 185, 129, 0.6) 100%
+    rgba(180, 190, 200, 0.35) 0%,
+    rgba(210, 215, 225, 0.5) 15%,
+    rgba(230, 235, 240, 0.65) 30%,
+    rgba(200, 208, 218, 0.4) 50%,
+    rgba(220, 225, 235, 0.55) 70%,
+    rgba(195, 205, 215, 0.4) 85%,
+    rgba(180, 190, 200, 0.35) 100%
   );
   background-size: 200% 100%;
   animation: runningLight 40s linear infinite;

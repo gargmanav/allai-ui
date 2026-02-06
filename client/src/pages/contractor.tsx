@@ -845,7 +845,7 @@ export default function Contractor() {
                       {/* Header with icon */}
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Requests</span>
-                        <Briefcase className="h-4 w-4 text-blue-500 group-hover:text-blue-600 transition-colors duration-300" />
+                        <Briefcase className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
                       </div>
                       
                       {/* Primary metric */}
@@ -924,7 +924,7 @@ export default function Contractor() {
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Quotes</span>
-                        <Receipt className="h-4 w-4 text-amber-500 group-hover:text-amber-600 transition-colors duration-300" />
+                        <Receipt className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
@@ -1001,7 +1001,7 @@ export default function Contractor() {
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Jobs</span>
-                        <CheckCircle className="h-4 w-4 text-teal-500 group-hover:text-teal-600 transition-colors duration-300" />
+                        <CheckCircle className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
@@ -1078,7 +1078,7 @@ export default function Contractor() {
                     <div className="relative p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Invoices</span>
-                        <DollarSign className="h-4 w-4 text-violet-500 group-hover:text-violet-600 transition-colors duration-300" />
+                        <DollarSign className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
                       </div>
                       
                       <div className="flex justify-between items-baseline mb-1">
