@@ -1603,12 +1603,10 @@ export default function Contractor() {
                       </div>
                       <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
                     </div>
-                    {(selectedCase as any).media?.length > 0 && (
-                      <PhotoAnalysisButton
-                        media={(selectedCase as any).media}
-                        photoAnalysis={(selectedCase as any).aiTriageJson?.photoAnalysis}
-                      />
-                    )}
+                    <PhotoAnalysisButton
+                      media={(selectedCase as any).media || []}
+                      photoAnalysis={(selectedCase as any).aiTriageJson?.photoAnalysis}
+                    />
                   </div>
                   <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
                     <div className="flex items-center justify-between">

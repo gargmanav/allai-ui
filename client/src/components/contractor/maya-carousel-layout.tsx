@@ -1023,12 +1023,10 @@ export function MayaCarouselLayout({
                             </div>
                             <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</p>
                           </div>
-                          {selectedItem.media && selectedItem.media.length > 0 && (
-                            <PhotoAnalysisButton
-                              media={selectedItem.media}
-                              photoAnalysis={selectedItem.aiTriageJson?.photoAnalysis}
-                            />
-                          )}
+                          <PhotoAnalysisButton
+                            media={selectedItem.media || []}
+                            photoAnalysis={selectedItem.aiTriageJson?.photoAnalysis}
+                          />
                         </div>
                         <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
                           <div className="flex items-center justify-between">
