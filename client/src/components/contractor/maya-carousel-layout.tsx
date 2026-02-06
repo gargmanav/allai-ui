@@ -883,8 +883,14 @@ export function MayaCarouselLayout({
                   <thead className="bg-muted/50 border-b sticky top-0 z-10">
                     <tr>
                       <th className="text-left px-3 py-2.5 font-medium">Customer</th>
-                      <th className="text-left px-3 py-2.5 font-medium hidden sm:table-cell">Category</th>
-                      <th className="text-center px-3 py-2.5 font-medium">Priority</th>
+                      {itemType !== "quote" && (
+                        <th className="text-left px-3 py-2.5 font-medium hidden sm:table-cell">Category</th>
+                      )}
+                      {itemType === "quote" ? (
+                        <th className="text-center px-3 py-2.5 font-medium hidden sm:table-cell">Expires</th>
+                      ) : (
+                        <th className="text-center px-3 py-2.5 font-medium">Priority</th>
+                      )}
                       <th className="text-right px-3 py-2.5 font-medium">Value</th>
                       <th className="text-center px-3 py-2.5 font-medium hidden md:table-cell">Status</th>
                       <th className="text-right px-3 py-2.5 font-medium">Actions</th>
@@ -912,18 +918,47 @@ export function MayaCarouselLayout({
                             </div>
                             <div className="min-w-0">
                               <p className="font-medium truncate">{item.customerName}</p>
-                              <p className="text-xs text-muted-foreground truncate sm:hidden">{item.category}</p>
+                              {itemType !== "quote" && (
+                                <p className="text-xs text-muted-foreground truncate sm:hidden">{item.category}</p>
+                              )}
+                              {itemType === "quote" && item.expiresAt && (
+                                <p className={`text-xs truncate sm:hidden ${
+                                  new Date(item.expiresAt) < new Date() ? "text-red-500" :
+                                  new Date(item.expiresAt) < new Date(Date.now() + 7 * 86400000) ? "text-amber-600" :
+                                  "text-muted-foreground"
+                                }`}>
+                                  Exp: {new Date(item.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3 hidden sm:table-cell">
-                          <span className="text-muted-foreground">{item.category || "General"}</span>
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          <Badge className={`${getPriorityColor(item.priority)} text-[10px] px-1.5 py-0.5`}>
-                            {item.priority || "Normal"}
-                          </Badge>
-                        </td>
+                        {itemType !== "quote" && (
+                          <td className="px-3 py-3 hidden sm:table-cell">
+                            <span className="text-muted-foreground">{item.category || "General"}</span>
+                          </td>
+                        )}
+                        {itemType === "quote" ? (
+                          <td className="px-3 py-3 text-center hidden sm:table-cell">
+                            {item.expiresAt ? (
+                              <span className={`text-xs ${
+                                new Date(item.expiresAt) < new Date() ? "text-red-500 font-medium" :
+                                new Date(item.expiresAt) < new Date(Date.now() + 7 * 86400000) ? "text-amber-600 font-medium" :
+                                "text-muted-foreground"
+                              }`}>
+                                {new Date(item.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        ) : (
+                          <td className="px-3 py-3 text-center">
+                            <Badge className={`${getPriorityColor(item.priority)} text-[10px] px-1.5 py-0.5`}>
+                              {item.priority || "Normal"}
+                            </Badge>
+                          </td>
+                        )}
                         <td className="px-3 py-3 text-right">
                           <span className="font-medium text-slate-700">${(item.estimatedValue || 0).toLocaleString()}</span>
                         </td>
@@ -966,7 +1001,7 @@ export function MayaCarouselLayout({
                     ))}
                     {filteredItems.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                        <td colSpan={itemType === "quote" ? 5 : 6} className="px-3 py-8 text-center text-muted-foreground">
                           {emptyIcon}
                           <p className="mt-2">{emptyMessage}</p>
                         </td>

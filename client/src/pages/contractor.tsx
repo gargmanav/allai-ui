@@ -1315,6 +1315,8 @@ export default function Contractor() {
               { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
             ]}
+            showSearch={true}
+            showSort={true}
             itemType="quote"
             onItemSelect={(item) => { navigate(`/quotes?id=${item.id}`); }}
             onSendQuote={(item) => {
