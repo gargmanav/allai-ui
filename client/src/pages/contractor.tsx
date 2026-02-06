@@ -59,6 +59,7 @@ import { Sparkline } from "@/components/contractor/sparkline";
 import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout";
 import { CustomersContent } from "@/pages/customers";
+import { QuickAddFab } from "@/components/contractor/quick-add-fab";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -1693,6 +1694,7 @@ export default function Contractor() {
         </div>
         )}
       </div>
+      <QuickAddFab onNavigate={(v) => setView(v as ViewState)} />
     </div>
   );
 }

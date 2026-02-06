@@ -152,6 +152,79 @@ router.get('/customers', requireAuth, requireRole('contractor'), async (req: Aut
   }
 });
 
+// Quick-add a standalone job (appointment not tied to a case)
+router.post('/quick-job', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { title, customerId, scheduledStartAt, scheduledEndAt, address, notes, priority } = req.body;
+
+    if (!title || !scheduledStartAt || !scheduledEndAt) {
+      return res.status(400).json({ error: 'Title, start time, and end time are required' });
+    }
+
+    const startDate = new Date(scheduledStartAt);
+    const endDate = new Date(scheduledEndAt);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+    if (startDate >= endDate) {
+      return res.status(400).json({ error: 'Start time must be before end time' });
+    }
+
+    if (customerId) {
+      const customer = await db.query.contractorCustomers.findFirst({
+        where: and(
+          eq(contractorCustomers.id, customerId),
+          eq(contractorCustomers.contractorId, contractorUserId)
+        ),
+      });
+      if (!customer) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+    }
+
+    const vendor = await db.query.vendors.findFirst({
+      where: eq(vendors.userId, contractorUserId),
+    });
+
+    const contractorId = vendor?.id || contractorUserId;
+
+    const orgLink = await db.query.contractorOrgLinks.findFirst({
+      where: eq(contractorOrgLinks.contractorUserId, contractorUserId),
+    });
+
+    if (!orgLink) {
+      return res.status(400).json({ error: 'No organization linked to this contractor' });
+    }
+
+    const [appointment] = await db
+      .insert(appointments)
+      .values({
+        contractorId,
+        orgId: orgLink.orgId,
+        caseId: null,
+        title,
+        description: customerId ? `Customer: ${customerId}` : null,
+        scheduledStartAt: startDate,
+        scheduledEndAt: endDate,
+        locationDetails: address || null,
+        notes: notes || null,
+        priority: priority || 'Medium',
+        status: 'Confirmed',
+        isEmergency: priority === 'Emergent',
+      })
+      .returning();
+
+    res.json(appointment);
+  } catch (error: any) {
+    console.error('Error creating quick job:', error);
+    if (error.code === '23P01') {
+      return res.status(409).json({ error: 'Time slot conflicts with an existing appointment' });
+    }
+    res.status(500).json({ error: 'Failed to create job' });
+  }
+});
+
 // Create a new customer
 router.post('/customers', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {
@@ -995,7 +1068,7 @@ router.get('/team-calendar', requireAuth, requireRole('contractor'), async (req:
         ? `${apt.smartCase.property.streetAddress}, ${apt.smartCase.property.city || ''}`
         : null,
       customerName: apt.smartCase?.property?.name,
-      urgency: apt.smartCase?.priority || null,
+      urgency: apt.smartCase?.priority || apt.priority || null,
       source: 'appointment',
     }));
     
