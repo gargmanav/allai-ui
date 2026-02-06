@@ -59,7 +59,7 @@ import { Sparkline } from "@/components/contractor/sparkline";
 import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import { MayaCarouselLayout } from "@/components/contractor/maya-carousel-layout";
 import { CustomersContent } from "@/pages/customers";
-import { QuickAddFab } from "@/components/contractor/quick-add-fab";
+import { QuickAdd } from "@/components/contractor/quick-add-fab";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
@@ -707,7 +707,7 @@ export default function Contractor() {
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
           <div className="flex-1 flex flex-col pt-4">
-            {/* Top Row - Greeting + Maya Button */}
+            {/* Top Row - Greeting + Quick Add + Maya Button */}
             <div className="flex items-start justify-between mb-8">
               <div>
                 <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
@@ -717,6 +717,8 @@ export default function Contractor() {
                   {format(new Date(), 'EEEE, MMMM d')}
                 </p>
               </div>
+              <div className="flex items-center gap-2">
+              <QuickAdd onNavigate={(v) => setView(v as ViewState)} />
               <div 
                 className="relative"
                 onMouseEnter={() => setMayaHovered(true)}
@@ -749,6 +751,7 @@ export default function Contractor() {
                   <Sparkles className={`h-4 w-4 transition-colors ${mayaHovered ? 'text-violet-400' : 'text-violet-500'}`} />
                   <span className={`text-sm font-medium transition-colors ${mayaHovered ? 'text-violet-600 dark:text-violet-300' : 'text-violet-700 dark:text-violet-400'}`}>Ask Maya</span>
                 </button>
+              </div>
               </div>
             </div>
 
@@ -1694,7 +1697,6 @@ export default function Contractor() {
         </div>
         )}
       </div>
-      <QuickAddFab onNavigate={(v) => setView(v as ViewState)} />
     </div>
   );
 }

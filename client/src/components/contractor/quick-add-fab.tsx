@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import {
   Plus,
-  X,
   Briefcase,
   UserPlus,
   Receipt,
   FileText,
   Clock,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -32,19 +32,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface QuickAddFabProps {
+interface QuickAddProps {
   onNavigate?: (view: string) => void;
 }
 
-export function QuickAddFab({ onNavigate }: QuickAddFabProps) {
+export function QuickAdd({ onNavigate }: QuickAddProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeForm, setActiveForm] = useState<"job" | "customer" | null>(null);
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: customers = [] } = useQuery<Array<{ id: string; name: string; company?: string }>>({
     queryKey: ["/api/contractor/customers"],
   });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
 
   const handleOptionClick = (option: string) => {
     setIsOpen(false);
@@ -63,77 +74,72 @@ export function QuickAddFab({ onNavigate }: QuickAddFabProps) {
   };
 
   const fabOptions = [
-    { id: "job", label: "New Job", icon: Briefcase, color: "text-slate-600", bg: "bg-slate-100/60", available: true },
-    { id: "customer", label: "New Customer", icon: UserPlus, color: "text-slate-600", bg: "bg-slate-100/60", available: true },
-    { id: "quote", label: "New Quote", icon: FileText, color: "text-slate-600", bg: "bg-slate-100/60", available: true },
-    { id: "invoice", label: "New Invoice", icon: Receipt, color: "text-slate-400", bg: "bg-slate-50/40", available: false },
+    { id: "job", label: "New Job", desc: "Schedule a job or appointment", icon: Briefcase, available: true },
+    { id: "customer", label: "New Customer", desc: "Add a customer contact", icon: UserPlus, available: true },
+    { id: "quote", label: "New Quote", desc: "Create a quote for a customer", icon: FileText, available: true },
+    { id: "invoice", label: "New Invoice", desc: "Send an invoice", icon: Receipt, available: false },
   ];
 
   return (
-    <>
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-        {isOpen && (
-          <div className="flex flex-col gap-2 mb-2 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            {fabOptions.map((option, idx) => (
-              <button
-                key={option.id}
-                onClick={() => option.available ? handleOptionClick(option.id) : handleOptionClick("invoice")}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 min-w-[180px] group
-                  ${option.available 
-                    ? 'hover:scale-[1.02] active:scale-[0.98] cursor-pointer' 
-                    : 'opacity-60 cursor-default'
-                  }`}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.85)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(200, 200, 200, 0.3)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
-                  animationDelay: `${idx * 50}ms`,
-                }}
-              >
-                <div className={`w-9 h-9 rounded-lg ${option.bg} flex items-center justify-center flex-shrink-0`}>
-                  {option.available ? (
-                    <option.icon className={`h-4 w-4 ${option.color}`} />
-                  ) : (
-                    <Lock className="h-4 w-4 text-gray-400" />
-                  )}
-                </div>
-                <span className={`text-sm font-medium ${option.available ? 'text-gray-700' : 'text-gray-400'}`}>
-                  {option.label}
-                </span>
-                {!option.available && (
-                  <span className="text-[10px] text-gray-400 ml-auto">Soon</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 touch-manipulation"
-          style={{
-            background: isOpen 
-              ? 'rgba(120, 120, 130, 0.9)' 
-              : 'rgba(80, 80, 90, 0.85)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
-          }}
-        >
-          <div className={`transition-transform duration-300 ${isOpen ? 'rotate-45' : 'rotate-0'}`}>
-            <Plus className="h-6 w-6 text-white" />
-          </div>
-        </button>
-      </div>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        style={{
+          background: 'rgba(100, 116, 139, 0.12)',
+          border: '1px solid rgba(100, 116, 139, 0.2)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
+        <Plus className="h-3.5 w-3.5 text-slate-500" />
+        <span className="text-xs font-medium text-slate-600">Quick Add</span>
+        <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
 
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setIsOpen(false)}
-        />
+        <div
+          className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+          style={{
+            background: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(200, 200, 200, 0.35)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
+          }}
+        >
+          <div className="px-3 py-2 border-b border-gray-100/60">
+            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Create New</p>
+          </div>
+          {fabOptions.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => option.available ? handleOptionClick(option.id) : handleOptionClick("invoice")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors duration-150
+                ${option.available 
+                  ? 'hover:bg-slate-50/80 cursor-pointer' 
+                  : 'opacity-50 cursor-default'
+                }`}
+            >
+              <div className="w-7 h-7 rounded-md bg-slate-100/70 flex items-center justify-center flex-shrink-0">
+                {option.available ? (
+                  <option.icon className="h-3.5 w-3.5 text-slate-500" />
+                ) : (
+                  <Lock className="h-3 w-3 text-slate-300" />
+                )}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <span className={`text-xs font-medium block ${option.available ? 'text-slate-700' : 'text-slate-400'}`}>
+                  {option.label}
+                </span>
+                <span className="text-[10px] text-slate-400 block truncate">{option.desc}</span>
+              </div>
+              {!option.available && (
+                <span className="text-[9px] text-slate-300 font-medium">Soon</span>
+              )}
+            </button>
+          ))}
+        </div>
       )}
 
       <QuickAddJobDialog 
@@ -145,7 +151,7 @@ export function QuickAddFab({ onNavigate }: QuickAddFabProps) {
         open={activeForm === "customer"} 
         onClose={() => setActiveForm(null)}
       />
-    </>
+    </div>
   );
 }
 
