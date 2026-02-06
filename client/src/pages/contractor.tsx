@@ -1173,6 +1173,7 @@ export default function Contractor() {
               { id: "in review", label: "In Review", count: jobs.filter(j => j.status === "In Review").length },
               { id: "pending", label: "Pending", count: jobs.filter(j => j.status === "Pending").length },
             ]}
+            activeFilter="new"
             showSearch={true}
             showCategoryFilter={true}
             showPriorityFilter={true}
@@ -1315,6 +1316,7 @@ export default function Contractor() {
               { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
             ]}
+            activeFilter="draft"
             showSearch={true}
             showSort={true}
             itemType="quote"
