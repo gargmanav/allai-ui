@@ -237,11 +237,11 @@ export default function QuoteFormPage() {
     );
   }
 
-  const frostedCard = "rounded-xl border border-white/60 shadow-sm" +
-    " bg-white/70 backdrop-blur-sm";
+  const frostedCard = "rounded-xl border border-slate-200/80 shadow-md shadow-slate-200/50" +
+    " bg-white/80 backdrop-blur-md ring-1 ring-white/50";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100/80 via-white to-violet-50/40">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
