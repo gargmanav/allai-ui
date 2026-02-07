@@ -409,11 +409,38 @@ export default function Contractor() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
       toast({ title: "Job Accepted", description: "You've accepted this job." });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to accept job.", variant: "destructive" });
     }
+  });
+
+  const createQuoteFromRequest = useMutation({
+    mutationFn: async (item: { id: string; title?: string; customerName?: string; estimatedValue?: number; reporterUserId?: string }) => {
+      const quoteData = {
+        caseId: item.id,
+        title: item.title || "New Quote",
+        subtotal: String(item.estimatedValue || 0),
+        total: String(item.estimatedValue || 0),
+        taxAmount: "0",
+        status: "draft",
+      };
+      const res = await apiRequest("POST", "/api/contractor/quotes", {
+        ...quoteData,
+        lineItems: [],
+      });
+      return res.json();
+    },
+    onSuccess: (newQuote) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/quotes'] });
+      setView("quotes" as any);
+      toast({ title: "Draft quote created", description: "You can now edit and send this quote." });
+    },
+    onError: () => {
+      toast({ title: "Failed to create quote", description: "Could not create a quote for this request.", variant: "destructive" });
+    },
   });
 
   // Update case status mutation
@@ -1218,10 +1245,16 @@ export default function Contractor() {
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
             onAccept={(item) => { 
-              toast({ title: "Job Accepted", description: `${item.title} has been accepted.` });
+              acceptCaseMutation.mutate(item.id);
             }}
             onSendQuote={(item) => {
-              navigate("/quotes");
+              createQuoteFromRequest.mutate({
+                id: item.id,
+                title: item.title,
+                customerName: item.customerName,
+                estimatedValue: item.estimatedValue,
+                reporterUserId: (item as any).reporterUserId,
+              });
             }}
             onSchedule={(item) => {
               setView("calendar");

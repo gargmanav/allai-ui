@@ -160,7 +160,7 @@ router.post('/cases', async (req: any, res) => {
       title: z.string().max(200).optional(),
       description: z.string().max(5000).optional(),
       category: z.string().max(100).optional(),
-      priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
+      priority: z.string().max(50).optional(),
       aiTriageJson: z.any().optional(),
     }).refine(data => data.title || data.description, {
       message: 'Title or description is required',
@@ -173,6 +173,14 @@ router.post('/cases', async (req: any, res) => {
 
     const { title, description, category, aiTriageJson, priority } = parsed.data;
 
+    const priorityMap: Record<string, string> = {
+      'Critical': 'Urgent', 'critical': 'Urgent', 'emergency': 'Urgent',
+      'High': 'High', 'high': 'High', 'urgent': 'Urgent',
+      'Medium': 'Normal', 'medium': 'Normal',
+      'Low': 'Normal', 'low': 'Normal',
+    };
+    const mappedPriority = priority ? (priorityMap[priority] || 'Normal') : 'Normal';
+
     const caseId = uuidv4();
     const [newCase] = await db.insert(smartCases).values({
       id: caseId,
@@ -181,8 +189,8 @@ router.post('/cases', async (req: any, res) => {
       title: title || (description ? description.slice(0, 80) : 'New Request'),
       description: description || '',
       category: category || null,
-      priority: priority || 'Medium',
-      status: 'Open',
+      priority: mappedPriority as any,
+      status: 'New',
       aiTriageJson: aiTriageJson || null,
       postedAt: new Date(),
     }).returning();

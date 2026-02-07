@@ -16,17 +16,6 @@ export interface MarketplaceFilters {
 }
 
 export async function getMarketplaceCases(contractorUserId: string, filters?: MarketplaceFilters) {
-  // Get contractor's specialties
-  const contractorSpecialties = await db.query.userContractorSpecialties.findMany({
-    where: eq(userContractorSpecialties.userId, contractorUserId),
-  });
-  
-  const userSpecialtyIds = contractorSpecialties.map(cs => cs.specialtyId);
-  
-  if (userSpecialtyIds.length === 0) {
-    return [];
-  }
-  
   // Build where conditions
   const conditions: SQL<unknown>[] = [
     isNull(smartCases.assignedContractorId), // Only unassigned cases
@@ -185,7 +174,7 @@ export async function acceptCase(contractorUserId: string, caseId: string): Prom
       const updated = await tx.update(smartCases)
         .set({ 
           assignedContractorId: contractorUserId,
-          status: 'in_progress'
+          status: 'In Progress'
         })
         .where(and(
           eq(smartCases.id, caseId),
