@@ -197,6 +197,60 @@ router.post('/dismiss-case', requireAuth, requireRole('contractor'), async (req:
   }
 });
 
+// Get dismissed/passed cases for this contractor
+router.get('/dismissed-cases', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    
+    const dismissed = await db.query.contractorDismissedCases.findMany({
+      where: eq(contractorDismissedCases.contractorUserId, contractorUserId),
+      with: {
+        case: {
+          with: {
+            property: true,
+            unit: true,
+            media: true,
+          }
+        }
+      },
+      orderBy: (d, { desc }) => [desc(d.dismissedAt)],
+    });
+
+    const result = dismissed
+      .filter(d => d.case)
+      .map(d => ({
+        ...d.case,
+        dismissedAt: d.dismissedAt,
+        dismissId: d.id,
+      }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching dismissed cases:', error);
+    res.status(500).json({ error: 'Failed to fetch dismissed cases' });
+  }
+});
+
+// Undo dismiss / restore a passed case
+router.delete('/dismiss-case/:caseId', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { caseId } = req.params;
+
+    await db.delete(contractorDismissedCases).where(
+      and(
+        eq(contractorDismissedCases.contractorUserId, contractorUserId),
+        eq(contractorDismissedCases.caseId, caseId)
+      )
+    );
+
+    res.json({ success: true, message: 'Case restored' });
+  } catch (error) {
+    console.error('Error restoring case:', error);
+    res.status(500).json({ error: 'Failed to restore case' });
+  }
+});
+
 // Get all customers for this contractor
 router.get('/customers', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {

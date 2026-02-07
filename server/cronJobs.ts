@@ -2,6 +2,9 @@ import cron from "node-cron";
 import { storage } from "./storage";
 import { checkAndSendTimeoutNotifications } from "./services/timeoutNotifications";
 import { cleanupExpiredSessions } from "./services/sessionService";
+import { db } from "./db";
+import { contractorDismissedCases } from "@shared/schema";
+import { lt } from "drizzle-orm";
 
 export function startCronJobs() {
   // Run every hour to check for due reminders
@@ -142,6 +145,22 @@ export function startCronJobs() {
       console.log(`✅ Deleted ${deleted} old notifications`);
     } catch (error) {
       console.error('Error cleaning up old notifications:', error);
+    }
+  });
+
+  // Cleanup passed/dismissed cases older than 30 days (daily at 4 AM)
+  cron.schedule('0 4 * * *', async () => {
+    console.log('🗑️ Cleaning up expired dismissed cases (30+ days)...');
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const result = await db.delete(contractorDismissedCases).where(
+        lt(contractorDismissedCases.dismissedAt, thirtyDaysAgo)
+      );
+      console.log(`✅ Cleaned up expired dismissed cases`);
+    } catch (error) {
+      console.error('Error cleaning up dismissed cases:', error);
     }
   });
 

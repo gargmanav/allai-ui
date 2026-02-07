@@ -207,6 +207,7 @@ export default function Contractor() {
     }
   }, [mayaHovered]);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [requestsFilter, setRequestsFilter] = useState<string>("new");
   const [chatMessage, setChatMessage] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const [mayaChatMessages, setMayaChatMessages] = useState<ChatMessage[]>([
@@ -243,6 +244,11 @@ export default function Contractor() {
 
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<ContractorAppointment[]>({
     queryKey: ['/api/contractor/appointments'],
+    enabled: !!user
+  });
+
+  const { data: dismissedCases = [] } = useQuery<ContractorCase[]>({
+    queryKey: ['/api/contractor/dismissed-cases'],
     enabled: !!user
   });
 
@@ -325,7 +331,34 @@ export default function Contractor() {
     });
   }, [cases, marketplaceCases]);
 
-  const selectedCase = selectedCaseId ? jobs.find(j => j.id === selectedCaseId) : null;
+  const dismissedJobs = useMemo(() => {
+    return dismissedCases.map((c: any, index: number) => {
+      const color = getBubbleColor(index);
+      const customerName = c.customer?.name || c.buildingName || "New Job";
+      const parsedCost = typeof c.estimatedCost === 'string' 
+        ? parseFloat(c.estimatedCost) || 0 
+        : (c.estimatedCost || 0);
+      let estimatedValue = parsedCost;
+      if (estimatedValue === 0 && c.aiTriageJson?.estimatedCost) {
+        const costStr = c.aiTriageJson.estimatedCost as string;
+        const nums = costStr.match(/[\d,]+/g);
+        if (nums && nums.length > 0) {
+          const highest = Math.max(...nums.map(n => parseFloat(n.replace(/,/g, '')) || 0));
+          if (highest > 0) estimatedValue = highest;
+        }
+      }
+      return {
+        ...c,
+        customerName,
+        customerInitials: getInitials(customerName),
+        color,
+        estimatedValue,
+        isDismissed: true,
+      };
+    });
+  }, [dismissedCases]);
+
+  const selectedCase = selectedCaseId ? (jobs.find(j => j.id === selectedCaseId) || dismissedJobs.find(j => j.id === selectedCaseId)) : null;
 
   // Calculate counts
   const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).length;
@@ -439,11 +472,27 @@ export default function Contractor() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/dismissed-cases'] });
       setSelectedCaseId(null);
-      toast({ title: "Request Passed", description: "This request has been removed from your queue." });
+      toast({ title: "Request Passed", description: "This request has been moved to Passed." });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to pass on request.", variant: "destructive" });
+    }
+  });
+
+  const restoreCaseMutation = useMutation({
+    mutationFn: async (caseId: string) => {
+      return await apiRequest("DELETE", `/api/contractor/dismiss-case/${caseId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/dismissed-cases'] });
+      toast({ title: "Request Restored", description: "This request is back in your queue." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to restore request.", variant: "destructive" });
     }
   });
 
@@ -1239,34 +1288,60 @@ export default function Contractor() {
         {/* New Jobs View - Maya Carousel Layout */}
         {view === ("newJobs" as ViewState) && (
           <MayaCarouselLayout
-            title="New Job Requests"
-            subtitle="Jobs waiting for your response"
-            items={jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).map(job => ({
-              id: job.id,
-              title: job.title,
-              customerName: job.customerName,
-              customerInitials: job.customerInitials,
-              description: job.description,
-              status: job.status,
-              priority: job.priority,
-              estimatedValue: job.estimatedValue,
-              scheduledDate: job.scheduledDate,
-              address: job.address,
-              category: job.category,
-              createdAt: job.createdAt,
-              color: job.color,
-              reporterUserId: (job as any).reporterUserId,
-              orgId: (job as any).orgId,
-              aiTriageJson: (job as any).aiTriageJson,
-              media: (job as any).media,
-            }))}
+            title={requestsFilter === "passed" ? "Passed Requests" : "New Job Requests"}
+            subtitle={requestsFilter === "passed" ? "Requests you've passed on \u2022 Auto-clears after 30 days" : "Jobs waiting for your response"}
+            items={requestsFilter === "passed" 
+              ? dismissedJobs.map(job => ({
+                  id: job.id,
+                  title: job.title,
+                  customerName: job.customerName,
+                  customerInitials: job.customerInitials,
+                  description: job.description,
+                  status: "Passed",
+                  priority: job.priority,
+                  estimatedValue: job.estimatedValue,
+                  scheduledDate: job.scheduledDate,
+                  address: job.address,
+                  category: job.category,
+                  createdAt: job.createdAt,
+                  color: { bg: "bg-slate-100", text: "text-slate-600" },
+                  reporterUserId: (job as any).reporterUserId,
+                  orgId: (job as any).orgId,
+                  aiTriageJson: (job as any).aiTriageJson,
+                  media: (job as any).media,
+                }))
+              : jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).map(job => ({
+                  id: job.id,
+                  title: job.title,
+                  customerName: job.customerName,
+                  customerInitials: job.customerInitials,
+                  description: job.description,
+                  status: job.status,
+                  priority: job.priority,
+                  estimatedValue: job.estimatedValue,
+                  scheduledDate: job.scheduledDate,
+                  address: job.address,
+                  category: job.category,
+                  createdAt: job.createdAt,
+                  color: job.color,
+                  reporterUserId: (job as any).reporterUserId,
+                  orgId: (job as any).orgId,
+                  aiTriageJson: (job as any).aiTriageJson,
+                  media: (job as any).media,
+                }))
+            }
             filterTabs={[
               { id: "all", label: "All", count: jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length },
               { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
               { id: "in review", label: "In Review", count: jobs.filter(j => j.status === "In Review").length },
               { id: "pending", label: "Pending", count: jobs.filter(j => j.status === "Pending").length },
+              { id: "passed", label: "Passed", count: dismissedJobs.length },
             ]}
-            activeFilter="new"
+            activeFilter={requestsFilter}
+            onFilterChange={(filterId) => {
+              setRequestsFilter(filterId);
+              setSelectedCaseId(null);
+            }}
             showSearch={true}
             showCategoryFilter={true}
             showPriorityFilter={true}
@@ -1274,13 +1349,15 @@ export default function Contractor() {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            onAccept={(item) => { 
-              acceptCaseMutation.mutate(item.id);
-            }}
-            onDecline={(item) => {
+            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept"}
+            onAccept={requestsFilter === "passed" 
+              ? (item) => { restoreCaseMutation.mutate(item.id); }
+              : (item) => { acceptCaseMutation.mutate(item.id); }
+            }
+            onDecline={requestsFilter === "passed" ? undefined : (item) => {
               dismissCaseMutation.mutate(item.id);
             }}
-            onSendQuote={(item) => {
+            onSendQuote={requestsFilter === "passed" ? undefined : (item) => {
               createQuoteFromRequest.mutate({
                 id: item.id,
                 title: item.title,
@@ -1289,11 +1366,11 @@ export default function Contractor() {
                 reporterUserId: (item as any).reporterUserId,
               });
             }}
-            onSchedule={(item) => {
+            onSchedule={requestsFilter === "passed" ? undefined : (item) => {
               setView("calendar");
             }}
             emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
-            emptyMessage="No new job requests"
+            emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No new job requests"}
           />
         )}
 

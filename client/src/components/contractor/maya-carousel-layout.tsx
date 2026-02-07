@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -107,6 +107,7 @@ interface MayaCarouselLayoutProps {
   onDecline?: (item: Item) => void;
   onSendQuote?: (item: Item) => void;
   onSchedule?: (item: Item) => void;
+  acceptLabel?: string;
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
   itemType: "request" | "quote" | "job";
@@ -129,6 +130,7 @@ export function MayaCarouselLayout({
   onDecline,
   onSendQuote,
   onSchedule,
+  acceptLabel = "Accept",
   emptyIcon,
   emptyMessage = "No items found",
   itemType,
@@ -140,6 +142,12 @@ export function MayaCarouselLayout({
 }: MayaCarouselLayoutProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [internalFilter, setInternalFilter] = useState<string>(initialActiveFilter || "all");
+
+  useEffect(() => {
+    if (initialActiveFilter && initialActiveFilter !== internalFilter) {
+      setInternalFilter(initialActiveFilter);
+    }
+  }, [initialActiveFilter]);
 
   const unreadQuery = useQuery<any[]>({
     queryKey: ["/api/messaging/conversations"],
@@ -565,6 +573,7 @@ export function MayaCarouselLayout({
       case "Sent": case "Awaiting_response": return "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400";
       case "Approved": return "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400";
       case "Declined": return "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400";
+      case "Passed": return "bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400";
       case "Expired": return "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400";
       case "In Review": return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
       default: return "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
@@ -993,8 +1002,8 @@ export function MayaCarouselLayout({
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 mb-4">
                       {onAccept && (
-                        <Button variant="outline" className="flex-1 border-violet-200 text-violet-700 hover:bg-violet-50 h-11 touch-manipulation" onClick={() => onAccept(selectedItem)}>
-                          <CheckCircle className="h-4 w-4 mr-2" /> Accept
+                        <Button variant="outline" className={`flex-1 h-11 touch-manipulation ${acceptLabel === "Restore" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : "border-violet-200 text-violet-700 hover:bg-violet-50"}`} onClick={() => onAccept(selectedItem)}>
+                          <CheckCircle className="h-4 w-4 mr-2" /> {acceptLabel}
                         </Button>
                       )}
                       {onSendQuote && (
@@ -1260,8 +1269,9 @@ export function MayaCarouselLayout({
                               <Button 
                                 size="sm" 
                                 variant="ghost" 
-                                className="h-8 w-8 p-0 text-slate-600 hover:bg-slate-50 touch-manipulation"
+                                className={`h-8 w-8 p-0 touch-manipulation ${acceptLabel === "Restore" ? "text-blue-600 hover:bg-blue-50" : "text-slate-600 hover:bg-slate-50"}`}
                                 onClick={(e) => { e.stopPropagation(); onAccept(item); }}
+                                title={acceptLabel}
                               >
                                 <CheckCircle className="h-4 w-4" />
                               </Button>
@@ -1359,8 +1369,8 @@ export function MayaCarouselLayout({
                     <p className="text-sm text-gray-600 mb-3">{selectedItem.description || "No description provided"}</p>
                     <div className="flex gap-2">
                       {onAccept && (
-                        <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 h-9 touch-manipulation" onClick={() => onAccept(selectedItem)}>
-                          <CheckCircle className="h-3 w-3 mr-1" /> Accept
+                        <Button size="sm" variant="outline" className={`h-9 touch-manipulation ${acceptLabel === "Restore" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : "border-violet-200 text-violet-700 hover:bg-violet-50"}`} onClick={() => onAccept(selectedItem)}>
+                          <CheckCircle className="h-3 w-3 mr-1" /> {acceptLabel}
                         </Button>
                       )}
                       {onSendQuote && (
