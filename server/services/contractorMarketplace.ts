@@ -115,34 +115,6 @@ export async function canContractorAcceptCase(contractorUserId: string, caseId: 
     return { canAccept: false, reason: 'Case already assigned' };
   }
   
-  // Check contractor profile exists and is available
-  const profile = await db.query.contractorProfiles.findFirst({
-    where: eq(contractorProfiles.userId, contractorUserId),
-  });
-  
-  if (!profile) {
-    return { canAccept: false, reason: 'Contractor profile not found' };
-  }
-  
-  if (!profile.isAvailable) {
-    return { canAccept: false, reason: 'Contractor is not available' };
-  }
-  
-  // Check contractor-org link
-  if (caseItem.orgId) {
-    const link = await db.query.contractorOrgLinks.findFirst({
-      where: and(
-        eq(contractorOrgLinks.contractorUserId, contractorUserId),
-        eq(contractorOrgLinks.orgId, caseItem.orgId),
-        eq(contractorOrgLinks.status, 'active')
-      ),
-    });
-    
-    if (!link) {
-      return { canAccept: false, reason: 'No active relationship with this organization' };
-    }
-  }
-  
   // Check favorite restriction (unless urgent)
   if (caseItem.restrictToFavorites && !caseItem.isUrgent && caseItem.orgId) {
     const isFavorite = await db.query.favoriteContractors.findFirst({
@@ -156,18 +128,6 @@ export async function canContractorAcceptCase(contractorUserId: string, caseId: 
       return { canAccept: false, reason: 'This job is restricted to favorite contractors only' };
     }
   }
-  
-  // Check if contractor has matching specialty
-  const contractorSpecialties = await db.query.userContractorSpecialties.findMany({
-    where: eq(userContractorSpecialties.userId, contractorUserId),
-  });
-  
-  if (contractorSpecialties.length === 0) {
-    return { canAccept: false, reason: 'No specialties configured' };
-  }
-  
-  // TODO: Check if case specialty matches contractor's specialties
-  // This requires adding specialty field to smartCases
   
   return { canAccept: true };
 }

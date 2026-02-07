@@ -464,8 +464,9 @@ export default function Contractor() {
       queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
       toast({ title: "Job Accepted", description: "You've accepted this job." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to accept job.", variant: "destructive" });
+    onError: (error: any) => {
+      const msg = error?.message || "Failed to accept job.";
+      toast({ title: "Error", description: msg, variant: "destructive" });
     }
   });
 
@@ -1718,18 +1719,28 @@ export default function Contractor() {
                 </div>
                 <div className="flex gap-3">
                   <Button 
+                    className="flex-1 rounded-full bg-violet-600 hover:bg-violet-700 text-white"
+                    onClick={() => createQuoteFromRequest.mutate({
+                      id: selectedCase.id,
+                      title: selectedCase.title,
+                      customerName: selectedCase.buildingName || "New Job",
+                      estimatedValue: selectedCase.estimatedCost || 0,
+                      reporterUserId: (selectedCase as any).reporterUserId,
+                    })}
+                    disabled={createQuoteFromRequest.isPending}
+                  >
+                    <Send className="h-4 w-4 mr-2" /> Quote
+                  </Button>
+                  <Button 
                     variant="outline"
-                    className="flex-1 rounded-full border-violet-200 text-violet-700 hover:bg-violet-50"
+                    className="flex-1 rounded-full border-slate-200 text-slate-700 hover:bg-slate-50"
                     onClick={() => acceptCaseMutation.mutate(selectedCase.id)}
                     disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     {selectedCase.status === "In Progress" ? "Accepted" : "Accept"}
                   </Button>
-                  <Button variant="outline" className="rounded-full">
-                    Quote
-                  </Button>
-                  <Button variant="outline" className="rounded-full">
+                  <Button variant="outline" className="rounded-full" onClick={() => setView("calendar")}>
                     Schedule
                   </Button>
                 </div>
