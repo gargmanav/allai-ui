@@ -46,6 +46,28 @@ router.get('/marketplace', requireAuth, requireRole('contractor'), async (req: A
   }
 });
 
+// Get a single case by ID (for quote context)
+router.get('/cases/:caseId', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { caseId } = req.params;
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: eq(smartCases.id, caseId),
+      with: {
+        property: true,
+        unit: true,
+        media: true,
+      },
+    });
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+    res.json(caseRecord);
+  } catch (error) {
+    console.error('Error fetching case detail:', error);
+    res.status(500).json({ error: 'Failed to fetch case' });
+  }
+});
+
 // Get assigned cases for contractor
 router.get('/assigned-cases', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {

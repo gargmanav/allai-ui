@@ -1,14 +1,21 @@
 import { useState, useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit } from "lucide-react";
+import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { InlineQuoteDetail } from "./inline-quote-detail";
 
 interface AiTriageData {
   urgency?: string;
@@ -54,6 +61,14 @@ interface Item {
   orgId?: string;
   aiTriageJson?: AiTriageData | null;
   media?: CaseMediaItem[];
+  caseId?: string;
+  customerId?: string;
+  clientMessage?: string;
+  internalNotes?: string;
+  discountAmount?: number;
+  taxPercent?: number;
+  depositType?: string;
+  depositValue?: number;
 }
 
 interface MayaRecommendation {
@@ -68,6 +83,16 @@ interface MayaChatMessage {
   role: "user" | "maya";
   content: string;
   timestamp: Date;
+}
+
+interface QuoteLineItemLocal {
+  id?: string;
+  name: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  displayOrder: number;
 }
 
 interface MayaCarouselLayoutProps {
@@ -380,7 +405,9 @@ export function MayaCarouselLayout({
 
   const handleItemClick = (item: Item) => {
     setSelectedItemId(item.id);
-    onItemSelect(item);
+    if (itemType !== "quote") {
+      onItemSelect(item);
+    }
   };
 
   const handleMayaChat = async () => {
@@ -924,7 +951,29 @@ export function MayaCarouselLayout({
               </div>
 
               {/* Selected Item Detail */}
-              {selectedItem && (
+              {selectedItem && itemType === "quote" ? (
+                <InlineQuoteDetail
+                  quoteId={selectedItem.id}
+                  customerId={selectedItem.customerId}
+                  customerName={selectedItem.customerName}
+                  customerInitials={selectedItem.customerInitials}
+                  status={selectedItem.status}
+                  caseId={selectedItem.caseId}
+                  initialTitle={selectedItem.title}
+                  initialSubtotal={selectedItem.subtotal}
+                  initialTaxAmount={selectedItem.taxAmount}
+                  initialTotal={selectedItem.total}
+                  initialExpiresAt={selectedItem.expiresAt}
+                  initialClientMessage={selectedItem.clientMessage}
+                  initialInternalNotes={selectedItem.internalNotes}
+                  initialDiscountAmount={selectedItem.discountAmount}
+                  initialTaxPercent={selectedItem.taxPercent}
+                  initialDepositType={selectedItem.depositType}
+                  initialDepositValue={selectedItem.depositValue}
+                  onClose={() => setSelectedItemId(null)}
+                />
+              ) : selectedItem ? (
+                <>
                 <Card className="mt-4 overflow-hidden">
                   <div className="px-4 py-3 border-b bg-gradient-to-r from-violet-50 to-white">
                     <div className="flex items-center justify-between">
@@ -1089,19 +1138,20 @@ export function MayaCarouselLayout({
                     )}
                   </CardContent>
                 </Card>
-              )}
 
-              {selectedItem && selectedItem.reporterUserId && (
-                <div className="mt-3">
-                  <ThreadChat
-                    caseId={selectedItem.id}
-                    homeownerUserId={selectedItem.reporterUserId}
-                    orgId={selectedItem.orgId}
-                    subject={selectedItem.title}
-                    compact
-                  />
-                </div>
-              )}
+                {selectedItem.reporterUserId && (
+                  <div className="mt-3">
+                    <ThreadChat
+                      caseId={selectedItem.id}
+                      homeownerUserId={selectedItem.reporterUserId}
+                      orgId={selectedItem.orgId}
+                      subject={selectedItem.title}
+                      compact
+                    />
+                  </div>
+                )}
+                </>
+              ) : null}
 
               {!selectedItem && filteredItems.length > 0 && (
                 <div className="text-center py-8 text-muted-foreground">
@@ -1254,7 +1304,28 @@ export function MayaCarouselLayout({
               </div>
               
               {/* Quick Detail Panel for List View */}
-              {selectedItem && viewMode === "list" && (
+              {selectedItem && viewMode === "list" && itemType === "quote" ? (
+                <InlineQuoteDetail
+                  quoteId={selectedItem.id}
+                  customerId={selectedItem.customerId}
+                  customerName={selectedItem.customerName}
+                  customerInitials={selectedItem.customerInitials}
+                  status={selectedItem.status}
+                  caseId={selectedItem.caseId}
+                  initialTitle={selectedItem.title}
+                  initialSubtotal={selectedItem.subtotal}
+                  initialTaxAmount={selectedItem.taxAmount}
+                  initialTotal={selectedItem.total}
+                  initialExpiresAt={selectedItem.expiresAt}
+                  initialClientMessage={selectedItem.clientMessage}
+                  initialInternalNotes={selectedItem.internalNotes}
+                  initialDiscountAmount={selectedItem.discountAmount}
+                  initialTaxPercent={selectedItem.taxPercent}
+                  initialDepositType={selectedItem.depositType}
+                  initialDepositValue={selectedItem.depositValue}
+                  onClose={() => setSelectedItemId(null)}
+                />
+              ) : selectedItem && viewMode === "list" ? (
                 <Card className="mt-4 border-violet-200">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -1297,7 +1368,7 @@ export function MayaCarouselLayout({
                     </div>
                   </CardContent>
                 </Card>
-              )}
+              ) : null}
             </div>
           )}
         </div>

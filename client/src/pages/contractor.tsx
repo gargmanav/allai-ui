@@ -115,6 +115,8 @@ interface ContractorQuote {
   id: string;
   customerId?: string;
   customer?: ContractorCustomer;
+  caseId?: string;
+  title?: string;
   status: string;
   subtotal: string;
   taxAmount: string;
@@ -123,6 +125,11 @@ interface ContractorQuote {
   createdAt: string;
   depositType?: string;
   depositAmount?: string;
+  clientMessage?: string;
+  internalNotes?: string;
+  discountAmount?: string;
+  taxPercent?: string;
+  depositValue?: string;
 }
 
 interface ContractorAppointment {
@@ -1326,7 +1333,7 @@ export default function Contractor() {
               const colorIdx = customerName.charCodeAt(0) % colors.length;
               return {
                 id: quote.id,
-                title: `Quote #${quote.id.slice(0, 8)}`,
+                title: quote.title || `Quote #${quote.id.slice(0, 8)}`,
                 customerName,
                 customerInitials: initials,
                 description: `Total: $${parseFloat(quote.total).toLocaleString()}`,
@@ -1338,6 +1345,14 @@ export default function Contractor() {
                 expiresAt: quote.expiresAt,
                 createdAt: new Date(quote.createdAt).toLocaleDateString(),
                 color: colors[colorIdx],
+                caseId: quote.caseId,
+                customerId: quote.customerId,
+                clientMessage: quote.clientMessage,
+                internalNotes: quote.internalNotes,
+                discountAmount: parseFloat(quote.discountAmount || "0"),
+                taxPercent: parseFloat(quote.taxPercent || "0"),
+                depositType: quote.depositType,
+                depositValue: parseFloat(quote.depositValue || "0"),
               };
             })}
             filterTabs={[
@@ -1352,10 +1367,7 @@ export default function Contractor() {
             showSearch={true}
             showSort={true}
             itemType="quote"
-            onItemSelect={(item) => { navigate(`/quotes/${item.id}`); }}
-            onSendQuote={(item) => {
-              toast({ title: "Quote Sent", description: `Quote ${item.title} has been sent.` });
-            }}
+            onItemSelect={() => {}}
             emptyIcon={<Receipt className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No quotes found"
           />
