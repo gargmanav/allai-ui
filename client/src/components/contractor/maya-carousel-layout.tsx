@@ -1001,14 +1001,14 @@ export function MayaCarouselLayout({
                   </div>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 mb-4">
-                      {onSendQuote && (
-                        <Button className="flex-1 h-11 touch-manipulation bg-violet-600 hover:bg-violet-700 text-white" onClick={() => onSendQuote(selectedItem)}>
+                      {onSendQuote && !onAccept && (
+                        <Button className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
                           <Send className="h-4 w-4 mr-2" /> Quote
                         </Button>
                       )}
                       {onAccept && (
-                        <Button variant="outline" className={`flex-1 h-11 touch-manipulation ${acceptLabel === "Restore" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`} onClick={() => onAccept(selectedItem)}>
-                          <CheckCircle className="h-4 w-4 mr-2" /> {acceptLabel}
+                        <Button className={`flex-1 h-11 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
+                          {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />} {acceptLabel}
                         </Button>
                       )}
                       {onSchedule && (
@@ -1265,7 +1265,7 @@ export function MayaCarouselLayout({
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            {onSendQuote && (
+                            {onSendQuote && !onAccept && (
                               <Button 
                                 size="sm" 
                                 variant="ghost" 
@@ -1280,11 +1280,11 @@ export function MayaCarouselLayout({
                               <Button 
                                 size="sm" 
                                 variant="ghost" 
-                                className={`h-8 w-8 p-0 touch-manipulation ${acceptLabel === "Restore" ? "text-blue-600 hover:bg-blue-50" : "text-slate-600 hover:bg-slate-50"}`}
+                                className={`h-8 w-8 p-0 touch-manipulation ${acceptLabel === "Restore" ? "text-blue-600 hover:bg-blue-50" : "text-violet-600 hover:bg-violet-50"}`}
                                 onClick={(e) => { e.stopPropagation(); onAccept(item); }}
                                 title={acceptLabel}
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                               </Button>
                             )}
                             {onDecline && (
@@ -1369,14 +1369,14 @@ export function MayaCarouselLayout({
                     </div>
                     <p className="text-sm text-gray-600 mb-3">{selectedItem.description || "No description provided"}</p>
                     <div className="flex gap-2">
-                      {onSendQuote && (
-                        <Button size="sm" className="h-9 touch-manipulation bg-violet-600 hover:bg-violet-700 text-white" onClick={() => onSendQuote(selectedItem)}>
+                      {onSendQuote && !onAccept && (
+                        <Button size="sm" className="h-9 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
                           <Send className="h-3 w-3 mr-1" /> Quote
                         </Button>
                       )}
                       {onAccept && (
-                        <Button size="sm" variant="outline" className={`h-9 touch-manipulation ${acceptLabel === "Restore" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`} onClick={() => onAccept(selectedItem)}>
-                          <CheckCircle className="h-3 w-3 mr-1" /> {acceptLabel}
+                        <Button size="sm" className={`h-9 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
+                          {acceptLabel === "Restore" ? <CheckCircle className="h-3 w-3 mr-1" /> : <Send className="h-3 w-3 mr-1" />} {acceptLabel}
                         </Button>
                       )}
                       {onSchedule && (

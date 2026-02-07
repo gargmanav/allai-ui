@@ -648,6 +648,8 @@ export const smartCases = pgTable("smart_cases", {
   postedAt: timestamp("posted_at"), // When job was posted to marketplace
   timeoutNotificationSent: boolean("timeout_notification_sent").default(false), // 4-hour timeout notification
   isUrgent: boolean("is_urgent").default(false), // Emergency bypass for favorites restriction
+  priceTbd: boolean("price_tbd").default(false), // Price to be discussed - set when contractor accepts without quoting
+  quotedPrice: decimal("quoted_price", { precision: 10, scale: 2 }), // Quick price set during accept & quote flow
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

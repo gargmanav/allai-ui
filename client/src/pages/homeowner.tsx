@@ -1020,6 +1020,13 @@ export default function Homeowner() {
                           {request.category && (
                             <span className="capitalize">{request.category}</span>
                           )}
+                          {request.status === "In Progress" && (
+                            request.priceTbd ? (
+                              <span className="text-amber-600 font-medium">Price to be discussed</span>
+                            ) : request.quotedPrice ? (
+                              <span className="text-green-700 font-medium">${Number(request.quotedPrice).toLocaleString()}</span>
+                            ) : null
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1043,8 +1050,21 @@ export default function Homeowner() {
                 boxShadow: "inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.03)",
               }}
             >
-              <h2 className="font-semibold text-lg">{selectedRequest.title || "Request Details"}</h2>
-              <p className="text-sm text-muted-foreground">{selectedRequest.description?.slice(0, 100)}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-lg">{selectedRequest.title || "Request Details"}</h2>
+                  <p className="text-sm text-muted-foreground">{selectedRequest.description?.slice(0, 100)}</p>
+                </div>
+                {selectedRequest.status === "In Progress" && (
+                  <div className="text-right">
+                    {selectedRequest.priceTbd ? (
+                      <span className="text-sm font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200/60">Price to be discussed</span>
+                    ) : selectedRequest.quotedPrice ? (
+                      <span className="text-lg font-bold text-green-700">${Number(selectedRequest.quotedPrice).toLocaleString()}</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
               {requestPhotos.length > 0 && (
                 <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
                   {requestPhotos.map((photo: any) => (
@@ -1156,7 +1176,9 @@ export default function Homeowner() {
                 {caseQuotes.length === 0 && (
                   <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    Waiting for contractor quotes...
+                    {selectedRequest.priceTbd 
+                      ? "Contractor assigned — price to be discussed"
+                      : "Waiting for contractor quotes..."}
                   </div>
                 )}
               </div>

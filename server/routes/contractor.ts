@@ -140,17 +140,20 @@ router.get('/assigned-cases', requireAuth, requireRole('contractor'), async (req
   }
 });
 
-// Accept a marketplace case
+// Accept a marketplace case (with optional pricing)
 router.post('/accept-case', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {
     const contractorUserId = req.user!.id;
-    const { caseId } = req.body;
+    const { caseId, quotedPrice, priceTbd } = req.body;
     
     if (!caseId) {
       return res.status(400).json({ error: 'Case ID is required' });
     }
     
-    const result = await acceptCase(contractorUserId, caseId);
+    const result = await acceptCase(contractorUserId, caseId, {
+      quotedPrice: quotedPrice ? String(quotedPrice) : undefined,
+      priceTbd: !!priceTbd,
+    });
     
     if (!result.success) {
       return res.status(400).json({ error: result.error });

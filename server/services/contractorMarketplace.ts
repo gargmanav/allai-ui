@@ -5,7 +5,8 @@ import {
   favoriteContractors,
   contractorOrgLinks,
   contractorProfiles,
-  contractorDismissedCases
+  contractorDismissedCases,
+  quotes
 } from '@shared/schema';
 import { eq, and, or, isNull, inArray, notInArray, SQL } from 'drizzle-orm';
 
@@ -132,7 +133,7 @@ export async function canContractorAcceptCase(contractorUserId: string, caseId: 
   return { canAccept: true };
 }
 
-export async function acceptCase(contractorUserId: string, caseId: string): Promise<{ success: boolean; error?: string }> {
+export async function acceptCase(contractorUserId: string, caseId: string, options?: { quotedPrice?: string; priceTbd?: boolean }): Promise<{ success: boolean; error?: string }> {
   // Verify contractor can accept
   const { canAccept, reason } = await canContractorAcceptCase(contractorUserId, caseId);
   
@@ -143,12 +144,24 @@ export async function acceptCase(contractorUserId: string, caseId: string): Prom
   try {
     // Use transaction to prevent race condition
     const result = await db.transaction(async (tx) => {
+      // Build the update set
+      const updateSet: any = { 
+        assignedContractorId: contractorUserId,
+        status: 'In Progress'
+      };
+      
+      // Set pricing info if provided
+      if (options?.priceTbd) {
+        updateSet.priceTbd = true;
+        updateSet.quotedPrice = null;
+      } else if (options?.quotedPrice) {
+        updateSet.quotedPrice = options.quotedPrice;
+        updateSet.priceTbd = false;
+      }
+      
       // Assign case to contractor with WHERE clause ensuring it's still unassigned
       const updated = await tx.update(smartCases)
-        .set({ 
-          assignedContractorId: contractorUserId,
-          status: 'In Progress'
-        })
+        .set(updateSet)
         .where(and(
           eq(smartCases.id, caseId),
           isNull(smartCases.assignedContractorId) // Prevents double-assign race
@@ -161,6 +174,22 @@ export async function acceptCase(contractorUserId: string, caseId: string): Prom
       }
       
       const caseItem = updated[0];
+      
+      // Create a quote record when price is provided
+      if (options?.quotedPrice && !options?.priceTbd) {
+        const priceStr = String(parseFloat(options.quotedPrice) || 0);
+        await tx.insert(quotes).values({
+          contractorId: contractorUserId,
+          caseId: caseItem.id,
+          orgId: caseItem.orgId || undefined,
+          propertyId: caseItem.propertyId || undefined,
+          title: caseItem.title || 'Quote',
+          status: 'sent',
+          subtotal: priceStr,
+          total: priceStr,
+          sentAt: new Date(),
+        });
+      }
       
       // Create/update contractor-org link
       if (caseItem.orgId) {

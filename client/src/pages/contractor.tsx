@@ -54,6 +54,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TeamCalendar } from "@/components/contractor/team-calendar";
 import { TeamTimeline } from "@/components/contractor/team-timeline";
 import { Sparkline } from "@/components/contractor/sparkline";
@@ -453,15 +454,25 @@ export default function Contractor() {
     return 0; // TODO: Implement real unread message count from messaging API
   };
 
-  // Accept case mutation
+  // Accept & Quote dialog state
+  const [acceptQuoteDialogOpen, setAcceptQuoteDialogOpen] = useState(false);
+  const [acceptQuoteCase, setAcceptQuoteCase] = useState<any>(null);
+  const [acceptQuotePrice, setAcceptQuotePrice] = useState("");
+  const [acceptQuotePriceTbd, setAcceptQuotePriceTbd] = useState(false);
+
+  // Accept case mutation (with optional pricing)
   const acceptCaseMutation = useMutation({
-    mutationFn: async (caseId: string) => {
-      return await apiRequest("POST", `/api/contractor/accept-case`, { caseId });
+    mutationFn: async (data: { caseId: string; quotedPrice?: string; priceTbd?: boolean }) => {
+      return await apiRequest("POST", `/api/contractor/accept-case`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/appointments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
+      setAcceptQuoteDialogOpen(false);
+      setAcceptQuoteCase(null);
+      setAcceptQuotePrice("");
+      setAcceptQuotePriceTbd(false);
       toast({ title: "Job Accepted", description: "You've accepted this job." });
     },
     onError: (error: any) => {
@@ -469,6 +480,22 @@ export default function Contractor() {
       toast({ title: "Error", description: msg, variant: "destructive" });
     }
   });
+
+  const openAcceptQuoteDialog = (caseItem: any) => {
+    setAcceptQuoteCase(caseItem);
+    setAcceptQuotePrice("");
+    setAcceptQuotePriceTbd(false);
+    setAcceptQuoteDialogOpen(true);
+  };
+
+  const submitAcceptQuote = () => {
+    if (!acceptQuoteCase) return;
+    acceptCaseMutation.mutate({
+      caseId: acceptQuoteCase.id,
+      quotedPrice: acceptQuotePriceTbd ? undefined : acceptQuotePrice || undefined,
+      priceTbd: acceptQuotePriceTbd,
+    });
+  };
 
   const dismissCaseMutation = useMutation({
     mutationFn: async (caseId: string) => {
@@ -1354,22 +1381,13 @@ export default function Contractor() {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept"}
+            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Quote"}
             onAccept={requestsFilter === "passed" 
               ? (item) => { restoreCaseMutation.mutate(item.id); }
-              : (item) => { acceptCaseMutation.mutate(item.id); }
+              : (item) => { openAcceptQuoteDialog(item); }
             }
             onDecline={requestsFilter === "passed" ? undefined : (item) => {
               dismissCaseMutation.mutate(item.id);
-            }}
-            onSendQuote={requestsFilter === "passed" ? undefined : (item) => {
-              createQuoteFromRequest.mutate({
-                id: item.id,
-                title: item.title,
-                customerName: item.customerName,
-                estimatedValue: item.estimatedValue,
-                reporterUserId: (item as any).reporterUserId,
-              });
             }}
             onSchedule={requestsFilter === "passed" ? undefined : (item) => {
               setView("calendar");
@@ -1719,26 +1737,12 @@ export default function Contractor() {
                 </div>
                 <div className="flex gap-3">
                   <Button 
-                    className="flex-1 rounded-full bg-violet-600 hover:bg-violet-700 text-white"
-                    onClick={() => createQuoteFromRequest.mutate({
-                      id: selectedCase.id,
-                      title: selectedCase.title,
-                      customerName: selectedCase.buildingName || "New Job",
-                      estimatedValue: selectedCase.estimatedCost || 0,
-                      reporterUserId: (selectedCase as any).reporterUserId,
-                    })}
-                    disabled={createQuoteFromRequest.isPending}
-                  >
-                    <Send className="h-4 w-4 mr-2" /> Quote
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="flex-1 rounded-full border-slate-200 text-slate-700 hover:bg-slate-50"
-                    onClick={() => acceptCaseMutation.mutate(selectedCase.id)}
+                    className="flex-1 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                    onClick={() => openAcceptQuoteDialog(selectedCase)}
                     disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept"}
+                    <Send className="h-4 w-4 mr-2" />
+                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept & Quote"}
                   </Button>
                   <Button variant="outline" className="rounded-full" onClick={() => setView("calendar")}>
                     Schedule
@@ -1876,6 +1880,68 @@ export default function Contractor() {
         </div>
         )}
       </div>
+
+      {/* Accept & Quote Dialog */}
+      <Dialog open={acceptQuoteDialogOpen} onOpenChange={setAcceptQuoteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Accept & Quote</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Accept this job and set your pricing. The homeowner will see your price.
+            </p>
+            {acceptQuoteCase && (
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <p className="font-medium text-sm">{acceptQuoteCase.title || acceptQuoteCase.buildingName}</p>
+                <p className="text-xs text-muted-foreground mt-1">{acceptQuoteCase.category || "General"}</p>
+              </div>
+            )}
+            <RadioGroup 
+              value={acceptQuotePriceTbd ? "tbd" : "price"} 
+              onValueChange={(v) => setAcceptQuotePriceTbd(v === "tbd")}
+              className="space-y-3"
+            >
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="price" id="price-option" />
+                <Label htmlFor="price-option" className="font-normal cursor-pointer">Set a price</Label>
+              </div>
+              {!acceptQuotePriceTbd && (
+                <div className="pl-7">
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={acceptQuotePrice}
+                      onChange={(e) => setAcceptQuotePrice(e.target.value)}
+                      className="pl-8"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="tbd" id="tbd-option" />
+                <Label htmlFor="tbd-option" className="font-normal cursor-pointer">Price to be discussed</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptQuoteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+              onClick={submitAcceptQuote}
+              disabled={acceptCaseMutation.isPending || (!acceptQuotePriceTbd && !acceptQuotePrice)}
+            >
+              {acceptCaseMutation.isPending ? "Accepting..." : "Accept Job"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
