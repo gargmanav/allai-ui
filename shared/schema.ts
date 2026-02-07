@@ -1851,6 +1851,26 @@ export const scheduledJobsRelations = relations(scheduledJobs, ({ one }) => ({
   }),
 }));
 
+// Contractor dismissed/passed cases
+export const contractorDismissedCases = pgTable("contractor_dismissed_cases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  dismissedAt: timestamp("dismissed_at").defaultNow().notNull(),
+  reason: varchar("reason"),
+});
+
+export const contractorDismissedCasesRelations = relations(contractorDismissedCases, ({ one }) => ({
+  contractor: one(users, {
+    fields: [contractorDismissedCases.contractorUserId],
+    references: [users.id],
+  }),
+  case: one(smartCases, {
+    fields: [contractorDismissedCases.caseId],
+    references: [smartCases.id],
+  }),
+}));
+
 // Insert schemas for new tables
 export const insertUserCategorySchema = createInsertSchema(userCategories).omit({ id: true, createdAt: true });
 export const insertUserCategoryMemberSchema = createInsertSchema(userCategoryMembers).omit({ id: true, createdAt: true });

@@ -4,9 +4,10 @@ import {
   userContractorSpecialties, 
   favoriteContractors,
   contractorOrgLinks,
-  contractorProfiles
+  contractorProfiles,
+  contractorDismissedCases
 } from '@shared/schema';
-import { eq, and, or, isNull, inArray, SQL } from 'drizzle-orm';
+import { eq, and, or, isNull, inArray, notInArray, SQL } from 'drizzle-orm';
 
 export interface MarketplaceFilters {
   specialtyIds?: string[];
@@ -16,10 +17,21 @@ export interface MarketplaceFilters {
 }
 
 export async function getMarketplaceCases(contractorUserId: string, filters?: MarketplaceFilters) {
+  // Get dismissed case IDs for this contractor
+  const dismissedCases = await db.query.contractorDismissedCases.findMany({
+    where: eq(contractorDismissedCases.contractorUserId, contractorUserId),
+  });
+  const dismissedCaseIds = dismissedCases.map(d => d.caseId);
+
   // Build where conditions
   const conditions: SQL<unknown>[] = [
     isNull(smartCases.assignedContractorId), // Only unassigned cases
   ];
+
+  // Exclude dismissed cases
+  if (dismissedCaseIds.length > 0) {
+    conditions.push(notInArray(smartCases.id, dismissedCaseIds));
+  }
   
   // Filter by specialty if specified
   if (filters?.specialtyIds) {

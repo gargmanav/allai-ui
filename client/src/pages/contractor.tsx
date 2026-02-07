@@ -432,6 +432,21 @@ export default function Contractor() {
     }
   });
 
+  const dismissCaseMutation = useMutation({
+    mutationFn: async (caseId: string) => {
+      return await apiRequest("POST", `/api/contractor/dismiss-case`, { caseId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
+      setSelectedCaseId(null);
+      toast({ title: "Request Passed", description: "This request has been removed from your queue." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to pass on request.", variant: "destructive" });
+    }
+  });
+
   const createQuoteFromRequest = useMutation({
     mutationFn: async (item: { id: string; title?: string; customerName?: string; estimatedValue?: number; reporterUserId?: string }) => {
       const quoteData = {
@@ -1261,6 +1276,9 @@ export default function Contractor() {
             onItemSelect={(item) => { handleSelectCase(item.id); }}
             onAccept={(item) => { 
               acceptCaseMutation.mutate(item.id);
+            }}
+            onDecline={(item) => {
+              dismissCaseMutation.mutate(item.id);
             }}
             onSendQuote={(item) => {
               createQuoteFromRequest.mutate({

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams } from '@shared/schema';
+import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -160,6 +160,40 @@ router.post('/accept-case', requireAuth, requireRole('contractor'), async (req: 
   } catch (error) {
     console.error('Error accepting case:', error);
     res.status(500).json({ error: 'Failed to accept case' });
+  }
+});
+
+// Dismiss/pass on a case
+router.post('/dismiss-case', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { caseId, reason } = req.body;
+    
+    if (!caseId) {
+      return res.status(400).json({ error: 'Case ID is required' });
+    }
+
+    const existing = await db.query.contractorDismissedCases.findFirst({
+      where: and(
+        eq(contractorDismissedCases.contractorUserId, contractorUserId),
+        eq(contractorDismissedCases.caseId, caseId)
+      ),
+    });
+
+    if (existing) {
+      return res.json({ success: true, message: 'Already dismissed' });
+    }
+
+    await db.insert(contractorDismissedCases).values({
+      contractorUserId,
+      caseId,
+      reason: reason || null,
+    });
+
+    res.json({ success: true, message: 'Request dismissed' });
+  } catch (error) {
+    console.error('Error dismissing case:', error);
+    res.status(500).json({ error: 'Failed to dismiss case' });
   }
 });
 

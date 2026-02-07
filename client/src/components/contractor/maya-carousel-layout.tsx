@@ -104,6 +104,7 @@ interface MayaCarouselLayoutProps {
   onFilterChange?: (filterId: string) => void;
   onItemSelect: (item: Item) => void;
   onAccept?: (item: Item) => void;
+  onDecline?: (item: Item) => void;
   onSendQuote?: (item: Item) => void;
   onSchedule?: (item: Item) => void;
   emptyIcon?: React.ReactNode;
@@ -125,6 +126,7 @@ export function MayaCarouselLayout({
   onFilterChange,
   onItemSelect,
   onAccept,
+  onDecline,
   onSendQuote,
   onSchedule,
   emptyIcon,
@@ -1005,6 +1007,11 @@ export function MayaCarouselLayout({
                           <Calendar className="h-4 w-4 mr-2" /> Schedule
                         </Button>
                       )}
+                      {onDecline && (
+                        <Button variant="outline" className="flex-1 h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDecline(selectedItem)}>
+                          <X className="h-4 w-4 mr-2" /> Pass
+                        </Button>
+                      )}
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1267,6 +1274,17 @@ export function MayaCarouselLayout({
                                 onClick={(e) => { e.stopPropagation(); onSendQuote(item); }}
                               >
                                 <Send className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {onDecline && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 touch-manipulation"
+                                onClick={(e) => { e.stopPropagation(); onDecline(item); }}
+                                title="Pass on this request"
+                              >
+                                <X className="h-4 w-4" />
                               </Button>
                             )}
                             <Button 
