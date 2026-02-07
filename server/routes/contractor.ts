@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams } from '@shared/schema';
+import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
+import { aiTriageService } from '../aiTriage';
 
 const router = Router();
 
@@ -62,9 +63,56 @@ router.get('/cases/:caseId', requireAuth, requireRole('contractor'), async (req:
       return res.status(404).json({ error: 'Case not found' });
     }
     res.json(caseRecord);
+
+    const media = (caseRecord as any).media || [];
+    const hasPhotos = media.some((m: any) => m.type?.startsWith('image') && m.url);
+    const hasAnalysis = (caseRecord as any).aiTriageJson?.photoAnalysis?.contractor;
+    if (hasPhotos && !hasAnalysis) {
+      const photoUrls = media.filter((m: any) => m.type?.startsWith('image')).map((m: any) => m.url);
+      aiTriageService.generatePhotoAnalysis(photoUrls, caseRecord.title, caseRecord.description || '').then(async (analysis) => {
+        if (analysis) {
+          const existingTriage = (caseRecord as any).aiTriageJson || {};
+          await db.update(smartCases).set({ aiTriageJson: { ...existingTriage, photoAnalysis: analysis } }).where(eq(smartCases.id, caseId));
+          console.log(`🤖 Photo analysis generated for case ${caseId}`);
+        }
+      }).catch(err => console.error('Photo analysis error:', err));
+    }
   } catch (error) {
     console.error('Error fetching case detail:', error);
     res.status(500).json({ error: 'Failed to fetch case' });
+  }
+});
+
+router.post('/cases/:caseId/analyze-photos', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { caseId } = req.params;
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: eq(smartCases.id, caseId),
+      with: { media: true },
+    });
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+    const existingTriage = (caseRecord as any).aiTriageJson || {};
+    if (existingTriage.photoAnalysis?.contractor) {
+      return res.json({ photoAnalysis: existingTriage.photoAnalysis });
+    }
+    const media = (caseRecord as any).media || [];
+    const photos = media.filter((m: any) => m.type?.startsWith('image') && m.url);
+    if (photos.length === 0) {
+      return res.status(400).json({ error: 'No photos to analyze' });
+    }
+    const photoUrls = photos.map((m: any) => m.url);
+    const analysis = await aiTriageService.generatePhotoAnalysis(photoUrls, caseRecord.title, caseRecord.description || '');
+    if (analysis) {
+      await db.update(smartCases).set({ aiTriageJson: { ...existingTriage, photoAnalysis: analysis } }).where(eq(smartCases.id, caseId));
+      console.log(`🤖 Photo analysis generated for case ${caseId}`);
+      return res.json({ photoAnalysis: analysis });
+    }
+    res.status(500).json({ error: 'Analysis failed' });
+  } catch (error) {
+    console.error('Error analyzing photos:', error);
+    res.status(500).json({ error: 'Failed to analyze photos' });
   }
 });
 

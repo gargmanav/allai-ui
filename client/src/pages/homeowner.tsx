@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ThreadChat } from "@/components/contractor/thread-chat";
+import { MayaPhotoAnalysis } from "@/components/contractor/maya-photo-analysis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1286,6 +1287,14 @@ export default function Homeowner() {
                           </div>
                         </div>
                         
+                        {requestPhotos.length > 0 && selectedRequest?.aiTriageJson?.photoAnalysis && (
+                          <MayaPhotoAnalysis
+                            media={requestPhotos.map((p: any) => ({ id: p.id, url: p.url, type: p.type || 'image' }))}
+                            photoAnalysis={selectedRequest.aiTriageJson.photoAnalysis}
+                            mode="tenant"
+                          />
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
                             <h5 className="font-medium text-xs mb-2 text-violet-600">Quote Comparison</h5>

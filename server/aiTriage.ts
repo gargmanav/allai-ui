@@ -118,6 +118,102 @@ Please analyze and respond with JSON in this exact format:
 }`;
   }
 
+  async generatePhotoAnalysis(photos: string[], caseTitle: string, caseDescription: string): Promise<any> {
+    try {
+      const firstPhoto = photos[0];
+      const base64Data = firstPhoto.includes(',') ? firstPhoto.split(',')[1] : firstPhoto;
+
+      const response = await Promise.race([
+        openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are Maya, an expert maintenance photo analyst for contractors. Analyze property maintenance photos and provide detailed technical assessments. 
+You must respond with valid JSON only. No markdown, no code blocks, just raw JSON.`
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Analyze this maintenance photo for a contractor. The homeowner reported: "${caseTitle}" - "${caseDescription}"
+
+Respond with JSON in this exact format:
+{
+  "tenant": {
+    "summary": "Simple 1-2 sentence explanation of what Maya sees in the photo, written for the homeowner in plain language",
+    "advice": "Safety advice or what the homeowner should do while waiting for a contractor",
+    "safetyLevel": "safe|caution|danger"
+  },
+  "contractor": {
+    "summary": "Detailed technical description of what the photo shows, identifying specific damage patterns, material conditions, and diagnostic observations. 2-3 sentences for a professional contractor.",
+    "technicalNotes": "Detailed technical repair notes: what to inspect, code references (NEC/IBC/UPC etc.), what to check for, repair approach, potential complications. Written as a technical brief for a licensed contractor.",
+    "materialsNeeded": ["List", "of", "specific", "materials", "and", "tools", "needed"],
+    "codeCompliance": "Relevant building code requirements, permit needs, and compliance notes. Reference specific codes like NEC 210.12, etc.",
+    "annotations": [
+      {
+        "id": 1,
+        "x": 50,
+        "y": 30,
+        "label": "Short label for issue area 1",
+        "note": "Detailed description of what's visible at this location and what it indicates"
+      },
+      {
+        "id": 2,
+        "x": 40,
+        "y": 60,
+        "label": "Short label for issue area 2", 
+        "note": "Detailed description of what's visible at this location"
+      },
+      {
+        "id": 3,
+        "x": 60,
+        "y": 70,
+        "label": "Short label for issue area 3",
+        "note": "Detailed description of what's visible at this location"
+      }
+    ]
+  }
+}
+
+IMPORTANT for annotations:
+- x and y are percentage positions (0-100) on the image where the issue is located
+- Provide 2-4 annotations pointing to specific visible issues in the photo
+- Each annotation should identify a distinct area of concern
+- Be specific about what's visible at each location`
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:image/jpeg;base64,${base64Data}`
+                  }
+                }
+              ],
+            }
+          ],
+          max_completion_tokens: 1200,
+          response_format: { type: "json_object" },
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Photo analysis timeout")), 20000)
+        )
+      ]) as any;
+
+      const content = response.choices[0].message.content;
+      if (!content) {
+        throw new Error("No content from photo analysis");
+      }
+
+      const analysis = JSON.parse(content);
+      console.log(`🤖 Photo Analysis: Generated ${analysis.contractor?.annotations?.length || 0} annotations`);
+      return analysis;
+    } catch (error) {
+      console.error('🚨 Photo Analysis Error:', error instanceof Error ? error.message : 'Unknown error');
+      return null;
+    }
+  }
+
   private async analyzeMaintenancePhotos(photos: string[]): Promise<string> {
     try {
       const firstPhoto = photos[0];

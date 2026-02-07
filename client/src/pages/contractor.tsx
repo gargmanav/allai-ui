@@ -396,6 +396,21 @@ export default function Contractor() {
     setSelectedCaseId(caseId);
   };
 
+  useEffect(() => {
+    if (!selectedCase) return;
+    const media = (selectedCase as any).media || [];
+    const hasPhotos = media.some((m: any) => (m.type === 'image' || m.type?.startsWith('image')) && m.url);
+    const hasAnalysis = (selectedCase as any).aiTriageJson?.photoAnalysis?.contractor;
+    if (hasPhotos && !hasAnalysis) {
+      apiRequest("POST", `/api/contractor/cases/${selectedCase.id}/analyze-photos`).then(async (resp) => {
+        if (resp.ok) {
+          queryClient.invalidateQueries({ queryKey: ['/api/marketplace/cases'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/contractor/cases'] });
+        }
+      }).catch(() => {});
+    }
+  }, [selectedCase?.id]);
+
   // Placeholder for unread count - would come from real messaging system
   const getUnreadCount = (job: any) => {
     return 0; // TODO: Implement real unread message count from messaging API

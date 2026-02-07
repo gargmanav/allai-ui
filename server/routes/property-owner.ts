@@ -5,6 +5,7 @@ import { properties, smartCases, organizationMembers, favoriteContractors, vendo
 import { eq, and, or, desc, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { aiTriageService } from '../aiTriage';
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -435,6 +436,29 @@ router.post('/cases/:caseId/photos', upload.array('photos', 5), async (req: any,
     }));
 
     res.json({ success: true, photos: mediaRecords });
+
+    const photoUrls = mediaRecords.map(r => r.url);
+    aiTriageService.generatePhotoAnalysis(
+      photoUrls,
+      caseRecord.title,
+      caseRecord.description || ''
+    ).then(async (photoAnalysis) => {
+      if (photoAnalysis) {
+        try {
+          const existingTriage = (caseRecord as any).aiTriageJson || {};
+          await db.update(smartCases)
+            .set({
+              aiTriageJson: { ...existingTriage, photoAnalysis },
+            })
+            .where(eq(smartCases.id, caseId));
+          console.log(`🤖 Photo analysis saved for case ${caseId}`);
+        } catch (err) {
+          console.error('Failed to save photo analysis:', err);
+        }
+      }
+    }).catch(err => {
+      console.error('Photo analysis background task failed:', err);
+    });
   } catch (error) {
     console.error('Error uploading photos:', error);
     res.status(500).json({ error: 'Failed to upload photos' });
