@@ -297,14 +297,18 @@ export default function Contractor() {
   });
 
   // Combine direct assignments and marketplace jobs, transform to displayable format
+  const dismissedCaseIds = useMemo(() => new Set(dismissedCases.map((c: any) => c.id)), [dismissedCases]);
+
   const jobs = useMemo(() => {
     const allCases = [
       ...cases.map(c => ({ ...c, source: 'direct' as const })),
       ...marketplaceCases.map(c => ({ ...c, source: 'marketplace' as const }))
     ];
     
-    // Remove duplicates by ID
-    const uniqueCases = allCases.filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i);
+    // Remove duplicates by ID and filter out dismissed cases
+    const uniqueCases = allCases
+      .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
+      .filter(c => !dismissedCaseIds.has(c.id));
     
     return uniqueCases.map((c, index) => {
       const color = getBubbleColor(index);
@@ -329,7 +333,7 @@ export default function Contractor() {
         estimatedValue,
       };
     });
-  }, [cases, marketplaceCases]);
+  }, [cases, marketplaceCases, dismissedCaseIds]);
 
   const dismissedJobs = useMemo(() => {
     return dismissedCases.map((c: any, index: number) => {
