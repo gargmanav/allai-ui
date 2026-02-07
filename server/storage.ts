@@ -4234,6 +4234,7 @@ export class DatabaseStorage implements IStorage {
       with: {
         property: true,
         unit: true,
+        media: true,
       },
       orderBy: [desc(smartCases.isUrgent), desc(smartCases.postedAt)],
     });

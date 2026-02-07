@@ -1785,6 +1785,7 @@ export default function Contractor() {
                       </div>
                       <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
                     </div>
+                    {(() => { console.log('[DEBUG] PhotoAnalysisButton props:', { mediaLength: ((selectedCase as any).media || []).length, media: (selectedCase as any).media, hasPhotoAnalysis: !!(selectedCase as any).aiTriageJson?.photoAnalysis }); return null; })()}
                     <PhotoAnalysisButton
                       media={(selectedCase as any).media || []}
                       photoAnalysis={(selectedCase as any).aiTriageJson?.photoAnalysis}
