@@ -554,29 +554,18 @@ export function MayaCarouselLayout({
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case "New": case "Submitted": return "bg-slate-100 text-slate-600";
-      case "In Progress": case "Active": return "bg-slate-100 text-slate-700";
-      case "Scheduled": return "bg-slate-100 text-slate-600";
-      case "Draft": return "bg-slate-100 text-slate-500 border-slate-200";
-      case "Sent": case "Awaiting_response": return "bg-blue-50 text-blue-600 border-blue-200";
-      case "Approved": return "bg-green-50 text-green-600 border-green-200";
-      case "Declined": return "bg-red-50 text-red-600 border-red-200";
-      case "Expired": return "bg-amber-50 text-amber-600 border-amber-200";
-      case "In Review": return "bg-slate-100 text-slate-600";
-      default: return "bg-slate-50 text-slate-500";
-    }
-  };
-
-  const getStatusDot = (status: string) => {
-    switch (status) {
-      case "Draft": return "bg-slate-400";
-      case "Sent": case "Awaiting_response": return "bg-blue-500";
-      case "Approved": return "bg-green-500";
-      case "Declined": return "bg-red-500";
-      case "Expired": return "bg-amber-500";
-      default: return "";
+      case "New": case "Submitted": return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+      case "In Progress": case "Active": return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+      case "Scheduled": return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+      case "Draft": return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+      case "Sent": case "Awaiting_response": return "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400";
+      case "Approved": return "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400";
+      case "Declined": return "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400";
+      case "Expired": return "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400";
+      case "In Review": return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+      default: return "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
     }
   };
 
@@ -929,14 +918,15 @@ export function MayaCarouselLayout({
                             <span className="text-[9px] text-white font-bold">{unreadByCaseId[item.id]}</span>
                           </div>
                         )}
-                        {itemType === "quote" && getStatusDot(item.status) && (
-                          <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${getStatusDot(item.status)} rounded-full border-2 border-white`} />
-                        )}
                       </div>
                       <span className={`text-xs mt-2 font-medium truncate max-w-[65px] ${isSelected ? "text-violet-700" : "text-foreground"}`}>
                         {item.customerName.split(" ")[0]}
                       </span>
-                      <span className={`text-[10px] ${itemType === "quote" ? getStatusDot(item.status).replace("bg-", "text-") : "text-muted-foreground"}`}>{item.status}</span>
+                      {itemType === "quote" ? (
+                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">{item.status}</span>
+                      )}
                       <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>
                         ${(item.estimatedValue || 0).toLocaleString()}
                       </span>
@@ -994,7 +984,7 @@ export function MayaCarouselLayout({
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getPriorityColor(selectedItem.priority)}>{selectedItem.priority || "Normal"}</Badge>
-                        <Badge className={getStatusColor(selectedItem.status)}>{selectedItem.status}</Badge>
+                        <Badge className={`${getStatusBadge(selectedItem.status)} border-0`}>{selectedItem.status}</Badge>
                       </div>
                     </div>
                   </div>
@@ -1255,7 +1245,7 @@ export function MayaCarouselLayout({
                           <span className="font-medium text-slate-700">${(item.estimatedValue || 0).toLocaleString()}</span>
                         </td>
                         <td className="px-3 py-3 text-center hidden md:table-cell">
-                          <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
+                          <Badge className={`${getStatusBadge(item.status)} border-0`}>{item.status}</Badge>
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">

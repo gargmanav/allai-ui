@@ -254,14 +254,14 @@ export function InlineQuoteDetail({
 
   const getStatusBadge = (s: string) => {
     const statusMap: Record<string, string> = {
-      draft: "bg-slate-100 text-slate-600 border-slate-200",
-      sent: "bg-slate-100 text-slate-700 border-slate-200",
-      awaiting_response: "bg-slate-100 text-slate-700 border-slate-200",
-      approved: "bg-slate-100 text-slate-700 border-slate-200",
-      declined: "bg-slate-100 text-slate-600 border-slate-200",
-      expired: "bg-slate-100 text-slate-500 border-slate-200",
+      draft: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+      sent: "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
+      awaiting_response: "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
+      approved: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400",
+      declined: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400",
+      expired: "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
     };
-    return statusMap[s.toLowerCase()] || "bg-slate-100 text-slate-600 border-slate-200";
+    return statusMap[s.toLowerCase()] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
   };
 
   const aiTriage = caseData?.aiTriageJson || (caseData as any)?.aiTriageJson;
@@ -298,7 +298,7 @@ export function InlineQuoteDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={getStatusBadge(currentStatus)}>
+              <Badge className={`${getStatusBadge(currentStatus)} border-0`}>
                 {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
               </Badge>
               {!isEditing ? (
