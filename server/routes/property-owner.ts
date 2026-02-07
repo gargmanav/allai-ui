@@ -1,9 +1,19 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { db } from '../db';
-import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users, quotes, quoteLineItems } from '@shared/schema';
+import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users, quotes, quoteLineItems, caseMedia } from '@shared/schema';
 import { eq, and, or, desc, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only images are allowed'));
+  },
+});
 
 const router = Router();
 
@@ -379,6 +389,96 @@ router.post('/cases/:caseId/quotes/:quoteId/decline', async (req: any, res) => {
   } catch (error) {
     console.error('Error declining quote:', error);
     res.status(500).json({ error: 'Failed to decline quote' });
+  }
+});
+
+router.post('/cases/:caseId/photos', upload.array('photos', 5), async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId } = req.params;
+    const files = req.files as Express.Multer.File[];
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No photos provided' });
+    }
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const mediaRecords = await Promise.all(files.map(async (file) => {
+      const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      const [record] = await db.insert(caseMedia).values({
+        caseId,
+        url: base64,
+        type: 'image',
+      }).returning();
+      return record;
+    }));
+
+    res.json({ success: true, photos: mediaRecords });
+  } catch (error) {
+    console.error('Error uploading photos:', error);
+    res.status(500).json({ error: 'Failed to upload photos' });
+  }
+});
+
+router.get('/cases/:caseId/photos', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId } = req.params;
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const photos = await db.query.caseMedia.findMany({
+      where: and(
+        eq(caseMedia.caseId, caseId),
+        eq(caseMedia.type, 'image')
+      ),
+    });
+
+    res.json(photos);
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    res.status(500).json({ error: 'Failed to fetch photos' });
   }
 });
 

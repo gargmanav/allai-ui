@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -24,6 +24,8 @@ import {
   Snowflake, 
   Wrench,
   Camera,
+  X,
+  ImagePlus,
   ArrowLeft,
   Star,
   Clock,
@@ -86,8 +88,28 @@ export default function Homeowner() {
   const [mayaChatInput, setMayaChatInput] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPhotos, setSelectedPhotos] = useState<{ file: File; preview: string }[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const mayaChatEndRef = useRef<HTMLDivElement>(null);
+
+  const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const newPhotos = files.slice(0, 5 - selectedPhotos.length).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setSelectedPhotos(prev => [...prev, ...newPhotos].slice(0, 5));
+    if (e.target) e.target.value = "";
+  }, [selectedPhotos.length]);
+
+  const removePhoto = useCallback((index: number) => {
+    setSelectedPhotos(prev => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
 
   const firstName = user?.firstName || "there";
 
@@ -133,6 +155,11 @@ export default function Homeowner() {
     refetchInterval: 15000,
   });
 
+  const { data: requestPhotos = [] } = useQuery<any[]>({
+    queryKey: ["/api/property-owner/cases", selectedRequest?.id, "photos"],
+    enabled: !!selectedRequest?.id,
+  });
+
   const unreadByCaseId = useMemo(() => {
     const map: Record<string, number> = {};
     for (const conv of homeownerConversations) {
@@ -171,7 +198,28 @@ export default function Homeowner() {
       const response = await apiRequest("POST", "/api/property-owner/cases", data);
       return response.json();
     },
-    onSuccess: (newCase) => {
+    onSuccess: async (newCase) => {
+      if (selectedPhotos.length > 0 && newCase?.id) {
+        try {
+          const formData = new FormData();
+          selectedPhotos.forEach(p => formData.append("photos", p.file));
+          const uploadRes = await fetch(`/api/property-owner/cases/${newCase.id}/photos`, {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          });
+          if (!uploadRes.ok) {
+            toast({ title: "Photos couldn't be uploaded", description: "Your request was saved but photos failed to upload.", variant: "destructive" });
+          } else {
+            queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", newCase.id, "photos"] });
+          }
+        } catch (err) {
+          console.error("Photo upload failed:", err);
+          toast({ title: "Photos couldn't be uploaded", description: "Your request was saved but photos failed to upload.", variant: "destructive" });
+        }
+        selectedPhotos.forEach(p => URL.revokeObjectURL(p.preview));
+        setSelectedPhotos([]);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases"] });
       setSelectedRequest(newCase);
       setView("requestDetail");
@@ -719,12 +767,52 @@ export default function Homeowner() {
               {/* Add Photos */}
               <Card className="mb-6">
                 <CardContent className="p-4">
-                  <Button variant="outline" className="w-full gap-2">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    capture="environment"
+                    className="hidden"
+                    onChange={handlePhotoSelect}
+                  />
+                  {selectedPhotos.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {selectedPhotos.map((photo, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group">
+                          <img src={photo.preview} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removePhoto(idx)}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ minWidth: 24, minHeight: 24 }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {selectedPhotos.length < 5 && (
+                        <button
+                          onClick={() => photoInputRef.current?.click()}
+                          className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-gray-400 transition-colors"
+                          style={{ minHeight: 44 }}
+                        >
+                          <ImagePlus className="h-5 w-5" />
+                          <span className="text-[10px]">Add More</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => photoInputRef.current?.click()}
+                    style={{ minHeight: 44 }}
+                  >
                     <Camera className="h-4 w-4" />
-                    Add Photos
+                    {selectedPhotos.length > 0 ? `${selectedPhotos.length} Photo${selectedPhotos.length > 1 ? 's' : ''} Added` : 'Add Photos'}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mt-2">
-                    Photos help contractors give better estimates
+                    {selectedPhotos.length > 0 ? `${5 - selectedPhotos.length} more allowed` : 'Photos help contractors give better estimates'}
                   </p>
                 </CardContent>
               </Card>
@@ -956,6 +1044,18 @@ export default function Homeowner() {
             >
               <h2 className="font-semibold text-lg">{selectedRequest.title || "Request Details"}</h2>
               <p className="text-sm text-muted-foreground">{selectedRequest.description?.slice(0, 100)}</p>
+              {requestPhotos.length > 0 && (
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                  {requestPhotos.map((photo: any) => (
+                    <img
+                      key={photo.id}
+                      src={photo.url}
+                      alt="Request photo"
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-gray-200/60"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Contractor Selector - Horizontal scroll bubbles with frosted glass */}

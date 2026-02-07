@@ -43,6 +43,7 @@ export async function getMarketplaceCases(contractorUserId: string, filters?: Ma
     with: {
       property: true,
       unit: true,
+      media: true,
     },
     orderBy: (cases, { desc }) => [desc(cases.priority), desc(cases.postedAt)],
   });
