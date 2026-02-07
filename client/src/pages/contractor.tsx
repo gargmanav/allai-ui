@@ -1756,6 +1756,20 @@ export default function Contractor() {
                   {selectedCase.description && (
                     <p className="mt-3 text-foreground">{selectedCase.description}</p>
                   )}
+                  {(() => {
+                    const caseMedia = ((selectedCase as any).media || []).filter((m: any) => m.type?.startsWith('image') && m.url);
+                    if (caseMedia.length === 0) return null;
+                    return (
+                      <div className="mt-3 space-y-2">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Attached Photos</span>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {caseMedia.map((m: any) => (
+                            <img key={m.id} src={m.url} alt={m.caption || "Photo"} className="w-24 h-24 rounded-lg object-cover border border-slate-200 shrink-0" />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </CardContent>
             </Card>

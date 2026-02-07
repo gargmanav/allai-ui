@@ -125,12 +125,12 @@ export function PhotoAnalysisButton({ media, photoAnalysis }: {
 
   const images = media?.filter(m => m.type?.startsWith("image")) || [];
   const contractor = photoAnalysis?.contractor;
-  if (!contractor && images.length === 0) return null;
 
-  const hasPhotoAnalysis = images.length > 0 && (contractor?.summary || (contractor?.annotations && contractor.annotations.length > 0));
+  const hasImages = images.length > 0;
+  const hasPhotoAnalysis = hasImages && (contractor?.summary || (contractor?.annotations && contractor.annotations.length > 0));
   const hasTechNotes = contractor?.technicalNotes || (contractor?.materialsNeeded && contractor.materialsNeeded.length > 0) || contractor?.codeCompliance;
 
-  if (!hasPhotoAnalysis && !hasTechNotes) return null;
+  if (!hasImages && !contractor && !hasTechNotes) return null;
 
   return (
     <>
@@ -158,21 +158,31 @@ export function PhotoAnalysisButton({ media, photoAnalysis }: {
           <ScrollArea className="max-h-[calc(85vh-80px)]">
             <div className="px-5 pb-5 space-y-5">
 
-              {hasPhotoAnalysis && (
+              {hasImages && (
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center gap-1.5">
                     <Camera className="h-3.5 w-3.5 text-violet-500" />
-                    <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Photo Analysis</span>
+                    <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+                      {hasPhotoAnalysis ? "Photo Analysis" : "Attached Photos"}
+                    </span>
                   </div>
 
-                  <AnnotatedImage
-                    src={images[0]?.url}
-                    annotations={contractor?.annotations || []}
-                  />
+                  {hasPhotoAnalysis ? (
+                    <AnnotatedImage
+                      src={images[0]?.url}
+                      annotations={contractor?.annotations || []}
+                    />
+                  ) : (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
+                      <img src={images[0]?.url} alt="Attached photo" className="w-full h-auto max-h-[400px] object-contain" />
+                    </div>
+                  )}
 
-                  <div className="space-y-1">
-                    <p className="text-sm text-slate-700 leading-relaxed">{contractor?.summary}</p>
-                  </div>
+                  {contractor?.summary && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-700 leading-relaxed">{contractor.summary}</p>
+                    </div>
+                  )}
 
                   {contractor?.annotations && contractor.annotations.length > 0 && (
                     <div className="space-y-2">
@@ -204,7 +214,7 @@ export function PhotoAnalysisButton({ media, photoAnalysis }: {
                 </div>
               )}
 
-              {hasPhotoAnalysis && hasTechNotes && (
+              {hasImages && hasTechNotes && (
                 <div className="border-t border-slate-200" />
               )}
 

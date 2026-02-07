@@ -1057,7 +1057,7 @@ export function MayaCarouselLayout({
                       </div>
                     )}
 
-                    {selectedItem.media && selectedItem.media.length > 0 && !selectedItem.aiTriageJson?.photoAnalysis && (
+                    {selectedItem.media && selectedItem.media.length > 0 && (
                       <div className="mt-4 pt-4 border-t">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Photos</p>
                         <div className="flex gap-2 overflow-x-auto pb-1">
