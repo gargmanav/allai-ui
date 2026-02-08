@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases, reminders } from '@shared/schema';
+import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases, reminders, messageThreads, chatMessages } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -177,6 +177,42 @@ router.post('/cases/:caseId/confirm-job', requireAuth, requireRole('contractor')
       }
     }
 
+    // Auto-insert system message to homeowner thread
+    try {
+      const contractorUser = await db.query.users.findFirst({
+        where: eq(users.id, contractorUserId),
+      });
+      const contractorName = contractorUser?.fullName || contractorUser?.username || 'Your contractor';
+      
+      const thread = await db.query.messageThreads.findFirst({
+        where: and(
+          eq(messageThreads.caseId, caseId),
+          eq(messageThreads.contractorUserId, contractorUserId)
+        ),
+      });
+
+      if (thread) {
+        const dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : null;
+        const msgParts = [`${contractorName} has confirmed the job`];
+        if (dateStr) msgParts.push(`and is scheduled to start on ${dateStr}`);
+        if (estimatedDays) msgParts.push(`(estimated ${estimatedDays} day${estimatedDays > 1 ? 's' : ''})`);
+        if (notes) msgParts.push(`\n\nNote: ${notes}`);
+
+        await db.insert(chatMessages).values({
+          threadId: thread.id,
+          senderId: contractorUserId,
+          body: msgParts.join(' '),
+          isRead: false,
+        });
+
+        await db.update(messageThreads)
+          .set({ lastMessageAt: new Date(), lastMessagePreview: msgParts.join(' ').substring(0, 100) })
+          .where(eq(messageThreads.id, thread.id));
+      }
+    } catch (msgError) {
+      console.error('Error sending confirmation message:', msgError);
+    }
+
     res.json({ success: true, message: 'Job confirmed and scheduled' });
   } catch (error) {
     console.error('Error confirming job:', error);
@@ -211,6 +247,22 @@ router.post('/cases/:caseId/start-job', requireAuth, requireRole('contractor'), 
         updatedAt: new Date(),
       })
       .where(eq(smartCases.id, caseId));
+
+    // Auto-insert system message
+    try {
+      const contractorUser = await db.query.users.findFirst({ where: eq(users.id, contractorUserId) });
+      const contractorName = contractorUser?.fullName || contractorUser?.username || 'Your contractor';
+      const thread = await db.query.messageThreads.findFirst({
+        where: and(eq(messageThreads.caseId, caseId), eq(messageThreads.contractorUserId, contractorUserId)),
+      });
+      if (thread) {
+        const body = `${contractorName} has started work on this job.`;
+        await db.insert(chatMessages).values({ threadId: thread.id, senderId: contractorUserId, body, isRead: false });
+        await db.update(messageThreads).set({ lastMessageAt: new Date(), lastMessagePreview: body.substring(0, 100) }).where(eq(messageThreads.id, thread.id));
+      }
+    } catch (msgError) {
+      console.error('Error sending start message:', msgError);
+    }
 
     res.json({ success: true, message: 'Job started' });
   } catch (error) {
@@ -247,6 +299,22 @@ router.post('/cases/:caseId/complete-job', requireAuth, requireRole('contractor'
         updatedAt: new Date(),
       })
       .where(eq(smartCases.id, caseId));
+
+    // Auto-insert system message
+    try {
+      const contractorUser = await db.query.users.findFirst({ where: eq(users.id, contractorUserId) });
+      const contractorName = contractorUser?.fullName || contractorUser?.username || 'Your contractor';
+      const thread = await db.query.messageThreads.findFirst({
+        where: and(eq(messageThreads.caseId, caseId), eq(messageThreads.contractorUserId, contractorUserId)),
+      });
+      if (thread) {
+        const body = `${contractorName} has marked this job as completed.${completionNotes ? `\n\nCompletion notes: ${completionNotes}` : ''}`;
+        await db.insert(chatMessages).values({ threadId: thread.id, senderId: contractorUserId, body, isRead: false });
+        await db.update(messageThreads).set({ lastMessageAt: new Date(), lastMessagePreview: body.substring(0, 100) }).where(eq(messageThreads.id, thread.id));
+      }
+    } catch (msgError) {
+      console.error('Error sending completion message:', msgError);
+    }
 
     res.json({ success: true, message: 'Job completed' });
   } catch (error) {

@@ -1542,11 +1542,7 @@ export default function Contractor() {
               const colorIdx = customerName.charCodeAt(0) % colors.length;
               const caseStatus = (quote as any).caseStatus;
               let filterGroup = quote.status;
-              if (quote.status === 'approved') {
-                if (caseStatus === 'In Review') filterGroup = 'approved';
-                else if (caseStatus === 'Scheduled' || caseStatus === 'In Progress') filterGroup = 'active_job';
-                else if (caseStatus === 'Resolved' || caseStatus === 'Closed') filterGroup = 'completed_job';
-              }
+              if (quote.status === 'approved') filterGroup = 'approved';
               return {
                 id: quote.id,
                 title: quote.title || `Quote #${quote.id.slice(0, 8)}`,
@@ -1582,9 +1578,7 @@ export default function Contractor() {
               { id: "all", label: "All", count: quotes.length },
               { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
               { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
-              { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved" && (q as any).caseStatus === "In Review").length },
-              { id: "active_job", label: "Active Jobs", count: quotes.filter(q => q.status === "approved" && ["Scheduled", "In Progress"].includes((q as any).caseStatus)).length },
-              { id: "completed_job", label: "Completed", count: quotes.filter(q => q.status === "approved" && ["Resolved", "Closed"].includes((q as any).caseStatus)).length },
+              { id: "approved", label: "Accepted", count: quotes.filter(q => q.status === "approved").length },
               { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
               { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },

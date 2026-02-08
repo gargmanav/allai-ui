@@ -3,8 +3,8 @@ import { storage } from "./storage";
 import { checkAndSendTimeoutNotifications } from "./services/timeoutNotifications";
 import { cleanupExpiredSessions } from "./services/sessionService";
 import { db } from "./db";
-import { contractorDismissedCases } from "@shared/schema";
-import { lt } from "drizzle-orm";
+import { contractorDismissedCases, smartCases, quotes } from "@shared/schema";
+import { lt, eq, and, lte, isNotNull } from "drizzle-orm";
 
 export function startCronJobs() {
   // Run every hour to check for due reminders
@@ -161,6 +161,47 @@ export function startCronJobs() {
       console.log(`✅ Cleaned up expired dismissed cases`);
     } catch (error) {
       console.error('Error cleaning up dismissed cases:', error);
+    }
+  });
+
+  // Nudge contractors who haven't confirmed a job within 48 hours (run every 6 hours)
+  cron.schedule('0 */6 * * *', async () => {
+    console.log('Checking for unconfirmed jobs (48h nudge)...');
+    try {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setHours(twoDaysAgo.getHours() - 48);
+
+      const staleApprovedQuotes = await db.select({
+        caseId: quotes.caseId,
+        contractorId: quotes.contractorId,
+        caseTitle: smartCases.title,
+      })
+      .from(quotes)
+      .innerJoin(smartCases, eq(quotes.caseId, smartCases.id))
+      .where(and(
+        eq(quotes.status, 'approved'),
+        eq(smartCases.status, 'In Review'),
+        isNotNull(quotes.approvedAt),
+        lte(quotes.approvedAt, twoDaysAgo)
+      ));
+
+      for (const row of staleApprovedQuotes) {
+        if (!row.contractorId) continue;
+        await storage.createNotification(
+          row.contractorId,
+          'Job awaiting your confirmation',
+          `"${row.caseTitle}" has been waiting for your confirmation for over 48 hours. Please confirm or update the homeowner.`,
+          'warning',
+          'contractor',
+          'System'
+        );
+      }
+
+      if (staleApprovedQuotes.length > 0) {
+        console.log(`Sent ${staleApprovedQuotes.length} contractor nudge(s)`);
+      }
+    } catch (error) {
+      console.error('Error sending contractor nudges:', error);
     }
   });
 

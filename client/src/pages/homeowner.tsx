@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis } from "@/components/contractor/maya-photo-analysis";
+import { JobProgressTracker } from "@/components/job-progress-tracker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1098,6 +1099,20 @@ export default function Homeowner() {
                 </div>
               )}
             </div>
+
+            {/* Job Progress Tracker - Amazon-style */}
+            {caseQuotes.some((q: any) => q.status === 'approved') && (
+              <div className="px-4 pt-3 pb-1">
+                <JobProgressTracker
+                  status={selectedRequest.status}
+                  scheduledDate={selectedRequest.scheduledStartAt}
+                  contractorName={(() => {
+                    const accepted = caseQuotes.find((q: any) => q.status === 'approved');
+                    return accepted?.contractorName || null;
+                  })()}
+                />
+              </div>
+            )}
 
             {/* Contractor Selector - Horizontal scroll bubbles with frosted glass */}
             <div className="px-4 py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
