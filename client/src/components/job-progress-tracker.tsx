@@ -41,7 +41,11 @@ export function JobProgressTracker({ status, scheduledDate, contractorName }: Jo
       ? `${contractorName} will confirm scheduling soon`
       : "Waiting for contractor to confirm scheduling",
     1: scheduledDate
-      ? `Work scheduled for ${new Date(scheduledDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`
+      ? `Work scheduled for ${(() => {
+          const iso = typeof scheduledDate === 'string' ? scheduledDate : new Date(scheduledDate).toISOString();
+          const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+          return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        })()}`
       : "Work has been scheduled",
     2: "Work is underway",
     3: "Work complete",
