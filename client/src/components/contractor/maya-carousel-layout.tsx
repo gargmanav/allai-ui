@@ -1060,7 +1060,7 @@ export function MayaCarouselLayout({
                       <div className="mb-4">
                         {selectedItem.status === "In Review" && onConfirmJob && !confirmJobOpen && (
                           <Button
-                            className="w-full h-11 touch-manipulation bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="w-full h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => setConfirmJobOpen(true)}
                           >
                             <CheckCircle className="h-4 w-4 mr-2" /> Confirm Job
@@ -1135,7 +1135,7 @@ export function MayaCarouselLayout({
                         )}
                         {selectedItem.status === "Scheduled" && onStartJob && (
                           <Button
-                            className="w-full h-11 touch-manipulation bg-blue-600 hover:bg-blue-700 text-white"
+                            className="w-full h-11 touch-manipulation bg-blue-100/60 hover:bg-blue-100/80 text-blue-700 border border-blue-200/60 backdrop-blur-sm"
                             disabled={jobActionLoading}
                             onClick={async () => {
                               setJobActionLoading(true);
@@ -1155,7 +1155,7 @@ export function MayaCarouselLayout({
                               className="min-h-[60px]"
                             />
                             <Button
-                              className="w-full h-11 touch-manipulation bg-emerald-500/80 hover:bg-emerald-500/90 text-white backdrop-blur-sm border border-emerald-400/30"
+                              className="w-full h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                               disabled={jobActionLoading}
                               onClick={async () => {
                                 setJobActionLoading(true);
@@ -1558,14 +1558,14 @@ export function MayaCarouselLayout({
                     {itemType === "job" && (
                       <div className="mt-3">
                         {selectedItem.status === "In Review" && onConfirmJob && (
-                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-600 hover:bg-emerald-700 text-white"
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => { setConfirmJobOpen(true); }}
                           >
                             <CheckCircle className="h-3 w-3 mr-1" /> Confirm Job
                           </Button>
                         )}
                         {selectedItem.status === "Scheduled" && onStartJob && (
-                          <Button size="sm" className="w-full h-9 touch-manipulation bg-blue-600 hover:bg-blue-700 text-white"
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-blue-100/60 hover:bg-blue-100/80 text-blue-700 border border-blue-200/60 backdrop-blur-sm"
                             disabled={jobActionLoading}
                             onClick={async () => { setJobActionLoading(true); await onStartJob(selectedItem); setJobActionLoading(false); }}
                           >
@@ -1573,7 +1573,7 @@ export function MayaCarouselLayout({
                           </Button>
                         )}
                         {selectedItem.status === "In Progress" && onCompleteJob && (
-                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-500/80 hover:bg-emerald-500/90 text-white backdrop-blur-sm border border-emerald-400/30"
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             disabled={jobActionLoading}
                             onClick={async () => { setJobActionLoading(true); await onCompleteJob(selectedItem, {}); setJobActionLoading(false); }}
                           >
