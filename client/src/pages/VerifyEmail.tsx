@@ -26,7 +26,7 @@ export default function VerifyEmail() {
     }
 
     // Verify token
-    fetch(`/api/auth/verify-email?token=${token}`, { credentials: 'include' })
+    fetch(`/api/auth/verify-email?token=${token}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -42,15 +42,15 @@ export default function VerifyEmail() {
           
           // Redirect based on role
           setTimeout(() => {
-            const role = data.user.role || data.user.primaryRole;
+            const role = data.user.primaryRole;
             
+            // Contractors and tenants have dedicated dashboards
             if (role === 'contractor') {
               window.location.href = '/contractor-dashboard';
             } else if (role === 'tenant') {
               window.location.href = '/tenant-dashboard';
-            } else if (role === 'property_owner') {
-              window.location.href = '/homeowner';
             } else {
+              // Platform admins, landlords, and property owners use the main dashboard
               window.location.href = '/dashboard';
             }
           }, 1000);
