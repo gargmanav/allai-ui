@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from "react";
+import { format } from "date-fns";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -39,7 +40,9 @@ import {
   ChevronRight,
   Sparkles,
   Search,
-  User
+  User,
+  CalendarDays,
+  Trophy
 } from "lucide-react";
 
 type ViewState = "landing" | "triage" | "contractors" | "chat" | "pastRequests" | "requestDetail";
@@ -1129,13 +1132,6 @@ export default function Homeowner() {
                 {caseQuotes.map((quote: any) => {
                   const isSelected = selectedContractorId === quote.contractorId && !showMayaPanel;
                   const initials = (quote.contractorFirstName?.[0] || 'C').toUpperCase() + (quote.contractorName?.split(' ')[1]?.[0] || '').toUpperCase();
-                  const colors = [
-                    { text: "text-blue-600", glow: "rgba(59, 130, 246, 0.15)", shadow: "rgba(59, 130, 246, 0.1)" },
-                    { text: "text-emerald-600", glow: "rgba(16, 185, 129, 0.15)", shadow: "rgba(16, 185, 129, 0.1)" },
-                    { text: "text-orange-600", glow: "rgba(249, 115, 22, 0.15)", shadow: "rgba(249, 115, 22, 0.1)" },
-                    { text: "text-pink-600", glow: "rgba(236, 72, 153, 0.15)", shadow: "rgba(236, 72, 153, 0.1)" },
-                  ];
-                  const colorSet = colors[caseQuotes.indexOf(quote) % colors.length];
                   return (
                     <button
                       key={quote.id}
@@ -1147,27 +1143,27 @@ export default function Homeowner() {
                     >
                       <div 
                         className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
-                          isSelected ? "ring-2 ring-gray-300/60 scale-105" : "hover:scale-105"
+                          isSelected ? "ring-2 ring-violet-300/60 scale-105" : "hover:scale-105"
                         }`}
                         style={{
                           background: isSelected 
-                            ? `radial-gradient(ellipse at 30% 20%, ${colorSet.glow}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,252,0.95))`
+                            ? "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.15), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,248,255,0.95))"
                             : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
                           backdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           WebkitBackdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           boxShadow: isSelected 
-                            ? `0 6px 20px ${colorSet.shadow}, inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)`
+                            ? "0 6px 20px rgba(139, 92, 246, 0.1), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)"
                             : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? colorSet.text : "text-gray-500"}`}>
+                        <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? "text-violet-600" : "text-gray-500"}`}>
                           {initials}
                         </span>
                       </div>
-                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? colorSet.text : "text-foreground"}`}>
+                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? "text-violet-600" : "text-foreground"}`}>
                         {quote.contractorFirstName}
                       </span>
-                      <span className={`text-[10px] font-medium transition-colors duration-300 ${isSelected ? colorSet.text : "text-muted-foreground"}`}>
+                      <span className={`text-[10px] font-medium transition-colors duration-300 ${isSelected ? "text-violet-600" : "text-muted-foreground"}`}>
                         ${Number(quote.total || 0).toLocaleString()}
                       </span>
                     </button>
@@ -1198,33 +1194,28 @@ export default function Homeowner() {
                             <p className="text-sm">No quote details available</p>
                           </div>
                         );
-                        const colors = [
-                          { text: "text-blue-600", glow: "rgba(59, 130, 246, 0.08)" },
-                          { text: "text-emerald-600", glow: "rgba(16, 185, 129, 0.08)" },
-                          { text: "text-orange-600", glow: "rgba(249, 115, 22, 0.08)" },
-                          { text: "text-pink-600", glow: "rgba(236, 72, 153, 0.08)" },
-                        ];
-                        const colorSet = colors[caseQuotes.indexOf(quote) % colors.length];
                         const initials = (quote.contractorFirstName?.[0] || 'C').toUpperCase() + (quote.contractorName?.split(' ')[1]?.[0] || '').toUpperCase();
+                        const startDate = quote.availableStartDate ? new Date(quote.availableStartDate) : null;
+                        const endDate = quote.availableEndDate ? new Date(quote.availableEndDate) : null;
                         return (
                           <div 
-                            className="mb-4 rounded-2xl p-4 border border-gray-200/60"
+                            className="mb-4 rounded-2xl p-4 border border-violet-200/40"
                             style={{
-                              background: `radial-gradient(ellipse at 20% 20%, ${colorSet.glow}, transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,250,252,0.9))`,
+                              background: "radial-gradient(ellipse at 20% 20%, rgba(139, 92, 246, 0.06), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,248,255,0.9))",
                               backdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
                               WebkitBackdropFilter: "blur(24px) saturate(180%) brightness(1.02)",
-                              boxShadow: "inset 0 1px 2px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.04)",
+                              boxShadow: "inset 0 1px 2px rgba(255,255,255,0.8), 0 4px 12px rgba(139, 92, 246, 0.06)",
                             }}
                           >
                             <div className="flex items-center gap-3">
                               <div 
                                 className="w-12 h-12 rounded-full flex items-center justify-center"
                                 style={{
-                                  background: `radial-gradient(ellipse at 30% 20%, ${colorSet.glow}, transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,248,250,0.95))`,
-                                  boxShadow: "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
+                                  background: "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.12), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,246,255,0.95))",
+                                  boxShadow: "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(139, 92, 246, 0.08)",
                                 }}
                               >
-                                <span className={`text-sm font-bold ${colorSet.text}`}>{initials}</span>
+                                <span className="text-sm font-bold text-violet-600">{initials}</span>
                               </div>
                               <div className="flex-1">
                                 <h4 className="font-semibold text-foreground">{quote.contractorName}</h4>
@@ -1235,21 +1226,31 @@ export default function Homeowner() {
                                 {quote.estimatedDays && <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""} est.</p>}
                               </div>
                             </div>
+                            {(startDate || endDate) && (
+                              <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-violet-50/60 border border-violet-100/60">
+                                <CalendarDays className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                                <span className="text-xs text-violet-600">
+                                  Available {startDate ? format(startDate, 'MMM d') : ''}
+                                  {endDate && startDate && endDate.getTime() !== startDate.getTime() ? ` – ${format(endDate, 'MMM d')}` : ''}
+                                  {!startDate && endDate ? `by ${format(endDate, 'MMM d')}` : ''}
+                                </span>
+                              </div>
+                            )}
                             {quote.status === 'approved' ? (
-                              <div className="mt-4 p-2 bg-green-50 border border-green-200 rounded-lg text-center">
-                                <span className="text-sm font-medium text-green-700 flex items-center justify-center gap-1">
+                              <div className="mt-4 p-2 bg-violet-50 border border-violet-200/60 rounded-lg text-center">
+                                <span className="text-sm font-medium text-violet-700 flex items-center justify-center gap-1">
                                   <CheckCircle className="h-4 w-4" /> Quote Accepted
                                 </span>
                               </div>
                             ) : quote.status === 'declined' ? (
-                              <div className="mt-4 p-2 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                                <span className="text-sm font-medium text-gray-500">Declined</span>
+                              <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                                <span className="text-sm font-medium text-slate-500">Declined</span>
                               </div>
                             ) : (
                               <div className="flex gap-2 mt-4">
                                 <Button 
                                   size="sm" 
-                                  className="flex-1"
+                                  className="flex-1 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
                                   disabled={acceptQuoteMutation.isPending}
                                   onClick={() => acceptQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
                                 >
@@ -1258,7 +1259,7 @@ export default function Homeowner() {
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
-                                  className="flex-1"
+                                  className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50"
                                   disabled={declineQuoteMutation.isPending}
                                   onClick={() => declineQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
                                 >
@@ -1267,7 +1268,7 @@ export default function Homeowner() {
                               </div>
                             )}
                             {quote.lineItems && quote.lineItems.length > 0 && (
-                              <div className="mt-3 pt-3 border-t space-y-1">
+                              <div className="mt-3 pt-3 border-t border-violet-100/40 space-y-1">
                                 <p className="text-xs font-medium text-muted-foreground mb-1">Line Items</p>
                                 {quote.lineItems.map((item: any) => (
                                   <div key={item.id} className="flex justify-between text-xs">
@@ -1317,38 +1318,86 @@ export default function Homeowner() {
                           />
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
-                            <h5 className="font-medium text-xs mb-2 text-violet-600">Quote Comparison</h5>
-                            <div className="space-y-1">
-                              {caseQuotes.map((quote: any) => (
-                                <div key={quote.id} className="flex justify-between items-center text-xs">
-                                  <span className="text-muted-foreground truncate">{quote.contractorName || 'Contractor'}</span>
-                                  <span className="font-medium">${Number(quote.total || 0).toLocaleString()}</span>
+                        {(() => {
+                          const activeQuotes = caseQuotes.filter((q: any) => q.status !== 'declined' && q.status !== 'archived');
+                          const bestPrice = activeQuotes.length > 0 ? activeQuotes.reduce((best: any, q: any) => Number(q.total || 0) < Number(best.total || 0) ? q : best, activeQuotes[0]) : null;
+                          const earliestAvail = activeQuotes.filter((q: any) => q.availableStartDate).length > 0
+                            ? activeQuotes.filter((q: any) => q.availableStartDate).reduce((best: any, q: any) => new Date(q.availableStartDate) < new Date(best.availableStartDate) ? q : best)
+                            : null;
+                          const fastestJob = activeQuotes.filter((q: any) => q.estimatedDays).length > 0
+                            ? activeQuotes.filter((q: any) => q.estimatedDays).reduce((best: any, q: any) => (q.estimatedDays || 99) < (best.estimatedDays || 99) ? q : best)
+                            : null;
+
+                          const buildRecommendation = () => {
+                            if (activeQuotes.length === 0) return "No active quotes yet. Once contractors respond, I'll help you compare.";
+                            if (activeQuotes.length === 1) {
+                              const q = activeQuotes[0];
+                              const name = q.contractorFirstName || q.contractorName || 'This contractor';
+                              const parts = [`${name} quoted $${Number(q.total || 0).toLocaleString()}`];
+                              if (q.estimatedDays) parts.push(`with a ${q.estimatedDays}-day timeline`);
+                              if (q.availableStartDate) parts.push(`available starting ${format(new Date(q.availableStartDate), 'MMM d')}`);
+                              return parts.join(' ') + '. You can accept or wait for more quotes.';
+                            }
+                            const parts: string[] = [];
+                            if (bestPrice) {
+                              parts.push(`${bestPrice.contractorFirstName || bestPrice.contractorName} has the best price at $${Number(bestPrice.total || 0).toLocaleString()}`);
+                            }
+                            if (earliestAvail && earliestAvail.id !== bestPrice?.id) {
+                              parts.push(`${earliestAvail.contractorFirstName || earliestAvail.contractorName} can start earliest (${format(new Date(earliestAvail.availableStartDate), 'MMM d')})`);
+                            }
+                            if (fastestJob && fastestJob.id !== bestPrice?.id && fastestJob.id !== earliestAvail?.id) {
+                              parts.push(`${fastestJob.contractorFirstName || fastestJob.contractorName} has the fastest turnaround (${fastestJob.estimatedDays} day${fastestJob.estimatedDays > 1 ? 's' : ''})`);
+                            }
+                            return parts.length > 0 ? parts.join('. ') + '. The choice is yours!' : 'Compare the quotes below to find the best fit for your needs.';
+                          };
+
+                          return (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
+                                <h5 className="font-medium text-xs mb-2 text-violet-600">Quote Comparison</h5>
+                                <div className="space-y-1.5">
+                                  {activeQuotes.map((quote: any) => {
+                                    const isBest = bestPrice?.id === quote.id && activeQuotes.length > 1;
+                                    const isEarliest = earliestAvail?.id === quote.id && activeQuotes.length > 1;
+                                    return (
+                                      <div key={quote.id} className="flex justify-between items-center text-xs">
+                                        <span className="text-muted-foreground truncate flex items-center gap-1">
+                                          {quote.contractorName || 'Contractor'}
+                                          {isBest && <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1 rounded">Best Price</span>}
+                                          {isEarliest && <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-violet-600 bg-violet-50 px-1 rounded">Earliest</span>}
+                                        </span>
+                                        <span className="font-medium">${Number(quote.total || 0).toLocaleString()}</span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              ))}
+                                {activeQuotes.length > 1 && (
+                                  <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t">
+                                    Avg: ${Math.round(activeQuotes.reduce((a: number, b: any) => a + Number(b.total || 0), 0) / activeQuotes.length)}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
+                                <h5 className="font-medium text-xs mb-2 text-violet-600 flex items-center gap-1">
+                                  <Trophy className="h-3 w-3" /> My Recommendation
+                                </h5>
+                                <p className="text-xs text-muted-foreground">
+                                  {buildRecommendation()}
+                                </p>
+                              </div>
+
+                              <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
+                                <h5 className="font-medium text-xs mb-2 text-violet-600">Questions to Ask</h5>
+                                <ul className="text-xs text-muted-foreground space-y-0.5">
+                                  <li>• Warranty on work?</li>
+                                  <li>• Materials used?</li>
+                                  <li>• References available?</li>
+                                </ul>
+                              </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t">
-                              Avg: ${Math.round(caseQuotes.reduce((a: number, b: any) => a + Number(b.total || 0), 0) / (caseQuotes.length || 1))}
-                            </p>
-                          </div>
-
-                          <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
-                            <h5 className="font-medium text-xs mb-2 text-violet-600">My Recommendation</h5>
-                            <p className="text-xs text-muted-foreground">
-                              <strong className="text-foreground">Mike's Roofing</strong> offers good value at $850 with a 2-day timeline. Premier includes a 5-year warranty worth considering.
-                            </p>
-                          </div>
-
-                          <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3 shadow-sm">
-                            <h5 className="font-medium text-xs mb-2 text-violet-600">Questions to Ask</h5>
-                            <ul className="text-xs text-muted-foreground space-y-0.5">
-                              <li>• Warranty on work?</li>
-                              <li>• Materials used?</li>
-                              <li>• References available?</li>
-                            </ul>
-                          </div>
-                        </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Maya Chat Messages */}
