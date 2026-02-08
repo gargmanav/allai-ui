@@ -6,7 +6,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis } from "@/components/contractor/maya-photo-analysis";
-import { UnifiedLifecycleTracker } from "@/components/unified-lifecycle-tracker";
+import { JobProgressTracker } from "@/components/job-progress-tracker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1109,20 +1109,16 @@ export default function Homeowner() {
               )}
             </div>
 
-            {/* Unified Lifecycle Tracker - shows full request→quote→job→invoice progress */}
-            {!showMayaPanel && (() => {
-              const relevantQuote = selectedContractorId
-                ? caseQuotes.find((q: any) => q.contractorId === selectedContractorId)
-                : caseQuotes.length > 0 ? caseQuotes[0] : null;
-              const quoteStatus = relevantQuote?.status || null;
-              const contractorName = relevantQuote?.contractorName || null;
+            {/* Job Progress Tracker - only shows when the accepted contractor is selected */}
+            {selectedContractorId && !showMayaPanel && (() => {
+              const acceptedQuote = caseQuotes.find((q: any) => q.status === 'approved' && q.contractorId === selectedContractorId);
+              if (!acceptedQuote) return null;
               return (
                 <div className="px-4 pt-3 pb-1">
-                  <UnifiedLifecycleTracker
-                    caseStatus={selectedRequest.status}
-                    quoteStatus={quoteStatus}
+                  <JobProgressTracker
+                    status={selectedRequest.status}
                     scheduledDate={selectedRequest.scheduledStartAt}
-                    contractorName={contractorName}
+                    contractorName={acceptedQuote.contractorName || null}
                   />
                 </div>
               );
