@@ -39,6 +39,7 @@ interface InlineQuoteDetailProps {
   customerInitials: string;
   status: string;
   caseId?: string;
+  reporterUserId?: string;
   initialTitle?: string;
   initialSubtotal?: number;
   initialTaxAmount?: number;
@@ -60,6 +61,7 @@ export function InlineQuoteDetail({
   customerInitials,
   status: initialStatus,
   caseId,
+  reporterUserId: propReporterUserId,
   initialTitle,
   initialSubtotal,
   initialTaxAmount,
@@ -128,7 +130,9 @@ export function InlineQuoteDetail({
     }
   }, [quoteData]);
 
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const lineItemSubtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const hasRealLineItems = lineItems.some(item => item.name || item.unitPrice > 0);
+  const subtotal = hasRealLineItems ? lineItemSubtotal : (initialTotal || lineItemSubtotal);
   const afterDiscount = subtotal - discountAmount;
   const taxAmount = (afterDiscount * taxPercent) / 100;
   const total = afterDiscount + taxAmount;
@@ -680,7 +684,7 @@ export function InlineQuoteDetail({
       {caseId && (
         <ThreadChat
           caseId={caseId}
-          homeownerUserId={(caseData as any)?.reporterUserId}
+          homeownerUserId={(caseData as any)?.reporterUserId || propReporterUserId}
           orgId={(caseData as any)?.orgId}
           subject={title || `Quote #${quoteId.slice(0, 8)}`}
           compact

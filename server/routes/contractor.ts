@@ -514,10 +514,34 @@ router.get('/quotes', requireAuth, requireRole('contractor'), async (req: Authen
   try {
     const contractorUserId = req.user!.id;
     
-    // Use storage to fetch quotes
     const contractorQuotes = await storage.getContractorQuotes(contractorUserId);
     
-    res.json(contractorQuotes);
+    const enriched = await Promise.all(contractorQuotes.map(async (quote) => {
+      if (quote.caseId && !quote.customerId) {
+        const caseRecord = await db.query.smartCases.findFirst({
+          where: eq(smartCases.id, quote.caseId),
+        });
+        if (caseRecord?.reporterUserId) {
+          const reporter = await db.query.users.findFirst({
+            where: eq(users.id, caseRecord.reporterUserId),
+          });
+          if (reporter) {
+            return {
+              ...quote,
+              customer: {
+                id: reporter.id,
+                name: [reporter.firstName, reporter.lastName].filter(Boolean).join(' ') || reporter.email || reporter.username || 'Homeowner',
+                email: reporter.email,
+              },
+              reporterUserId: caseRecord.reporterUserId,
+            };
+          }
+        }
+      }
+      return quote;
+    }));
+    
+    res.json(enriched);
   } catch (error) {
     console.error('Error fetching quotes:', error);
     res.status(500).json({ error: 'Failed to fetch quotes' });

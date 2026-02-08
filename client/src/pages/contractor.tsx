@@ -1493,7 +1493,7 @@ export default function Contractor() {
             title="Quotes"
             subtitle="Manage and send quotes to customers"
             items={quotes.map(quote => {
-              const customer = quote.customer || customers.find(c => c.id === quote.customerId);
+              const customer = (quote as any).customer || quote.customer || customers.find(c => c.id === quote.customerId);
               const customerName = customer?.name || customer?.company || "Unknown Customer";
               const initials = customerName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
               const colors = [
@@ -1528,6 +1528,7 @@ export default function Contractor() {
                 availableStartDate: quote.availableStartDate,
                 availableEndDate: quote.availableEndDate,
                 estimatedDays: quote.estimatedDays,
+                reporterUserId: (quote as any).reporterUserId,
               };
             })}
             filterTabs={[

@@ -961,6 +961,7 @@ export function MayaCarouselLayout({
                   customerInitials={selectedItem.customerInitials}
                   status={selectedItem.status}
                   caseId={selectedItem.caseId}
+                  reporterUserId={selectedItem.reporterUserId}
                   initialTitle={selectedItem.title}
                   initialSubtotal={selectedItem.subtotal}
                   initialTaxAmount={selectedItem.taxAmount}
@@ -1339,6 +1340,7 @@ export function MayaCarouselLayout({
                   customerInitials={selectedItem.customerInitials}
                   status={selectedItem.status}
                   caseId={selectedItem.caseId}
+                  reporterUserId={selectedItem.reporterUserId}
                   initialTitle={selectedItem.title}
                   initialSubtotal={selectedItem.subtotal}
                   initialTaxAmount={selectedItem.taxAmount}

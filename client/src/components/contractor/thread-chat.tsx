@@ -39,9 +39,8 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
       return res.json();
     },
     enabled: !!resolvedHomeowner && !!resolvedContractor && !!caseId,
-    staleTime: Infinity,
+    staleTime: 60000,
     gcTime: 300000,
-    refetchOnMount: false,
   });
 
   const threadId = threadQuery.data?.id;
