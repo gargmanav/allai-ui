@@ -336,17 +336,17 @@ router.post('/cases/:caseId/quotes/:quoteId/accept', async (req: any, res) => {
       }
     }
 
-    // Assign contractor to the case and update status
+    // Assign contractor to the case - set to "In Review" awaiting contractor confirmation
     await db.update(smartCases)
       .set({ 
         assignedContractorId: quote.contractorId, 
-        status: 'In Progress',
+        status: 'In Review',
         estimatedCost: quote.total ? String(quote.total) : null,
         updatedAt: new Date() 
       })
       .where(eq(smartCases.id, caseId));
 
-    res.json({ success: true, message: 'Quote accepted' });
+    res.json({ success: true, message: 'Quote accepted - awaiting contractor confirmation' });
   } catch (error) {
     console.error('Error accepting quote:', error);
     res.status(500).json({ error: 'Failed to accept quote' });

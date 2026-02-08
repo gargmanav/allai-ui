@@ -69,6 +69,12 @@ interface Item {
   taxPercent?: number;
   depositType?: string;
   depositValue?: number;
+  filterGroup?: string;
+  caseStatus?: string;
+  caseScheduledStartAt?: string;
+  availableStartDate?: string;
+  availableEndDate?: string;
+  estimatedDays?: number;
 }
 
 interface MayaRecommendation {
@@ -107,6 +113,9 @@ interface MayaCarouselLayoutProps {
   onDecline?: (item: Item) => void;
   onSendQuote?: (item: Item) => void;
   onSchedule?: (item: Item) => void;
+  onConfirmJob?: (item: Item, data: { confirmedStartDate: string; estimatedDays?: number; notes?: string }) => void;
+  onStartJob?: (item: Item) => void;
+  onCompleteJob?: (item: Item, data: { completionNotes?: string }) => void;
   acceptLabel?: string;
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
@@ -130,6 +139,9 @@ export function MayaCarouselLayout({
   onDecline,
   onSendQuote,
   onSchedule,
+  onConfirmJob,
+  onStartJob,
+  onCompleteJob,
   acceptLabel = "Accept",
   emptyIcon,
   emptyMessage = "No items found",
@@ -176,9 +188,23 @@ export function MayaCarouselLayout({
   const [chatInput, setChatInput] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const [confirmJobOpen, setConfirmJobOpen] = useState(false);
+  const [confirmStartDate, setConfirmStartDate] = useState("");
+  const [confirmEstDays, setConfirmEstDays] = useState("");
+  const [confirmNotes, setConfirmNotes] = useState("");
+  const [completionNotes, setCompletionNotes] = useState("");
+  const [jobActionLoading, setJobActionLoading] = useState(false);
   
   const activeFilter = internalFilter;
   
+  useEffect(() => {
+    setConfirmJobOpen(false);
+    setConfirmStartDate("");
+    setConfirmEstDays("");
+    setConfirmNotes("");
+    setCompletionNotes("");
+  }, [selectedItemId]);
+
   const handleFilterChange = (filterId: string) => {
     setInternalFilter(filterId);
     setSelectedItemId(null);
@@ -202,8 +228,16 @@ export function MayaCarouselLayout({
     if (activeFilter !== "all") {
       if (activeFilter === "sent") {
         result = result.filter(item => item.status.toLowerCase() === "sent" || item.status.toLowerCase() === "awaiting_response");
+      } else if (activeFilter === "completed") {
+        result = result.filter(item => {
+          const s = item.status.toLowerCase();
+          return s === "completed" || s === "resolved";
+        });
       } else {
-        result = result.filter(item => item.status.toLowerCase() === activeFilter.toLowerCase());
+        result = result.filter(item => {
+          const group = item.filterGroup || item.status.toLowerCase();
+          return group === activeFilter.toLowerCase();
+        });
       }
     }
     
@@ -937,7 +971,9 @@ export function MayaCarouselLayout({
                       {itemType === "quote" ? (
                         <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
                       ) : (
-                        <span className="text-[10px] text-muted-foreground">{item.status}</span>
+                        <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+                          {item.status === "In Review" ? "Confirm" : item.status === "Resolved" ? "Completed" : item.status}
+                        </span>
                       )}
                       <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>
                         ${(item.estimatedValue || 0).toLocaleString()}
@@ -1019,6 +1055,135 @@ export function MayaCarouselLayout({
                         </Button>
                       )}
                     </div>
+
+                    {itemType === "job" && (
+                      <div className="mb-4">
+                        {selectedItem.status === "In Review" && onConfirmJob && !confirmJobOpen && (
+                          <Button
+                            className="w-full h-11 touch-manipulation bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => setConfirmJobOpen(true)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" /> Confirm Job
+                          </Button>
+                        )}
+                        {selectedItem.status === "In Review" && onConfirmJob && confirmJobOpen && (
+                          <div className="space-y-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50/50">
+                            <p className="text-sm font-medium text-emerald-800">Confirm & Schedule</p>
+                            <div>
+                              <Label className="text-xs text-slate-600">Start Date</Label>
+                              <Input
+                                type="date"
+                                value={confirmStartDate}
+                                onChange={(e) => setConfirmStartDate(e.target.value)}
+                                className="mt-1 h-9"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-600">Estimated Days</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                placeholder="e.g. 3"
+                                value={confirmEstDays}
+                                onChange={(e) => setConfirmEstDays(e.target.value)}
+                                className="mt-1 h-9"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-600">Notes (optional)</Label>
+                              <Textarea
+                                placeholder="Any notes for the homeowner..."
+                                value={confirmNotes}
+                                onChange={(e) => setConfirmNotes(e.target.value)}
+                                className="mt-1 min-h-[60px]"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                className="flex-1 h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+                                disabled={!confirmStartDate || jobActionLoading}
+                                onClick={async () => {
+                                  setJobActionLoading(true);
+                                  await onConfirmJob(selectedItem, {
+                                    confirmedStartDate: confirmStartDate,
+                                    estimatedDays: confirmEstDays ? parseInt(confirmEstDays) : undefined,
+                                    notes: confirmNotes || undefined,
+                                  });
+                                  setJobActionLoading(false);
+                                  setConfirmJobOpen(false);
+                                  setConfirmStartDate("");
+                                  setConfirmEstDays("");
+                                  setConfirmNotes("");
+                                }}
+                              >
+                                {jobActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="h-9 text-sm"
+                                onClick={() => {
+                                  setConfirmJobOpen(false);
+                                  setConfirmStartDate("");
+                                  setConfirmEstDays("");
+                                  setConfirmNotes("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {selectedItem.status === "Scheduled" && onStartJob && (
+                          <Button
+                            className="w-full h-11 touch-manipulation bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={jobActionLoading}
+                            onClick={async () => {
+                              setJobActionLoading(true);
+                              await onStartJob(selectedItem);
+                              setJobActionLoading(false);
+                            }}
+                          >
+                            {jobActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ArrowRight className="h-4 w-4 mr-2" /> Start Work</>}
+                          </Button>
+                        )}
+                        {selectedItem.status === "In Progress" && onCompleteJob && (
+                          <div className="space-y-3">
+                            <Textarea
+                              placeholder="Completion notes (optional)..."
+                              value={completionNotes}
+                              onChange={(e) => setCompletionNotes(e.target.value)}
+                              className="min-h-[60px]"
+                            />
+                            <Button
+                              className="w-full h-11 touch-manipulation bg-green-600 hover:bg-green-700 text-white"
+                              disabled={jobActionLoading}
+                              onClick={async () => {
+                                setJobActionLoading(true);
+                                await onCompleteJob(selectedItem, {
+                                  completionNotes: completionNotes || undefined,
+                                });
+                                setJobActionLoading(false);
+                                setCompletionNotes("");
+                              }}
+                            >
+                              {jobActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle className="h-4 w-4 mr-2" /> Mark Complete</>}
+                            </Button>
+                          </div>
+                        )}
+                        {(selectedItem.status === "Completed" || selectedItem.status === "Resolved") && (
+                          <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">Job Completed</span>
+                          </div>
+                        )}
+                        {selectedItem.caseScheduledStartAt && (selectedItem.status === "Scheduled" || selectedItem.status === "In Progress") && (
+                          <div className="flex items-center gap-2 mt-2 text-sm text-slate-600">
+                            <Calendar className="h-3.5 w-3.5 text-violet-400" />
+                            <span>Scheduled: {new Date(selectedItem.caseScheduledStartAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
@@ -1390,6 +1555,39 @@ export function MayaCarouselLayout({
                         </Button>
                       )}
                     </div>
+                    {itemType === "job" && (
+                      <div className="mt-3">
+                        {selectedItem.status === "In Review" && onConfirmJob && (
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => { setConfirmJobOpen(true); }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" /> Confirm Job
+                          </Button>
+                        )}
+                        {selectedItem.status === "Scheduled" && onStartJob && (
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={jobActionLoading}
+                            onClick={async () => { setJobActionLoading(true); await onStartJob(selectedItem); setJobActionLoading(false); }}
+                          >
+                            {jobActionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><ArrowRight className="h-3 w-3 mr-1" /> Start Work</>}
+                          </Button>
+                        )}
+                        {selectedItem.status === "In Progress" && onCompleteJob && (
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-green-600 hover:bg-green-700 text-white"
+                            disabled={jobActionLoading}
+                            onClick={async () => { setJobActionLoading(true); await onCompleteJob(selectedItem, {}); setJobActionLoading(false); }}
+                          >
+                            {jobActionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><CheckCircle className="h-3 w-3 mr-1" /> Complete</>}
+                          </Button>
+                        )}
+                        {(selectedItem.status === "Completed" || selectedItem.status === "Resolved") && (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 border border-green-200">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-xs font-medium text-green-700">Completed</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ) : null}

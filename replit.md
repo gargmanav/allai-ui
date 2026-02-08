@@ -1,22 +1,7 @@
 # AllAI Property Management Platform
 
 ## Overview
-AllAI Property is a comprehensive platform for part-time landlords and small property management companies. It enables users to track properties, manage tenants, monitor maintenance, handle expenses, and stay organized with automated reminders. The platform supports various user types including platform super admins, organization admins (landlords), property owners, contractors, and tenants, each with role-based access control. Its goal is to provide an intuitive interface for managing real estate portfolios, including features like ownership entity management, smart case tracking, and automated regulatory compliance.
-
-## Recent Changes
-- **February 8, 2026**: Added quote acceptance management for homeowner dashboard. Accepted contractor's bubble now shows green checkmark badge for at-a-glance identification. Cancel Acceptance flow allows homeowners to change their mind — marks accepted quote as 'cancelled' (amber badge), reverts other quotes back to 'sent' for re-evaluation, and resets case status. Added 'cancelled' to quote_status enum. Other contractors' cards show "Another quote accepted" note (no Accept/Decline) but messaging stays open for all contractors. Contractor side shows "Cancelled" status badge with filter tab. Availability dates (start/end/estimated days) now display on contractor quote detail panel. Improved ThreadChat message persistence with better cache management.
-- **January 15, 2026**: Enhanced landlord proposal comparison with table view and contractor work queue for high-volume workflows. Landlord comparison now uses dense table format with columns for Contractor, Price, Availability, ETA, Status, Actions. Added "Best Price" and "Earliest Available" highlight badges computed via useMemo for instant decision-making. Visual availability timeline strips show color-coded date ranges (green=earliest, blue=mid-range). Click-to-expand Sheet drawer shows detailed quote info including line items, contact info, and counter-proposal history. New contractor Work Queue component (`work-queue.tsx`) provides dense table view with stats cards (Needs Action, In Progress, Urgent, Today), sorting (priority/newest/oldest/highest value), and filters (time/status/category/search). Quick action buttons (Accept, Propose Time, Start, Complete) enable rapid processing. Queue/Cards view toggle added to contractor dashboard with queue as default for high-volume scenarios.
-- **January 15, 2026**: Implemented proposal comparison and counter-proposal system for landlord-contractor negotiations. Landlords can now view side-by-side comparison of multiple contractor quotes on work orders (price, availability, scope, line items) in a dedicated "Proposals" tab. Full negotiation workflow: landlords accept/decline/counter proposals with modified terms; contractors see pending counter-proposals on their dashboard and can accept/decline/re-counter. Auto-management of competing proposals - accepting one quote automatically declines others and updates case status to "In Progress". Added `quoteCounterProposals` table tracking counter-proposal lifecycle with status enum (pending/accepted/rejected). API routes: GET/POST `/api/landlord/cases/:caseId/quotes`, `/api/landlord/quotes/:quoteId/accept|decline|counter`, and `/api/contractor/quotes/pending-counter-proposals` with accept/decline/re-counter actions. Defensive UI filtering ensures only quotes with actual pending entries render.
-- **November 16, 2025**: Implemented organization impersonation feature for superadmin. Superadmins can now click "View Screens" in Organizations tab to impersonate an org and navigate through their dashboard, properties, maintenance, and calendar pages as if they were an org admin. Impersonation is session-based using `req.session.viewAsOrgId` which overrides `req.user.orgId` during impersonation. Added impersonation banner component shown on all major pages when impersonating, with "Return to Superadmin" button to exit. Created `/api/admin/impersonate/:orgId` and `/api/admin/stop-impersonation` endpoints. Updated `requireAuth` middleware to support impersonation by setting `effectiveOrgId` and `viewAsOrgId` fields. All data scoping automatically respects impersonation through existing `req.user.orgId` checks in routes and scoping helpers (`scopePropertiesByRole`, `scopeCasesByRole`).
-- **November 16, 2025**: Redesigned superadmin dashboard with comprehensive analytics and tabbed interface. Created 4-tab interface: Overview (platform stats, user distribution by role), User Analytics (all users with role/activity filtering, login tracking), Contractor Marketplace (all contractors with job stats, marketplace status, favorites, specialties), and Organizations (all orgs with screen access). Enhanced `/api/admin/stats` to include activeUserCount (30-day window), created `/api/admin/contractors` endpoint with full marketplace analytics (job counts, favorites, activity status, specialties), and enhanced `/api/admin/users` to include daysSinceLogin and activityStatus (very_active/active/inactive/dormant/never_logged_in). Activity calculated from `updatedAt` timestamp with buckets: ≤7 days = very active, ≤30 days = active, ≤90 days = inactive, >90 days = dormant. Superadmin can now track platform-wide user engagement, contractor marketplace performance, and organizational activity from single unified dashboard.
-- **November 15, 2025**: Removed simplified TenantDashboardNew.tsx and fixed tenant cases API. Deleted the new simplified tenant dashboard to eliminate confusion - only the original full-featured tenant dashboard (with Maya AI, photo uploads, appointments) remains at `/tenant-dashboard` route. Fixed GET `/api/tenant/cases` to query by `reporterUserId` for new cases with fallback to `unitId` for legacy cases (handles existing cases where reporterUserId=null). Fixed POST `/api/tenant/cases` to include all required domain fields (priority, category, aiTriageJson, reporterUserId) and added media upload handling to persist photos in `caseMedia` table. Frontend restored full payload submission and corrected endpoint to `/api/tenant/cases`.
-- **November 15, 2025**: Completed quote system UX improvements and archive functionality. Implemented inline line item editing (edit in same table row with check/cancel buttons), changed quantity input step to 1 for whole number increments while retaining decimal support, added delete confirmation dialog, and implemented soft-delete archive system with `archivedAt` timestamp. All quote retrieval methods automatically filter out archived quotes using `isNull(quotes.archivedAt)`. DELETE endpoint now archives instead of permanently deleting, preserving data for auditing/recovery. Status badges (Draft/Sent/Approved/Declined) display on all quote cards.
-- **November 15, 2025**: Replaced multi-step quote update with atomic backend transaction. Created `updateQuoteWithLineItems` storage method using `db.transaction()` for ACID guarantees on quote + line item updates. Frontend now makes single PATCH/POST request instead of complex DELETE/CREATE/rollback orchestration. Schema validation uses dedicated update schemas that omit immutable fields (contractorId, approvalToken, quoteId, id).
-- **November 15, 2025**: Implemented Phase 1 of quote/invoice system for contractors. Created `quote_status` enum (draft/sent/approved/rejected/expired), `deposit_type` enum (none/percentage/fixed), `quotes` table (customer link, totals, tax, deposit, expiry), and `quote_line_items` table (description, quantity, rate, amount, display order). Added 9 storage methods for quote CRUD. Built 8 secure API routes at `/api/contractor/quotes` with customer ownership verification, quote ownership checks, line item membership validation, and explicit guards against quoteId reassignment. All routes use storage layer exclusively with proper tenant isolation. Backend passes security audit with zero cross-contractor vulnerabilities.
-- **November 15, 2025**: Transformed contractor workflow to manual customer management. Contractors can now manually add, edit, and delete customers through the Customers page. Created `contractor_customers` table with fields for name, email, company, phone, and notes. Added `customerId` field to `smart_cases` table to link work orders to customers. Work order creation form includes customer dropdown (contractors only). Work order cards display customer names via `customerId` field. Customer filter in Job Hub filters by `customerId` rather than property ownership. API endpoints: GET/POST/PATCH/DELETE `/api/contractor/customers` with proper validation and ownership checks.
-- **November 15, 2025**: Fixed critical timezone bug in calendar reminder filtering. Date-only reminders (e.g., "2025-11-17") now parse correctly as org timezone midnight instead of UTC midnight. Day boundaries computed in org timezone (America/New_York) ensure reminders appear on correct calendar dates for users in any browser timezone. Added null dueAt guard in filters to prevent runtime errors.
-- **November 15, 2025**: Implemented role-based field gating in ReminderForm. Contractors now see simplified form without property/entity/unit fields, which are automatically omitted from submission. Fixed contractors endpoint error by adding early role check before organization lookup.
-- **November 12, 2025**: Removed predictive maintenance feature from Work Orders page (formerly Maintenance page). Terminology changed from "Smart Cases" to "Work Orders" throughout the application. The Predictive Maintenance tab has been removed, and all related predictive insights functionality (equipment failure predictions, maintenance forecasting) has been excised to streamline the contractor-focused workflow.
+AllAI Property is a comprehensive platform designed for part-time landlords and small property management companies. It aims to streamline property tracking, tenant management, maintenance monitoring, expense handling, and organization through automated reminders. The platform supports various user roles, including super admins, organization admins (landlords), property owners, contractors, and tenants, each with role-based access control. Key features include intuitive real estate portfolio management, ownership entity management, smart case tracking, and automated regulatory compliance, providing an efficient solution for managing rental properties.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -24,11 +9,12 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-- **Framework**: React with TypeScript, using Vite.
-- **Routing**: Wouter for client-side routing.
-- **UI**: shadcn/ui components built on Radix UI, styled with Tailwind CSS (light/dark mode).
-- **State Management**: TanStack Query for server state and caching.
+- **Framework**: React with TypeScript, utilizing Vite for tooling.
+- **Routing**: Wouter.
+- **UI**: shadcn/ui components built on Radix UI, styled with Tailwind CSS (supporting light/dark modes).
+- **State Management**: TanStack Query for server state.
 - **Forms**: React Hook Form with Zod for validation.
+- **UI/UX Decisions**: Focus on intuitive interfaces, multi-user dashboards tailored to each role, streamlined forms, and clear notifications. Prioritization of Property Owners on the landing page.
 
 ### Backend
 - **Runtime**: Node.js with Express.js.
@@ -47,20 +33,13 @@ Preferred communication style: Simple, everyday language.
 ### Authentication & Authorization
 - **Provider**: Replit Auth (OpenID Connect).
 - **Session Storage**: PostgreSQL-backed.
-- **Protection**: Middleware-based authentication.
+- **Protection**: Middleware-based authentication and Role-Based Access Control (RBAC) for data scoping and isolation.
 - **User Management**: Automatic user creation and organization assignment.
 - **User Types**: Platform Super Admin, Org Admin, Contractor, Tenant, Property Owner.
-- **Role-Based Access Control (RBAC)**: Middleware for data scoping and isolation across user types.
 
 ### Development & Deployment
 - **Build System**: Vite for frontend, esbuild for backend.
 - **Type Safety**: Shared TypeScript types across frontend and backend.
-
-### UI/UX Decisions
-- Focus on intuitive interfaces for property management.
-- Multi-user dashboards tailored to each role (Admin, Landlord, Property Owner, Contractor, Tenant).
-- Streamlined forms (e.g., Entity Form redesign with templates).
-- Informational banners and clear notifications for user guidance.
 
 ### Feature Specifications
 - Comprehensive property and tenant tracking.
@@ -68,10 +47,11 @@ Preferred communication style: Simple, everyday language.
 - Financial transaction handling.
 - Automated reminders.
 - Contractor marketplace with specialty-based filtering.
-- Email/SMS verification flows for multi-user authentication.
+- Email/SMS verification flows.
 - Role-scoped data access for Maya AI.
-- Auto-approval settings with single-active constraint.
-- Prioritization of Property Owners on landing page for broader market appeal.
+- Quote and invoice system for contractors including comparison, counter-proposals, and acceptance workflows.
+- Superadmin impersonation and detailed analytics dashboard.
+- Full job lifecycle workflow for contractors, including scheduling, progress tracking, and completion.
 
 ## External Dependencies
 
@@ -96,11 +76,9 @@ Preferred communication style: Simple, everyday language.
 - **connect-pg-simple**: PostgreSQL session store.
 
 ### Integrations
-- **Twilio**: SMS verification and emergency notifications (via Replit Connector).
-- **SendGrid**: Email service (currently logs emails, setup pending).
+- **Twilio**: SMS verification and emergency notifications.
+- **SendGrid**: Email service.
 
 ### Utility Libraries
 - **node-cron**: Cron job scheduler.
 - **date-fns**: Date utility library.
-- **clsx**: Conditional className utility.
-- **memoizee**: Function memoization.

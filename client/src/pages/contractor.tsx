@@ -367,9 +367,9 @@ export default function Contractor() {
 
   // Calculate counts
   const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).length;
-  const activeJobs = jobs.filter(j => ["In Progress", "Scheduled", "Confirmed"].includes(j.status));
+  const activeJobs = jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed"].includes(j.status));
   const activeJobsCount = activeJobs.length;
-  const completedJobsCount = jobs.filter(j => j.status === "Completed").length;
+  const completedJobsCount = jobs.filter(j => j.status === "Completed" || j.status === "Resolved").length;
   const allJobsCount = activeJobsCount + completedJobsCount;
   const scheduledJobsCount = appointments.filter(a => a.status === "Confirmed" || a.status === "Scheduled" || a.status === "Pending").length;
   const quotesCount = quotes.length;
@@ -432,6 +432,39 @@ export default function Contractor() {
 
   const handleSelectCase = (caseId: string) => {
     setSelectedCaseId(caseId);
+  };
+
+  const handleConfirmJob = async (item: any, data: { confirmedStartDate: string; estimatedDays?: number; notes?: string }) => {
+    try {
+      await apiRequest("POST", `/api/contractor/cases/${item.id}/confirm-job`, data);
+      toast({ title: "Job confirmed", description: "The job has been confirmed and scheduled." });
+      queryClient.invalidateQueries({ queryKey: ["/api/contractor/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contractor/quotes"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to confirm job", variant: "destructive" });
+    }
+  };
+
+  const handleStartJob = async (item: any) => {
+    try {
+      await apiRequest("POST", `/api/contractor/cases/${item.id}/start-job`);
+      toast({ title: "Job started", description: "The job is now in progress." });
+      queryClient.invalidateQueries({ queryKey: ["/api/contractor/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contractor/quotes"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to start job", variant: "destructive" });
+    }
+  };
+
+  const handleCompleteJob = async (item: any, data: { completionNotes?: string }) => {
+    try {
+      await apiRequest("POST", `/api/contractor/cases/${item.id}/complete-job`, data);
+      toast({ title: "Job completed", description: "Great work! The job has been marked as complete." });
+      queryClient.invalidateQueries({ queryKey: ["/api/contractor/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contractor/quotes"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to complete job", variant: "destructive" });
+    }
   };
 
   useEffect(() => {
@@ -1411,7 +1444,7 @@ export default function Contractor() {
           <MayaCarouselLayout
             title="Jobs"
             subtitle="Track and manage your active work"
-            items={jobs.filter(j => ["In Progress", "Scheduled", "Confirmed", "Completed"].includes(j.status)).map(job => ({
+            items={jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed", "Completed", "Resolved"].includes(j.status)).map(job => ({
               id: job.id,
               title: job.title,
               customerName: job.customerName,
@@ -1431,7 +1464,8 @@ export default function Contractor() {
               media: (job as any).media,
             }))}
             filterTabs={[
-              { id: "all", label: "All Jobs", count: allJobsCount },
+              { id: "all", label: "All Jobs", count: jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed", "Completed", "Resolved"].includes(j.status)).length },
+              { id: "in review", label: "Needs Confirmation", count: jobs.filter(j => j.status === "In Review").length },
               { id: "in progress", label: "In Progress", count: jobs.filter(j => j.status === "In Progress").length },
               { id: "scheduled", label: "Scheduled", count: jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length },
               { id: "completed", label: "Completed", count: completedJobsCount },
@@ -1443,6 +1477,9 @@ export default function Contractor() {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="job"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
+            onConfirmJob={handleConfirmJob}
+            onStartJob={handleStartJob}
+            onCompleteJob={handleCompleteJob}
             emptyIcon={<CheckCircle className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No active jobs"
           />
@@ -1503,6 +1540,13 @@ export default function Contractor() {
                 { bg: "bg-orange-500", text: "text-orange-600" },
               ];
               const colorIdx = customerName.charCodeAt(0) % colors.length;
+              const caseStatus = (quote as any).caseStatus;
+              let filterGroup = quote.status;
+              if (quote.status === 'approved') {
+                if (caseStatus === 'In Review') filterGroup = 'approved';
+                else if (caseStatus === 'Scheduled' || caseStatus === 'In Progress') filterGroup = 'active_job';
+                else if (caseStatus === 'Resolved' || caseStatus === 'Closed') filterGroup = 'completed_job';
+              }
               return {
                 id: quote.id,
                 title: quote.title || `Quote #${quote.id.slice(0, 8)}`,
@@ -1529,13 +1573,18 @@ export default function Contractor() {
                 availableEndDate: quote.availableEndDate,
                 estimatedDays: quote.estimatedDays,
                 reporterUserId: (quote as any).reporterUserId,
+                filterGroup,
+                caseStatus,
+                caseScheduledStartAt: (quote as any).caseScheduledStartAt,
               };
             })}
             filterTabs={[
               { id: "all", label: "All", count: quotes.length },
               { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
               { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
-              { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved").length },
+              { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved" && (q as any).caseStatus === "In Review").length },
+              { id: "active_job", label: "Active Jobs", count: quotes.filter(q => q.status === "approved" && ["Scheduled", "In Progress"].includes((q as any).caseStatus)).length },
+              { id: "completed_job", label: "Completed", count: quotes.filter(q => q.status === "approved" && ["Resolved", "Closed"].includes((q as any).caseStatus)).length },
               { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
               { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },

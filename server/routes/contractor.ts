@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases } from '@shared/schema';
+import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases, reminders } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -113,6 +113,145 @@ router.post('/cases/:caseId/analyze-photos', requireAuth, requireRole('contracto
   } catch (error) {
     console.error('Error analyzing photos:', error);
     res.status(500).json({ error: 'Failed to analyze photos' });
+  }
+});
+
+// ============================================================================
+// JOB LIFECYCLE ENDPOINTS
+// ============================================================================
+
+// Confirm a job after quote approval - contractor confirms start date
+router.post('/cases/:caseId/confirm-job', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { caseId } = req.params;
+    const { confirmedStartDate, estimatedDays, notes } = req.body;
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.assignedContractorId, contractorUserId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found or not assigned to you' });
+    }
+
+    if (caseRecord.status !== 'In Review') {
+      return res.status(400).json({ error: 'Case is not awaiting confirmation' });
+    }
+
+    const startDate = confirmedStartDate ? new Date(confirmedStartDate) : null;
+    const endDate = startDate && estimatedDays 
+      ? new Date(startDate.getTime() + (estimatedDays * 24 * 60 * 60 * 1000))
+      : null;
+
+    await db.update(smartCases)
+      .set({
+        status: 'Scheduled',
+        scheduledStartAt: startDate,
+        scheduledEndAt: endDate,
+        estimatedDuration: estimatedDays ? `${estimatedDays} days` : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(smartCases.id, caseId));
+
+    // Create a reminder for the start date if provided
+    if (startDate && caseRecord.orgId) {
+      try {
+        await db.insert(reminders).values({
+          orgId: caseRecord.orgId,
+          title: `Job starting: ${caseRecord.title}`,
+          type: 'maintenance',
+          scope: 'property',
+          scopeId: caseRecord.propertyId || undefined,
+          dueAt: startDate,
+          leadDays: 1,
+          status: 'pending',
+          channels: ['inapp'],
+          payloadJson: { caseId, contractorId: contractorUserId, notes },
+        });
+      } catch (reminderError) {
+        console.error('Error creating reminder:', reminderError);
+      }
+    }
+
+    res.json({ success: true, message: 'Job confirmed and scheduled' });
+  } catch (error) {
+    console.error('Error confirming job:', error);
+    res.status(500).json({ error: 'Failed to confirm job' });
+  }
+});
+
+// Start a job - move from Scheduled to In Progress
+router.post('/cases/:caseId/start-job', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { caseId } = req.params;
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.assignedContractorId, contractorUserId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found or not assigned to you' });
+    }
+
+    if (caseRecord.status !== 'Scheduled') {
+      return res.status(400).json({ error: 'Job must be scheduled before starting' });
+    }
+
+    await db.update(smartCases)
+      .set({
+        status: 'In Progress',
+        updatedAt: new Date(),
+      })
+      .where(eq(smartCases.id, caseId));
+
+    res.json({ success: true, message: 'Job started' });
+  } catch (error) {
+    console.error('Error starting job:', error);
+    res.status(500).json({ error: 'Failed to start job' });
+  }
+});
+
+// Complete a job - move from In Progress to Resolved
+router.post('/cases/:caseId/complete-job', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { caseId } = req.params;
+    const { completionNotes } = req.body;
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.assignedContractorId, contractorUserId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found or not assigned to you' });
+    }
+
+    if (caseRecord.status !== 'In Progress') {
+      return res.status(400).json({ error: 'Job must be in progress before completing' });
+    }
+
+    await db.update(smartCases)
+      .set({
+        status: 'Resolved',
+        updatedAt: new Date(),
+      })
+      .where(eq(smartCases.id, caseId));
+
+    res.json({ success: true, message: 'Job completed' });
+  } catch (error) {
+    console.error('Error completing job:', error);
+    res.status(500).json({ error: 'Failed to complete job' });
   }
 });
 
@@ -517,28 +656,38 @@ router.get('/quotes', requireAuth, requireRole('contractor'), async (req: Authen
     const contractorQuotes = await storage.getContractorQuotes(contractorUserId);
     
     const enriched = await Promise.all(contractorQuotes.map(async (quote) => {
-      if (quote.caseId && !quote.customerId) {
+      let caseStatus: string | null = null;
+      let caseScheduledStartAt: string | null = null;
+      
+      if (quote.caseId) {
         const caseRecord = await db.query.smartCases.findFirst({
           where: eq(smartCases.id, quote.caseId),
         });
-        if (caseRecord?.reporterUserId) {
-          const reporter = await db.query.users.findFirst({
-            where: eq(users.id, caseRecord.reporterUserId),
-          });
-          if (reporter) {
-            return {
-              ...quote,
-              customer: {
-                id: reporter.id,
-                name: [reporter.firstName, reporter.lastName].filter(Boolean).join(' ') || reporter.email || reporter.username || 'Homeowner',
-                email: reporter.email,
-              },
-              reporterUserId: caseRecord.reporterUserId,
-            };
+        if (caseRecord) {
+          caseStatus = caseRecord.status;
+          caseScheduledStartAt = caseRecord.scheduledStartAt?.toISOString() || null;
+          
+          if (!quote.customerId && caseRecord.reporterUserId) {
+            const reporter = await db.query.users.findFirst({
+              where: eq(users.id, caseRecord.reporterUserId),
+            });
+            if (reporter) {
+              return {
+                ...quote,
+                caseStatus,
+                caseScheduledStartAt,
+                customer: {
+                  id: reporter.id,
+                  name: [reporter.firstName, reporter.lastName].filter(Boolean).join(' ') || reporter.email || reporter.username || 'Homeowner',
+                  email: reporter.email,
+                },
+                reporterUserId: caseRecord.reporterUserId,
+              };
+            }
           }
         }
       }
-      return quote;
+      return { ...quote, caseStatus, caseScheduledStartAt };
     }));
     
     res.json(enriched);

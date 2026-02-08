@@ -346,10 +346,10 @@ router.post('/quotes/:quoteId/accept', requireAuth, requireRole('org_admin'), as
           isNull(quotes.archivedAt)
         ));
       
-      // Update case status to In Progress
+      // Update case status to In Review (awaiting contractor confirmation)
       await db.update(smartCases)
         .set({
-          status: 'In Progress',
+          status: 'In Review',
           assignedContractorId: quote.contractorId,
           updatedAt: new Date(),
         })
