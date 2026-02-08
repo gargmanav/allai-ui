@@ -1244,8 +1244,13 @@ export default function Homeowner() {
                           </div>
                         );
                         const initials = (quote.contractorFirstName?.[0] || 'C').toUpperCase() + (quote.contractorName?.split(' ')[1]?.[0] || '').toUpperCase();
-                        const startDate = quote.availableStartDate ? new Date(quote.availableStartDate) : null;
-                        const endDate = quote.availableEndDate ? new Date(quote.availableEndDate) : null;
+                        const parseUTCDate = (d: string) => {
+                          const iso = typeof d === 'string' ? d : new Date(d).toISOString();
+                          const [y, m, day] = iso.slice(0, 10).split('-').map(Number);
+                          return new Date(y, m - 1, day);
+                        };
+                        const startDate = quote.availableStartDate ? parseUTCDate(quote.availableStartDate) : null;
+                        const endDate = quote.availableEndDate ? parseUTCDate(quote.availableEndDate) : null;
                         return (
                           <div 
                             className="mb-4 rounded-2xl p-4 border border-violet-200/40"
@@ -1285,7 +1290,7 @@ export default function Homeowner() {
                                   <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-violet-50/60 border border-violet-100/60">
                                     <CalendarDays className="h-3.5 w-3.5 text-violet-400 shrink-0" />
                                     <span className="text-xs text-violet-600">
-                                      Scheduled {format(new Date(scheduledAt), 'MMM d')}
+                                      Scheduled {format(parseUTCDate(scheduledAt), 'MMM d')}
                                     </span>
                                   </div>
                                 );
