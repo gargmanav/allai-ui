@@ -47,6 +47,7 @@ interface ScheduledJob {
   title: string;
   description?: string | null;
   teamId?: string;
+  contractorId?: string;
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;
   status?: string;
@@ -71,6 +72,13 @@ interface Team {
   id: string;
   name: string;
   specialty: string;
+  color: string;
+}
+
+interface TeamMember {
+  id: string;
+  memberId: string;
+  name: string;
   color: string;
 }
 
@@ -398,6 +406,25 @@ export function InHubSchedule() {
 
   const { data: teams = [] } = useQuery<Team[]>({ queryKey: ["/api/teams"] });
 
+  const { data: teamMembersData } = useQuery<{
+    loginMembers: any[];
+    allMembers: Array<{
+      id: string;
+      memberId: string;
+      name: string;
+      color: string;
+    }>;
+  }>({ queryKey: ["/api/contractor/team-members"] });
+
+  const teamMembers: TeamMember[] = useMemo(() => {
+    return (teamMembersData?.allMembers || []).map((m) => ({
+      id: m.id,
+      memberId: m.memberId,
+      name: m.name,
+      color: m.color,
+    }));
+  }, [teamMembersData]);
+
   const { data: rawCalendarJobs = [] } = useQuery<any[]>({
     queryKey: ["/api/contractor/team-calendar"],
   });
@@ -417,6 +444,7 @@ export function InHubSchedule() {
         title: j.title || j.caseName || "Untitled",
         description: j.description,
         teamId: j.teamId || j.team?.id,
+        contractorId: j.contractorId,
         scheduledStartAt: j.scheduledStartAt || j.startTime,
         scheduledEndAt: j.scheduledEndAt || j.endTime,
         status: j.status,
@@ -518,6 +546,20 @@ export function InHubSchedule() {
       if (!job.scheduledStartAt) return false;
       const jobDate = parseISO(job.scheduledStartAt);
       return isSameDay(jobDate, day);
+    });
+  };
+
+  const getJobsForMemberAndDay = (member: TeamMember, day: Date) => {
+    return (scheduledJobs || []).filter((job: ScheduledJob) => {
+      if (!job.scheduledStartAt) return false;
+      const jobDate = parseISO(job.scheduledStartAt);
+      if (!isSameDay(jobDate, day)) return false;
+      return (
+        job.teamId === member.id ||
+        job.teamId === member.memberId ||
+        job.contractorId === member.memberId ||
+        job.contractorId === member.id
+      );
     });
   };
 
@@ -825,11 +867,11 @@ export function InHubSchedule() {
           </div>
 
           <div className="flex-1 overflow-auto">
-            {teams.length === 0 && (
+            {unscheduledItems.length > 0 && (
               <div className="flex items-center gap-2 px-3 py-1.5 mx-2 mt-2 mb-1 rounded-lg bg-violet-50/60 border border-violet-100">
                 <Calendar className="h-3.5 w-3.5 text-violet-400 flex-shrink-0" />
                 <p className="text-[10px] text-violet-600">
-                  Tip: Create teams in the Team view to organize jobs by crew
+                  Drag unscheduled items onto the calendar to schedule, or click a job to edit details
                 </p>
               </div>
             )}
@@ -839,7 +881,9 @@ export function InHubSchedule() {
                 day={currentDate}
                 displayRows={displayRows}
                 teams={teams}
+                teamMembers={teamMembers}
                 getJobsForTeamAndDay={getJobsForTeamAndDay}
+                getJobsForMemberAndDay={getJobsForMemberAndDay}
                 timelineMarkers={timelineMarkers}
                 currentTimePos={currentTimePos}
               />
@@ -848,6 +892,7 @@ export function InHubSchedule() {
                 days={days}
                 displayRows={displayRows}
                 teams={teams}
+                teamMembers={teamMembers}
                 getJobsForTeamAndDay={getJobsForTeamAndDay}
                 timelineMarkers={timelineMarkers}
                 currentTimePos={currentTimePos}
@@ -874,17 +919,23 @@ function DayView({
   day,
   displayRows,
   teams,
+  teamMembers,
   getJobsForTeamAndDay,
+  getJobsForMemberAndDay,
   timelineMarkers,
   currentTimePos,
 }: {
   day: Date;
   displayRows: Team[];
   teams: Team[];
+  teamMembers: TeamMember[];
   getJobsForTeamAndDay: (teamId: string, day: Date) => ScheduledJob[];
+  getJobsForMemberAndDay: (member: TeamMember, day: Date) => ScheduledJob[];
   timelineMarkers: number[];
   currentTimePos: number | null;
 }) {
+  const useMembers = teamMembers.length > 0;
+
   return (
     <div
       className="rounded-xl overflow-hidden m-2"
@@ -913,78 +964,166 @@ function DayView({
             </div>
           </div>
 
-          {displayRows.map((team, teamIdx) => {
-            const initials = team.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase();
-            const dayJobs = getJobsForTeamAndDay(team.id, day);
-            const cellId = `cell-${format(day, "yyyy-MM-dd")}-team-${team.id}`;
+          {useMembers ? (
+            teamMembers.map((member, idx) => {
+              const initials = member.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+              const memberJobs = getJobsForMemberAndDay(member, day);
+              const cellId = `cell-${format(day, "yyyy-MM-dd")}-team-${member.id}`;
+              const memberColor = member.color || "#64748B";
 
-            return (
-              <div
-                key={team.id}
-                className={`flex items-center min-h-[52px] ${
-                  teamIdx < displayRows.length - 1 ? "border-b border-gray-100" : ""
-                }`}
-              >
+              return (
                 <div
-                  className="w-14 flex-shrink-0 px-2 py-2 flex items-center justify-center sticky left-0 z-20"
-                  style={{
-                    background: "rgba(255,255,255,0.95)",
-                    backdropFilter: "blur(12px)",
-                  }}
+                  key={member.id}
+                  className={`flex items-center min-h-[52px] ${
+                    idx < teamMembers.length - 1 ? "border-b border-gray-100" : ""
+                  }`}
                 >
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold transition-transform hover:scale-110"
+                    className="w-14 flex-shrink-0 px-2 py-2 flex items-center justify-center group/avatar sticky left-0 z-20"
                     style={{
-                      background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,245,250,0.7) 50%, rgba(230,238,248,0.6) 100%)",
-                      border: "1.5px solid rgba(255, 255, 255, 0.8)",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.08), inset 0 2px 4px rgba(255,255,255,0.9)",
-                      color: "#334155",
+                      background: "rgba(255,255,255,0.95)",
+                      backdropFilter: "blur(12px)",
                     }}
-                    title={team.name}
                   >
-                    {initials}
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,245,250,0.7) 50%, rgba(230,238,248,0.6) 100%)",
+                        backdropFilter: "blur(24px) saturate(180%)",
+                        border: "1.5px solid rgba(255, 255, 255, 0.8)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04), inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -1px 2px rgba(148,163,184,0.1)",
+                        color: "#334155",
+                      }}
+                      title={member.name}
+                    >
+                      {initials}
+                    </div>
+                    <div
+                      className="absolute left-full ml-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/avatar:opacity-100 transition-all duration-200 pointer-events-none z-30 whitespace-nowrap px-2 py-1 rounded-md text-xs font-medium text-slate-700"
+                      style={{
+                        background: "rgba(255,255,255,0.92)",
+                        backdropFilter: "blur(12px)",
+                        border: "1px solid rgba(200,210,220,0.4)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      {member.name}
+                    </div>
                   </div>
-                </div>
 
-                <DroppableCell id={cellId} className="flex-1 relative h-12">
-                  <div className="absolute inset-0 flex pointer-events-none">
-                    {timelineMarkers.map((hour) => (
+                  <DroppableCell id={cellId} className="flex-1 relative h-12">
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {timelineMarkers.map((hour) => (
+                        <div
+                          key={hour}
+                          className="flex-shrink-0 border-l border-gray-100"
+                          style={{ width: HOUR_WIDTH }}
+                        />
+                      ))}
+                    </div>
+
+                    {isToday(day) && currentTimePos !== null && (
                       <div
-                        key={hour}
-                        className="flex-shrink-0 border-l border-gray-100"
-                        style={{ width: HOUR_WIDTH }}
+                        className="absolute top-0 bottom-0 z-20 pointer-events-none"
+                        style={{
+                          left: currentTimePos,
+                          width: "1px",
+                          backgroundImage: "repeating-linear-gradient(to bottom, rgba(239, 68, 68, 0.5) 0px, rgba(239, 68, 68, 0.5) 4px, transparent 4px, transparent 8px)",
+                        }}
+                      />
+                    )}
+
+                    {memberJobs.map((job) => (
+                      <DayTimelineJobBlock
+                        key={job.id}
+                        job={job}
+                        team={teams.find((t) => t.id === job.teamId) || { id: member.id, name: member.name, specialty: "", color: memberColor }}
+                        teams={teams}
                       />
                     ))}
+                  </DroppableCell>
+                </div>
+              );
+            })
+          ) : (
+            displayRows.map((team, teamIdx) => {
+              const initials = team.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+              const dayJobs = getJobsForTeamAndDay(team.id, day);
+              const cellId = `cell-${format(day, "yyyy-MM-dd")}-team-${team.id}`;
+
+              return (
+                <div
+                  key={team.id}
+                  className={`flex items-center min-h-[52px] ${
+                    teamIdx < displayRows.length - 1 ? "border-b border-gray-100" : ""
+                  }`}
+                >
+                  <div
+                    className="w-14 flex-shrink-0 px-2 py-2 flex items-center justify-center sticky left-0 z-20"
+                    style={{
+                      background: "rgba(255,255,255,0.95)",
+                      backdropFilter: "blur(12px)",
+                    }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold transition-transform hover:scale-110"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,245,250,0.7) 50%, rgba(230,238,248,0.6) 100%)",
+                        border: "1.5px solid rgba(255, 255, 255, 0.8)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08), inset 0 2px 4px rgba(255,255,255,0.9)",
+                        color: "#334155",
+                      }}
+                      title={team.name}
+                    >
+                      {initials}
+                    </div>
                   </div>
 
-                  {isToday(day) && currentTimePos !== null && (
-                    <div
-                      className="absolute top-0 bottom-0 z-20 pointer-events-none"
-                      style={{
-                        left: currentTimePos,
-                        width: "1px",
-                        backgroundImage: "repeating-linear-gradient(to bottom, rgba(239, 68, 68, 0.5) 0px, rgba(239, 68, 68, 0.5) 4px, transparent 4px, transparent 8px)",
-                      }}
-                    />
-                  )}
+                  <DroppableCell id={cellId} className="flex-1 relative h-12">
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {timelineMarkers.map((hour) => (
+                        <div
+                          key={hour}
+                          className="flex-shrink-0 border-l border-gray-100"
+                          style={{ width: HOUR_WIDTH }}
+                        />
+                      ))}
+                    </div>
 
-                  {dayJobs.map((job) => (
-                    <DayTimelineJobBlock
-                      key={job.id}
-                      job={job}
-                      team={teams.find((t) => t.id === job.teamId) || team}
-                      teams={teams}
-                    />
-                  ))}
-                </DroppableCell>
-              </div>
-            );
-          })}
+                    {isToday(day) && currentTimePos !== null && (
+                      <div
+                        className="absolute top-0 bottom-0 z-20 pointer-events-none"
+                        style={{
+                          left: currentTimePos,
+                          width: "1px",
+                          backgroundImage: "repeating-linear-gradient(to bottom, rgba(239, 68, 68, 0.5) 0px, rgba(239, 68, 68, 0.5) 4px, transparent 4px, transparent 8px)",
+                        }}
+                      />
+                    )}
+
+                    {dayJobs.map((job) => (
+                      <DayTimelineJobBlock
+                        key={job.id}
+                        job={job}
+                        team={teams.find((t) => t.id === job.teamId) || team}
+                        teams={teams}
+                      />
+                    ))}
+                  </DroppableCell>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
@@ -995,10 +1134,12 @@ function WeekTimelineJobBlock({
   job,
   team,
   teams,
+  teamMembers,
 }: {
   job: ScheduledJob;
   team?: Team;
   teams: Team[];
+  teamMembers?: TeamMember[];
 }) {
   if (!job.scheduledStartAt) return null;
 
@@ -1025,7 +1166,10 @@ function WeekTimelineJobBlock({
 
   const category = getTimeCategory(job);
   const colors = getJobCardColors(category);
-  const teamColor = team?.color || "#6366f1";
+  const matchedMember = teamMembers?.find(
+    (m) => m.id === job.teamId || m.memberId === job.teamId || m.id === job.contractorId || m.memberId === job.contractorId
+  );
+  const teamColor = team?.color || matchedMember?.color || "#6366f1";
   const isUrgent = job.urgency === "High" || job.urgency === "Emergent";
   const isAllDay = job.isAllDay || !job.scheduledEndAt;
   const timeStr = !isAllDay ? format(start, "h:mm a") : "";
@@ -1083,6 +1227,7 @@ function WeekView({
   days,
   displayRows,
   teams,
+  teamMembers,
   getJobsForTeamAndDay,
   timelineMarkers,
   currentTimePos,
@@ -1090,6 +1235,7 @@ function WeekView({
   days: Date[];
   displayRows: Team[];
   teams: Team[];
+  teamMembers: TeamMember[];
   getJobsForTeamAndDay: (teamId: string, day: Date) => ScheduledJob[];
   timelineMarkers: number[];
   currentTimePos: number | null;
@@ -1212,6 +1358,7 @@ function WeekView({
                           job={job}
                           team={team}
                           teams={teams}
+                          teamMembers={teamMembers}
                         />
                       );
                     })}
@@ -1223,6 +1370,92 @@ function WeekView({
         </div>
       </div>
     </div>
+  );
+}
+
+function MonthDayCell({
+  day,
+  dayJobs,
+  onDayClick,
+}: {
+  day: Date;
+  dayJobs: ScheduledJob[];
+  onDayClick: (day: Date) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const today = isToday(day);
+  const hasJobs = dayJobs.length > 0;
+
+  return (
+    <button
+      className={`relative min-h-[80px] border-r border-b border-gray-50 p-1.5 text-left transition-colors cursor-pointer hover:bg-violet-50/40 ${
+        today ? "bg-violet-50/50" : ""
+      }`}
+      onClick={() => onDayClick(day)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+            today ? "bg-violet-600 text-white" : "text-gray-700"
+          }`}
+        >
+          {day.getDate()}
+        </span>
+      </div>
+
+      {hasJobs && (
+        <div className="flex items-center justify-center mt-3">
+          <div className="w-2 h-2 rounded-full bg-gray-800" />
+          {dayJobs.length > 1 && (
+            <span className="text-[8px] text-gray-400 ml-1 font-medium">{dayJobs.length}</span>
+          )}
+        </div>
+      )}
+
+      {hasJobs && hovered && (
+        <div
+          className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 p-2.5 rounded-lg shadow-xl min-w-[200px] max-w-[260px]"
+          style={{
+            background: "rgba(255,255,255,0.96)",
+            backdropFilter: "blur(16px)",
+            border: "1px solid rgba(200,210,220,0.4)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+          }}
+        >
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+            {format(day, "EEE, MMM d")} &middot; {dayJobs.length} job{dayJobs.length > 1 ? "s" : ""}
+          </p>
+          <div className="space-y-1">
+            {dayJobs.slice(0, 5).map((job) => {
+              const category = getTimeCategory(job);
+              const statusColor =
+                category === "complete" ? "#86efac" : category === "active" ? "#fb923c" : "#93c5fd";
+              const isUrgent = job.urgency === "High" || job.urgency === "Emergent";
+              return (
+                <div key={job.id} className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
+                  <span className="text-[10px] text-gray-700 truncate flex-1">{job.title}</span>
+                  {isUrgent && (
+                    <span className="text-[7px] font-bold text-amber-600 bg-amber-50 px-1 rounded flex-shrink-0">!</span>
+                  )}
+                  {job.scheduledStartAt && (
+                    <span className="text-[8px] text-gray-400 flex-shrink-0">
+                      {format(parseISO(job.scheduledStartAt), "h:mm a")}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            {dayJobs.length > 5 && (
+              <p className="text-[9px] text-gray-400 text-center pt-0.5">+{dayJobs.length - 5} more</p>
+            )}
+          </div>
+          <p className="text-[8px] text-violet-500 text-center mt-1.5 font-medium">Click to view day</p>
+        </div>
+      )}
+    </button>
   );
 }
 
@@ -1293,66 +1526,14 @@ function MonthView({
 
           const key = format(day, "yyyy-MM-dd");
           const dayJobs = jobsByDay.get(key) || [];
-          const today = isToday(day);
-          const hasJobs = dayJobs.length > 0;
 
-          const urgentCount = dayJobs.filter(
-            (j) => j.urgency === "High" || j.urgency === "Emergent"
-          ).length;
           return (
-            <button
+            <MonthDayCell
               key={key}
-              className={`min-h-[80px] border-r border-b border-gray-50 p-1.5 text-left transition-colors cursor-pointer hover:bg-violet-50/40 ${
-                today ? "bg-violet-50/50" : ""
-              }`}
-              onClick={() => onDayClick(day)}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span
-                  className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
-                    today
-                      ? "bg-violet-600 text-white"
-                      : "text-gray-700"
-                  }`}
-                >
-                  {day.getDate()}
-                </span>
-                {hasJobs && (
-                  <span className="text-[8px] font-medium text-gray-400">
-                    {dayJobs.length}
-                  </span>
-                )}
-              </div>
-
-              {hasJobs && (
-                <div className="flex flex-wrap gap-[3px] mt-1 justify-center">
-                  {dayJobs.slice(0, 5).map((job) => {
-                    const category = getTimeCategory(job);
-                    const dotColor =
-                      category === "complete"
-                        ? "#86efac"
-                        : category === "active"
-                          ? "#fb923c"
-                          : urgentCount > 0 && (job.urgency === "High" || job.urgency === "Emergent")
-                            ? "#f87171"
-                            : "#93c5fd";
-                    return (
-                      <div
-                        key={job.id}
-                        className="w-[6px] h-[6px] rounded-full"
-                        style={{ backgroundColor: dotColor }}
-                        title={job.title}
-                      />
-                    );
-                  })}
-                  {dayJobs.length > 5 && (
-                    <span className="text-[7px] text-gray-400 leading-none">
-                      +{dayJobs.length - 5}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
+              day={day}
+              dayJobs={dayJobs}
+              onDayClick={onDayClick}
+            />
           );
         })}
       </div>
