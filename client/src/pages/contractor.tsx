@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { format, isToday, isTomorrow, parseISO, startOfDay, endOfDay } from "date-fns";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
+import { InHubSchedule } from "@/components/contractor/in-hub-schedule";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -66,7 +67,7 @@ import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
 
 interface ChatMessage {
   id: string;
@@ -169,7 +170,7 @@ export default function Contractor() {
   const [view, setView] = useState<ViewState>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlView = params.get("view");
-    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "quotes", "customers", "newJobs", "activeJobs", "messages", "team"].includes(urlView)) {
+    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team"].includes(urlView)) {
       return urlView as ViewState;
     }
     return "landing";
@@ -813,7 +814,7 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
-              onClick={() => navigate("/contractor-schedule")}
+              onClick={() => setView("schedule" as ViewState)}
             >
               <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Schedule</span>
@@ -883,9 +884,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -912,7 +913,7 @@ export default function Contractor() {
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
         <main className={`flex flex-col ${
-          view === "newJobs" || view === "activeJobs" || view === "quotes" 
+          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule"
             ? "flex-1 min-h-0 overflow-hidden" 
             : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
         }`}>
@@ -1357,7 +1358,7 @@ export default function Contractor() {
                   urgency: apt.urgency,
                   source: apt.source
                 }))}
-                onViewCalendar={() => navigate("/contractor-schedule")}
+                onViewCalendar={() => setView("schedule" as ViewState)}
               />
             </div>
           </div>
@@ -1696,6 +1697,13 @@ export default function Contractor() {
             teamAppointments={teamAppointments}
             activeJobs={activeJobs}
           />
+        )}
+
+        {/* Schedule View - In-Hub Calendar */}
+        {view === ("schedule" as ViewState) && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <InHubSchedule />
+          </div>
         )}
 
         {/* Job Detail View - When customer bubble is selected */}
