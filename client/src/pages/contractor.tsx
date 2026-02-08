@@ -366,7 +366,8 @@ export default function Contractor() {
   const selectedCase = selectedCaseId ? (jobs.find(j => j.id === selectedCaseId) || dismissedJobs.find(j => j.id === selectedCaseId)) : null;
 
   // Calculate counts
-  const newJobsCount = jobs.filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status)).length;
+  const newJobsCount = jobs.filter(j => j.status === "New").length;
+  const needsConfirmationCount = jobs.filter(j => j.status === "In Review").length;
   const activeJobs = jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed"].includes(j.status));
   const activeJobsCount = activeJobs.length;
   const completedJobsCount = jobs.filter(j => j.status === "Completed" || j.status === "Resolved").length;
@@ -771,7 +772,7 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
-              onClick={() => navigate("/quotes")}
+              onClick={() => setView("quotes" as ViewState)}
             >
               <Receipt className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Quotes</span>
@@ -786,8 +787,8 @@ export default function Contractor() {
             >
               <CheckCircle className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Jobs</span>
-              {allJobsCount > 0 && (
-                <Badge className="ml-auto h-5 px-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{allJobsCount}</Badge>
+              {needsConfirmationCount > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{needsConfirmationCount}</Badge>
               )}
             </Button>
             <Button 
@@ -1113,7 +1114,7 @@ export default function Contractor() {
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
-                    onClick={() => navigate("/quotes")}
+                    onClick={() => setView("quotes" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
@@ -1267,7 +1268,7 @@ export default function Contractor() {
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
-                    onClick={() => navigate("/quotes")}
+                    onClick={() => setView("quotes" as ViewState)}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
