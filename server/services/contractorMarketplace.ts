@@ -133,7 +133,7 @@ export async function canContractorAcceptCase(contractorUserId: string, caseId: 
   return { canAccept: true };
 }
 
-export async function acceptCase(contractorUserId: string, caseId: string, options?: { quotedPrice?: string; priceTbd?: boolean }): Promise<{ success: boolean; error?: string }> {
+export async function acceptCase(contractorUserId: string, caseId: string, options?: { quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number }): Promise<{ success: boolean; error?: string }> {
   // Verify contractor can accept
   const { canAccept, reason } = await canContractorAcceptCase(contractorUserId, caseId);
   
@@ -175,7 +175,7 @@ export async function acceptCase(contractorUserId: string, caseId: string, optio
       
       const caseItem = updated[0];
       
-      // Create a quote record when price is provided
+      // Create a quote record when price is provided (not TBD)
       if (options?.quotedPrice && !options?.priceTbd) {
         const priceStr = String(parseFloat(options.quotedPrice) || 0);
         await tx.insert(quotes).values({
@@ -188,6 +188,9 @@ export async function acceptCase(contractorUserId: string, caseId: string, optio
           subtotal: priceStr,
           total: priceStr,
           sentAt: new Date(),
+          availableStartDate: options?.availableStartDate ? new Date(options.availableStartDate) : undefined,
+          availableEndDate: options?.availableEndDate ? new Date(options.availableEndDate) : undefined,
+          estimatedDays: options?.estimatedDays || undefined,
         });
       }
       

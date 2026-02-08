@@ -459,10 +459,13 @@ export default function Contractor() {
   const [acceptQuoteCase, setAcceptQuoteCase] = useState<any>(null);
   const [acceptQuotePrice, setAcceptQuotePrice] = useState("");
   const [acceptQuotePriceTbd, setAcceptQuotePriceTbd] = useState(false);
+  const [acceptQuoteStartDate, setAcceptQuoteStartDate] = useState("");
+  const [acceptQuoteEndDate, setAcceptQuoteEndDate] = useState("");
+  const [acceptQuoteEstDays, setAcceptQuoteEstDays] = useState("");
 
-  // Accept case mutation (with optional pricing)
+  // Accept case mutation (with optional pricing + availability)
   const acceptCaseMutation = useMutation({
-    mutationFn: async (data: { caseId: string; quotedPrice?: string; priceTbd?: boolean }) => {
+    mutationFn: async (data: { caseId: string; quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number }) => {
       return await apiRequest("POST", `/api/contractor/accept-case`, data);
     },
     onSuccess: () => {
@@ -473,6 +476,9 @@ export default function Contractor() {
       setAcceptQuoteCase(null);
       setAcceptQuotePrice("");
       setAcceptQuotePriceTbd(false);
+      setAcceptQuoteStartDate("");
+      setAcceptQuoteEndDate("");
+      setAcceptQuoteEstDays("");
       toast({ title: "Job Accepted", description: "You've accepted this job." });
     },
     onError: (error: any) => {
@@ -485,6 +491,9 @@ export default function Contractor() {
     setAcceptQuoteCase(caseItem);
     setAcceptQuotePrice("");
     setAcceptQuotePriceTbd(false);
+    setAcceptQuoteStartDate("");
+    setAcceptQuoteEndDate("");
+    setAcceptQuoteEstDays("");
     setAcceptQuoteDialogOpen(true);
   };
 
@@ -494,6 +503,9 @@ export default function Contractor() {
       caseId: acceptQuoteCase.id,
       quotedPrice: acceptQuotePriceTbd ? undefined : acceptQuotePrice || undefined,
       priceTbd: acceptQuotePriceTbd,
+      availableStartDate: acceptQuoteStartDate || undefined,
+      availableEndDate: acceptQuoteEndDate || undefined,
+      estimatedDays: acceptQuoteEstDays ? parseInt(acceptQuoteEstDays) : undefined,
     });
   };
 
@@ -1389,9 +1401,6 @@ export default function Contractor() {
             onDecline={requestsFilter === "passed" ? undefined : (item) => {
               dismissCaseMutation.mutate(item.id);
             }}
-            onSchedule={requestsFilter === "passed" ? undefined : (item) => {
-              setView("calendar");
-            }}
             emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No new job requests"}
           />
@@ -1434,9 +1443,6 @@ export default function Contractor() {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="job"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            onSchedule={(item) => {
-              setView("calendar");
-            }}
             emptyIcon={<CheckCircle className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No active jobs"
           />
@@ -1938,6 +1944,49 @@ export default function Contractor() {
                 <Label htmlFor="tbd-option" className="font-normal cursor-pointer">Price to be discussed</Label>
               </div>
             </RadioGroup>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-slate-400" />
+                <Label className="text-sm font-medium text-slate-600">Availability <span className="text-xs font-normal text-slate-400">(optional)</span></Label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-500 mb-1 block">Earliest start</Label>
+                  <Input
+                    type="date"
+                    value={acceptQuoteStartDate}
+                    onChange={(e) => setAcceptQuoteStartDate(e.target.value)}
+                    className="text-sm"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500 mb-1 block">Latest start</Label>
+                  <Input
+                    type="date"
+                    value={acceptQuoteEndDate}
+                    onChange={(e) => setAcceptQuoteEndDate(e.target.value)}
+                    className="text-sm"
+                    min={acceptQuoteStartDate || new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              </div>
+              <div className="w-1/2">
+                <Label className="text-xs text-slate-500 mb-1 block">Estimated days to complete</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 2"
+                  value={acceptQuoteEstDays}
+                  onChange={(e) => setAcceptQuoteEstDays(e.target.value)}
+                  className="text-sm"
+                  min="1"
+                  step="1"
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAcceptQuoteDialogOpen(false)}>

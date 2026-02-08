@@ -1011,11 +1011,6 @@ export function MayaCarouselLayout({
                           {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />} {acceptLabel}
                         </Button>
                       )}
-                      {onSchedule && (
-                        <Button variant="outline" className="flex-1 h-11 touch-manipulation" onClick={() => onSchedule(selectedItem)}>
-                          <Calendar className="h-4 w-4 mr-2" /> Schedule
-                        </Button>
-                      )}
                       {onDecline && (
                         <Button variant="outline" className="flex-1 h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDecline(selectedItem)}>
                           <X className="h-4 w-4 mr-2" /> Pass
@@ -1377,11 +1372,6 @@ export function MayaCarouselLayout({
                       {onAccept && (
                         <Button size="sm" className={`h-9 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
                           {acceptLabel === "Restore" ? <CheckCircle className="h-3 w-3 mr-1" /> : <Send className="h-3 w-3 mr-1" />} {acceptLabel}
-                        </Button>
-                      )}
-                      {onSchedule && (
-                        <Button size="sm" variant="outline" className="h-9 touch-manipulation" onClick={() => onSchedule(selectedItem)}>
-                          <Calendar className="h-3 w-3 mr-1" /> Schedule
                         </Button>
                       )}
                     </div>
