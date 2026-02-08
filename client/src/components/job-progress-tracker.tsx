@@ -44,7 +44,7 @@ export function JobProgressTracker({ status, scheduledDate, contractorName }: Jo
       ? `Work scheduled for ${new Date(scheduledDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`
       : "Work has been scheduled",
     2: "Work is underway",
-    3: "Job complete",
+    3: "Work complete",
   };
 
   return (
@@ -64,7 +64,7 @@ export function JobProgressTracker({ status, scheduledDate, contractorName }: Jo
           <CheckCircle className="h-3 w-3 text-white" />
         </div>
         <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Job Progress
+          Work Progress
         </span>
       </div>
 
