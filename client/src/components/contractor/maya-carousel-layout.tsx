@@ -1155,7 +1155,7 @@ export function MayaCarouselLayout({
                               className="min-h-[60px]"
                             />
                             <Button
-                              className="w-full h-11 touch-manipulation bg-green-600 hover:bg-green-700 text-white"
+                              className="w-full h-11 touch-manipulation bg-emerald-500/80 hover:bg-emerald-500/90 text-white backdrop-blur-sm border border-emerald-400/30"
                               disabled={jobActionLoading}
                               onClick={async () => {
                                 setJobActionLoading(true);
@@ -1171,9 +1171,9 @@ export function MayaCarouselLayout({
                           </div>
                         )}
                         {(selectedItem.status === "Completed" || selectedItem.status === "Resolved") && (
-                          <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="text-sm font-medium text-green-700">Job Completed</span>
+                          <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50/60 border border-emerald-200/50">
+                            <CheckCircle className="h-5 w-5 text-emerald-500" />
+                            <span className="text-sm font-medium text-emerald-600">Job Completed</span>
                           </div>
                         )}
                         {selectedItem.caseScheduledStartAt && (selectedItem.status === "Scheduled" || selectedItem.status === "In Progress") && (
@@ -1573,7 +1573,7 @@ export function MayaCarouselLayout({
                           </Button>
                         )}
                         {selectedItem.status === "In Progress" && onCompleteJob && (
-                          <Button size="sm" className="w-full h-9 touch-manipulation bg-green-600 hover:bg-green-700 text-white"
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-500/80 hover:bg-emerald-500/90 text-white backdrop-blur-sm border border-emerald-400/30"
                             disabled={jobActionLoading}
                             onClick={async () => { setJobActionLoading(true); await onCompleteJob(selectedItem, {}); setJobActionLoading(false); }}
                           >
@@ -1581,9 +1581,9 @@ export function MayaCarouselLayout({
                           </Button>
                         )}
                         {(selectedItem.status === "Completed" || selectedItem.status === "Resolved") && (
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 border border-green-200">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span className="text-xs font-medium text-green-700">Completed</span>
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50/60 border border-emerald-200/50">
+                            <CheckCircle className="h-4 w-4 text-emerald-500" />
+                            <span className="text-xs font-medium text-emerald-600">Completed</span>
                           </div>
                         )}
                       </div>

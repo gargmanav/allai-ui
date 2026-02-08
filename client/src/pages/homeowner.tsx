@@ -1100,19 +1100,20 @@ export default function Homeowner() {
               )}
             </div>
 
-            {/* Job Progress Tracker - Amazon-style */}
-            {caseQuotes.some((q: any) => q.status === 'approved') && (
-              <div className="px-4 pt-3 pb-1">
-                <JobProgressTracker
-                  status={selectedRequest.status}
-                  scheduledDate={selectedRequest.scheduledStartAt}
-                  contractorName={(() => {
-                    const accepted = caseQuotes.find((q: any) => q.status === 'approved');
-                    return accepted?.contractorName || null;
-                  })()}
-                />
-              </div>
-            )}
+            {/* Job Progress Tracker - only shows when the accepted contractor is selected */}
+            {selectedContractorId && !showMayaPanel && (() => {
+              const acceptedQuote = caseQuotes.find((q: any) => q.status === 'approved' && q.contractorId === selectedContractorId);
+              if (!acceptedQuote) return null;
+              return (
+                <div className="px-4 pt-3 pb-1">
+                  <JobProgressTracker
+                    status={selectedRequest.status}
+                    scheduledDate={selectedRequest.scheduledStartAt}
+                    contractorName={acceptedQuote.contractorName || null}
+                  />
+                </div>
+              );
+            })()}
 
             {/* Contractor Selector - Horizontal scroll bubbles with frosted glass */}
             <div className="px-4 py-4 border-b bg-gradient-to-r from-muted/20 to-transparent">
@@ -1274,16 +1275,34 @@ export default function Homeowner() {
                                 {quote.estimatedDays && <p className="text-xs text-muted-foreground">{quote.estimatedDays} day{quote.estimatedDays > 1 ? "s" : ""} est.</p>}
                               </div>
                             </div>
-                            {(startDate || endDate) && (
-                              <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-violet-50/60 border border-violet-100/60">
-                                <CalendarDays className="h-3.5 w-3.5 text-violet-400 shrink-0" />
-                                <span className="text-xs text-violet-600">
-                                  Available {startDate ? format(startDate, 'MMM d') : ''}
-                                  {endDate && startDate && endDate.getTime() !== startDate.getTime() ? ` – ${format(endDate, 'MMM d')}` : ''}
-                                  {!startDate && endDate ? `by ${format(endDate, 'MMM d')}` : ''}
-                                </span>
-                              </div>
-                            )}
+                            {(() => {
+                              const caseStatus = selectedRequest.status;
+                              const scheduledAt = selectedRequest.scheduledStartAt;
+                              const isApproved = quote.status === 'approved';
+                              if (isApproved && scheduledAt && ['Scheduled', 'In Progress', 'Resolved', 'Completed', 'Closed'].includes(caseStatus)) {
+                                return (
+                                  <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-violet-50/60 border border-violet-100/60">
+                                    <CalendarDays className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                                    <span className="text-xs text-violet-600">
+                                      Scheduled {format(new Date(scheduledAt), 'MMM d')}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (startDate || endDate) {
+                                return (
+                                  <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-violet-50/60 border border-violet-100/60">
+                                    <CalendarDays className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                                    <span className="text-xs text-violet-600">
+                                      Available {startDate ? format(startDate, 'MMM d') : ''}
+                                      {endDate && startDate && endDate.getTime() !== startDate.getTime() ? ` – ${format(endDate, 'MMM d')}` : ''}
+                                      {!startDate && endDate ? `by ${format(endDate, 'MMM d')}` : ''}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                             {(() => {
                               const hasAnyAccepted = caseQuotes.some((q: any) => q.status === 'approved');
                               const isThisAccepted = quote.status === 'approved';
@@ -1291,20 +1310,35 @@ export default function Homeowner() {
                               const isThisDeclined = quote.status === 'declined';
 
                               if (isThisAccepted) {
+                                const caseStatus = selectedRequest.status;
+                                const lifecycleLabel = 
+                                  caseStatus === 'In Review' ? 'Quote Accepted' :
+                                  caseStatus === 'Scheduled' ? 'Scheduled' :
+                                  caseStatus === 'In Progress' ? 'In Progress' :
+                                  ['Resolved', 'Completed', 'Closed'].includes(caseStatus) ? 'Completed' :
+                                  'Quote Accepted';
+                                const lifecycleColors = 
+                                  ['Resolved', 'Completed', 'Closed'].includes(caseStatus)
+                                    ? 'bg-emerald-50/60 border-emerald-200/50 text-emerald-600'
+                                    : caseStatus === 'In Progress'
+                                    ? 'bg-blue-50/60 border-blue-200/50 text-blue-600'
+                                    : 'bg-violet-50 border-violet-200/60 text-violet-700';
                                 return (
                                   <div className="mt-4 space-y-2">
-                                    <div className="p-2 bg-violet-50 border border-violet-200/60 rounded-lg text-center">
-                                      <span className="text-sm font-medium text-violet-700 flex items-center justify-center gap-1">
-                                        <CheckCircle className="h-4 w-4" /> Quote Accepted
+                                    <div className={`p-2 border rounded-lg text-center ${lifecycleColors}`}>
+                                      <span className="text-sm font-medium flex items-center justify-center gap-1">
+                                        <CheckCircle className="h-4 w-4" /> {lifecycleLabel}
                                       </span>
                                     </div>
-                                    <button
-                                      className="w-full text-xs text-amber-600 hover:text-amber-700 hover:underline py-1"
-                                      disabled={cancelQuoteMutation.isPending}
-                                      onClick={() => cancelQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
-                                    >
-                                      {cancelQuoteMutation.isPending ? "Cancelling..." : "Cancel Acceptance"}
-                                    </button>
+                                    {['In Review', 'Scheduled'].includes(caseStatus) && (
+                                      <button
+                                        className="w-full text-xs text-amber-600 hover:text-amber-700 hover:underline py-1"
+                                        disabled={cancelQuoteMutation.isPending}
+                                        onClick={() => cancelQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                      >
+                                        {cancelQuoteMutation.isPending ? "Cancelling..." : "Cancel Acceptance"}
+                                      </button>
+                                    )}
                                   </div>
                                 );
                               }
