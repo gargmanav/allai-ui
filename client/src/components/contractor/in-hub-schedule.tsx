@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ScheduledJob {
   id: string;
+  realId?: string;
   title: string;
   description?: string | null;
   teamId?: string;
@@ -54,6 +55,7 @@ interface ScheduledJob {
   customerName?: string;
   durationDays?: number;
   isAllDay?: boolean;
+  source?: string;
 }
 
 interface UnscheduledItem {
@@ -167,9 +169,12 @@ function JobCard({
   const { toast } = useToast();
   const teamColor = team?.color || "#6366f1";
 
+  const canUpdate = job.source === "scheduled_job";
+  const updateId = job.realId || job.id;
+
   const updateTeamMutation = useMutation({
     mutationFn: async (teamId: string) => {
-      return apiRequest("PUT", `/api/scheduled-jobs/${job.id}`, { teamId });
+      return apiRequest("PUT", `/api/scheduled-jobs/${updateId}`, { teamId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/scheduled-jobs"] });
@@ -235,32 +240,34 @@ function JobCard({
               </span>
             )}
           </div>
-          <div>
-            <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1 block">
-              Team Assignment
-            </label>
-            <Select
-              value={job.teamId || ""}
-              onValueChange={(val) => updateTeamMutation.mutate(val)}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Assign team" />
-              </SelectTrigger>
-              <SelectContent>
-                {teams.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: t.color }}
-                      />
-                      {t.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {canUpdate && teams.length > 0 && (
+            <div>
+              <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                Team Assignment
+              </label>
+              <Select
+                value={job.teamId || ""}
+                onValueChange={(val) => updateTeamMutation.mutate(val)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Assign team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: t.color }}
+                        />
+                        {t.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -284,9 +291,47 @@ export function InHubSchedule() {
 
   const { data: teams = [] } = useQuery<Team[]>({ queryKey: ["/api/teams"] });
 
-  const { data: scheduledJobs = [] } = useQuery<ScheduledJob[]>({
+  const { data: rawCalendarJobs = [] } = useQuery<any[]>({
+    queryKey: ["/api/contractor/team-calendar"],
+  });
+
+  const { data: rawScheduledJobs = [] } = useQuery<ScheduledJob[]>({
     queryKey: ["/api/scheduled-jobs"],
   });
+
+  const scheduledJobs: ScheduledJob[] = useMemo(() => {
+    const calendarMapped = rawCalendarJobs.map((j: any) => {
+      const isJobSource = j.source === "scheduled_job";
+      const rawId = String(j.id);
+      const realId = isJobSource && rawId.startsWith("job-") ? rawId.slice(4) : rawId;
+      return {
+        id: rawId,
+        realId,
+        title: j.title || j.caseName || "Untitled",
+        description: j.description,
+        teamId: j.teamId || j.team?.id,
+        scheduledStartAt: j.scheduledStartAt || j.startTime,
+        scheduledEndAt: j.scheduledEndAt || j.endTime,
+        status: j.status,
+        urgency: j.urgency || j.priority,
+        address: j.address || j.location,
+        customerName: j.customerName || j.homeownerName,
+        durationDays: j.durationDays || 1,
+        isAllDay: j.isAllDay,
+        source: j.source || "appointment",
+      };
+    });
+    const calendarIds = new Set(calendarMapped.map((j: any) => j.id));
+    const fromScheduled = rawScheduledJobs
+      .filter((j) => !calendarIds.has(j.id) && !calendarIds.has(`job-${j.id}`))
+      .map((j) => ({
+        ...j,
+        realId: j.id,
+        durationDays: j.durationDays || 1,
+        source: "scheduled_job",
+      }));
+    return [...calendarMapped, ...fromScheduled];
+  }, [rawCalendarJobs, rawScheduledJobs]);
 
   const { data: cases = [] } = useQuery<any[]>({
     queryKey: ["/api/contractor/cases"],
@@ -315,12 +360,13 @@ export function InHubSchedule() {
 
     const needsConfirmation = (scheduledJobs || []).filter(
       (j: any) =>
-        (j.status === "In Review" || j.status === "Needs Review" || j.status === "Unscheduled") &&
+        j.source === "scheduled_job" &&
+        (j.status === "In Review" || j.status === "Needs Review" || j.status === "Unscheduled" || j.status === "Needs Confirmation" || j.status === "Pending Approval") &&
         !j.scheduledStartAt
     );
     needsConfirmation.forEach((j: any) => {
       items.push({
-        id: j.id,
+        id: j.realId || j.id,
         title: j.title || "Untitled Job",
         type: "job",
         urgency: j.urgency,
@@ -362,11 +408,33 @@ export function InHubSchedule() {
 
   const getJobsForTeamAndDay = (teamId: string, day: Date) => {
     return (scheduledJobs || []).filter((job: ScheduledJob) => {
-      if (!job.scheduledStartAt || job.teamId !== teamId) return false;
+      if (!job.scheduledStartAt) return false;
+      if (teamId === "__unassigned__") {
+        if (job.teamId && teams.some((t) => t.id === job.teamId)) return false;
+        const jobDate = parseISO(job.scheduledStartAt);
+        return isSameDay(jobDate, day);
+      }
+      if (job.teamId !== teamId) return false;
       const jobDate = parseISO(job.scheduledStartAt);
       return isSameDay(jobDate, day);
     });
   };
+
+  const displayRows: Team[] = useMemo(() => {
+    const rows = [...teams];
+    const hasUnassigned = (scheduledJobs || []).some(
+      (j) => j.scheduledStartAt && (!j.teamId || !teams.some((t) => t.id === j.teamId))
+    );
+    if (hasUnassigned || teams.length === 0) {
+      rows.push({
+        id: "__unassigned__",
+        name: "Unassigned",
+        specialty: "General",
+        color: "#94a3b8",
+      });
+    }
+    return rows;
+  }, [teams, scheduledJobs]);
 
   const scheduleMutation = useMutation({
     mutationFn: async ({
@@ -423,7 +491,8 @@ export function InHubSchedule() {
 
     const parts = dropId.split("-team-");
     const dateStr = parts[0].replace("cell-", "");
-    const teamId = parts[1];
+    const rawTeamId = parts[1];
+    const teamId = rawTeamId === "__unassigned__" ? undefined : rawTeamId;
     const dropDate = parseISO(dateStr);
 
     scheduleMutation.mutate({ item: dragData.item, date: dropDate, teamId });
@@ -446,25 +515,6 @@ export function InHubSchedule() {
   };
 
   const goToToday = () => setCurrentDate(new Date());
-
-  if (teams.length === 0) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center py-16 rounded-xl"
-        style={{
-          background:
-            "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
-          border: "1px solid rgba(0,0,0,0.05)",
-        }}
-      >
-        <Calendar className="h-10 w-10 text-violet-300 mb-3" />
-        <p className="text-sm text-gray-600 font-medium">No teams configured</p>
-        <p className="text-xs text-gray-400 mt-1">
-          Create teams in the Team view to start scheduling jobs
-        </p>
-      </div>
-    );
-  }
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -621,7 +671,16 @@ export function InHubSchedule() {
               </div>
             </div>
 
-            {teams.map((team, teamIdx) => {
+            {teams.length === 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 mx-2 mt-2 rounded-lg bg-violet-50/60 border border-violet-100">
+                <Calendar className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                <p className="text-[11px] text-violet-600">
+                  Tip: Create teams in the Team view to organize jobs by crew
+                </p>
+              </div>
+            )}
+
+            {displayRows.map((team, teamIdx) => {
               const initials = team.name
                 .split(" ")
                 .map((n) => n[0])
@@ -633,7 +692,7 @@ export function InHubSchedule() {
                 <div
                   key={team.id}
                   className={`flex ${
-                    teamIdx < teams.length - 1 ? "border-b border-gray-100" : ""
+                    teamIdx < displayRows.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
                   <div
