@@ -1408,13 +1408,12 @@ export default function Contractor() {
                 }))
             }
             filterTabs={[
-              { id: "all", label: "All", count: jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).length },
               { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
               { id: "in review", label: "In Review", count: jobs.filter(j => j.status === "In Review").length },
               { id: "pending", label: "Pending", count: jobs.filter(j => j.status === "Pending").length },
-              { id: "passed", label: "Passed", count: dismissedJobs.length },
+              { id: "passed", label: "Passed", count: dismissedJobs.length, secondary: true },
             ]}
-            activeFilter={requestsFilter}
+            activeFilter={requestsFilter === "all" ? "new" : requestsFilter}
             onFilterChange={(filterId) => {
               setRequestsFilter(filterId);
               setSelectedCaseId(null);
@@ -1574,11 +1573,10 @@ export default function Contractor() {
               };
             })}
             filterTabs={[
-              { id: "all", label: "All", count: quotes.length },
               { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
               { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
               { id: "approved", label: "Accepted", count: quotes.filter(q => q.status === "approved").length },
-              { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
+              { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length, groupedWith: ["cancelled", "expired"] },
               { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
             ]}

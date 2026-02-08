@@ -105,7 +105,7 @@ interface MayaCarouselLayoutProps {
   title: string;
   subtitle: string;
   items: Item[];
-  filterTabs?: { id: string; label: string; count: number }[];
+  filterTabs?: { id: string; label: string; count: number; secondary?: boolean; groupedWith?: string[] }[];
   activeFilter?: string;
   onFilterChange?: (filterId: string) => void;
   onItemSelect: (item: Item) => void;
@@ -815,52 +815,125 @@ export function MayaCarouselLayout({
           {/* Unified Toolbar - View dropdown + Search + Category + Sort + Cards/List toggle */}
           <div className="shrink-0 px-4 py-3 border-b bg-white">
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              {/* Lifecycle Pipeline Bar for Jobs */}
-              {filterTabs && filterTabs.length > 0 && itemType === "job" && (
-                <div className="flex items-center gap-0 shrink-0">
-                  {filterTabs.map((tab, idx) => {
-                    const isActive = activeFilter === tab.id;
-                    return (
-                      <div key={tab.id} className="flex items-center">
-                        {idx > 0 && (
-                          <div className="w-4 h-[1.5px] bg-slate-200" />
-                        )}
-                        <button
-                          onClick={() => handleFilterChange(tab.id)}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap ${
-                            isActive
-                              ? "bg-violet-100/80 text-violet-700 border border-violet-300/60 shadow-sm"
-                              : "bg-slate-50/60 text-slate-500 border border-slate-200/60 hover:bg-slate-100/80 hover:text-slate-600"
-                          }`}
-                        >
-                          {tab.label}
-                          {tab.count > 0 && (
-                            <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold ${
-                              isActive ? "bg-violet-200/80 text-violet-800" : "bg-slate-200/80 text-slate-600"
-                            }`}>
-                              {tab.count}
-                            </span>
+              {/* Lifecycle Pipeline Bar */}
+              {filterTabs && filterTabs.length > 0 && (() => {
+                const groupedTab = filterTabs.find(t => t.groupedWith && t.groupedWith.length > 0);
+                const groupedChildIds = new Set(groupedTab?.groupedWith || []);
+                const primaryTabs = filterTabs.filter(t => !t.secondary && !t.groupedWith && !groupedChildIds.has(t.id));
+                const secondaryTabs = filterTabs.filter(t => t.secondary);
+                const groupedChildren = groupedTab ? filterTabs.filter(t => groupedTab.groupedWith!.includes(t.id)) : [];
+                const allGroupedIds = groupedTab ? [groupedTab.id, ...groupedTab.groupedWith!] : [];
+                const isGroupActive = allGroupedIds.includes(activeFilter);
+                const activeGroupLabel = isGroupActive
+                  ? [...(groupedTab ? [groupedTab] : []), ...groupedChildren].find(t => t.id === activeFilter)?.label || groupedTab?.label
+                  : groupedTab?.label;
+                const totalGroupCount = groupedTab
+                  ? (groupedTab.count || 0) + groupedChildren.reduce((sum, c) => sum + (c.count || 0), 0)
+                  : 0;
+
+                return (
+                  <div className="flex items-center gap-0 shrink-0">
+                    {primaryTabs.map((tab, idx) => {
+                      const isActive = activeFilter === tab.id;
+                      return (
+                        <div key={tab.id} className="flex items-center">
+                          {idx > 0 && (
+                            <div className="w-4 h-[1.5px] bg-slate-200" />
                           )}
-                        </button>
+                          <button
+                            onClick={() => handleFilterChange(tab.id)}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap ${
+                              isActive
+                                ? "bg-violet-100/80 text-violet-700 border border-violet-300/60 shadow-sm"
+                                : "bg-slate-50/60 text-slate-500 border border-slate-200/60 hover:bg-slate-100/80 hover:text-slate-600"
+                            }`}
+                          >
+                            {tab.label}
+                            {tab.count > 0 && (
+                              <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold ${
+                                isActive ? "bg-violet-200/80 text-violet-800" : "bg-slate-200/80 text-slate-600"
+                              }`}>
+                                {tab.count}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {secondaryTabs.map((tab) => {
+                      const isActive = activeFilter === tab.id;
+                      return (
+                        <div key={tab.id} className="flex items-center">
+                          <div className="w-3 h-[1px] bg-slate-100" />
+                          <button
+                            onClick={() => handleFilterChange(tab.id)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all whitespace-nowrap ${
+                              isActive
+                                ? "bg-slate-200/80 text-slate-700 border border-slate-300/60 shadow-sm"
+                                : "bg-slate-50/40 text-slate-400 border border-slate-150/40 hover:bg-slate-100/60 hover:text-slate-500"
+                            }`}
+                          >
+                            {tab.label}
+                            {tab.count > 0 && (
+                              <span className={`inline-flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[9px] font-semibold ${
+                                isActive ? "bg-slate-300/80 text-slate-700" : "bg-slate-200/60 text-slate-500"
+                              }`}>
+                                {tab.count}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {groupedTab && (
+                      <div className="flex items-center relative">
+                        <div className="w-3 h-[1px] bg-slate-100" />
+                        <div className="relative group">
+                          <button
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all whitespace-nowrap ${
+                              isGroupActive
+                                ? "bg-slate-200/80 text-slate-700 border border-slate-300/60 shadow-sm"
+                                : "bg-slate-50/40 text-slate-400 border border-slate-150/40 hover:bg-slate-100/60 hover:text-slate-500"
+                            }`}
+                          >
+                            {isGroupActive ? activeGroupLabel : "Other"}
+                            {totalGroupCount > 0 && (
+                              <span className={`inline-flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[9px] font-semibold ${
+                                isGroupActive ? "bg-slate-300/80 text-slate-700" : "bg-slate-200/60 text-slate-500"
+                              }`}>
+                                {totalGroupCount}
+                              </span>
+                            )}
+                            <svg className="w-2.5 h-2.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </button>
+                          <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block min-w-[120px]">
+                            <div className="bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                              {[groupedTab, ...groupedChildren].map((child) => (
+                                <button
+                                  key={child.id}
+                                  onClick={() => handleFilterChange(child.id)}
+                                  className={`w-full text-left px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                                    activeFilter === child.id
+                                      ? "bg-violet-50 text-violet-700"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {child.label}
+                                  {child.count > 0 && (
+                                    <span className="ml-1.5 text-[10px] text-slate-400">({child.count})</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-              {/* View Dropdown for non-job types */}
-              {filterTabs && filterTabs.length > 0 && itemType !== "job" && (
-                <select
-                  value={activeFilter}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="h-8 px-2.5 pr-7 text-xs font-medium bg-violet-50 border border-violet-200 rounded-md text-violet-700 cursor-pointer shrink-0"
-                >
-                  {filterTabs.map(tab => (
-                    <option key={tab.id} value={tab.id}>
-                      {tab.label}{tab.count > 0 ? ` (${tab.count})` : ""}
-                    </option>
-                  ))}
-                </select>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Category Filter */}
               {showCategoryFilter && derivedCategories.length > 0 && (
