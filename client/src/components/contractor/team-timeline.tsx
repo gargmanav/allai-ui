@@ -341,8 +341,8 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                             />
                             <div className="flex-1 px-2 py-1 flex items-center gap-1 min-w-0">
                               {isUrgent && (
-                                <span className="flex-shrink-0 px-1 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-700 rounded">
-                                  Urgent
+                                <span className="flex-shrink-0 px-1 py-0.5 text-[7px] font-bold bg-amber-100 text-amber-700 rounded">
+                                  !
                                 </span>
                               )}
                               <span className="text-[10px] font-medium text-gray-700 truncate">
@@ -365,8 +365,8 @@ export function TeamTimeline({ teamMembers, appointments, onViewCalendar }: Team
                                     {apt.title || 'Appointment'}
                                   </h4>
                                   {isUrgent && (
-                                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 rounded">
-                                      Urgent
+                                    <span className="px-1.5 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-700 rounded">
+                                      !
                                     </span>
                                   )}
                                 </div>
