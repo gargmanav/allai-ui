@@ -66,8 +66,9 @@ import { QuickAdd } from "@/components/contractor/quick-add-fab";
 import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
+import { LifecycleBar } from "@/components/contractor/lifecycle-bar";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work";
 
 interface ChatMessage {
   id: string;
@@ -170,11 +171,12 @@ export default function Contractor() {
   const [view, setView] = useState<ViewState>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlView = params.get("view");
-    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team"].includes(urlView)) {
+    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team", "work"].includes(urlView)) {
       return urlView as ViewState;
     }
     return "landing";
   });
+  const [lifecycleStage, setLifecycleStage] = useState<string>("new");
   const [searchQuery, setSearchQuery] = useState("");
   const [mayaInput, setMayaInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -377,6 +379,56 @@ export default function Contractor() {
   const quotesCount = quotes.length;
   const draftQuotesCount = quotes.filter(q => q.status === "draft").length;
   const approvedQuotesCount = quotes.filter(q => q.status === "approved").length;
+  const sentQuotesCount = quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length;
+  const reviewingCount = jobs.filter(j => j.status === "In Review").length;
+  const scheduledCount = jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length;
+  const inProgressCount = jobs.filter(j => j.status === "In Progress").length;
+
+  const lifecycleCounts = useMemo(() => ({
+    new: newJobsCount,
+    reviewing: reviewingCount,
+    draft: draftQuotesCount,
+    sent: sentQuotesCount,
+    awaiting: needsConfirmationCount,
+    scheduled: scheduledCount,
+    in_progress: inProgressCount,
+    completed: completedJobsCount,
+    invoices_soon: 0,
+  }), [newJobsCount, reviewingCount, draftQuotesCount, sentQuotesCount, needsConfirmationCount, scheduledCount, inProgressCount, completedJobsCount]);
+
+  const lifecycleStatusMessage = useMemo(() => {
+    const messages: Record<string, string> = {
+      new: `${newJobsCount} new request${newJobsCount !== 1 ? 's' : ''} waiting for your response`,
+      reviewing: `${reviewingCount} request${reviewingCount !== 1 ? 's' : ''} under review`,
+      draft: `${draftQuotesCount} draft quote${draftQuotesCount !== 1 ? 's' : ''} to finalize`,
+      sent: `${sentQuotesCount} quote${sentQuotesCount !== 1 ? 's' : ''} sent — awaiting customer response`,
+      awaiting: `${needsConfirmationCount} job${needsConfirmationCount !== 1 ? 's' : ''} awaiting scheduling`,
+      scheduled: `${scheduledCount} job${scheduledCount !== 1 ? 's' : ''} scheduled`,
+      in_progress: `${inProgressCount} job${inProgressCount !== 1 ? 's' : ''} in progress`,
+      completed: `${completedJobsCount} job${completedJobsCount !== 1 ? 's' : ''} completed`,
+    };
+    return messages[lifecycleStage] || "";
+  }, [lifecycleStage, newJobsCount, reviewingCount, draftQuotesCount, sentQuotesCount, needsConfirmationCount, scheduledCount, inProgressCount, completedJobsCount]);
+
+  // Determine which group/itemType the lifecycle stage belongs to
+  const lifecycleGroup = useMemo(() => {
+    if (["new", "reviewing"].includes(lifecycleStage)) return "requests";
+    if (["draft", "sent"].includes(lifecycleStage)) return "quotes";
+    if (["awaiting", "scheduled", "in_progress", "completed"].includes(lifecycleStage)) return "jobs";
+    return "requests";
+  }, [lifecycleStage]);
+
+  // Map lifecycle stage to existing MayaCarouselLayout filter ids
+  const lifecycleToFilter = useMemo((): Record<string, string> => ({
+    new: "new",
+    reviewing: "in review",
+    draft: "draft",
+    sent: "sent",
+    awaiting: "in review",
+    scheduled: "scheduled",
+    in_progress: "in progress",
+    completed: "completed",
+  }), []);
 
   // Today's appointments - for the schedule view
   const todaysAppointments = useMemo(() => {
@@ -593,7 +645,8 @@ export default function Contractor() {
     },
     onSuccess: (newQuote) => {
       queryClient.invalidateQueries({ queryKey: ['/api/contractor/quotes'] });
-      setView("quotes" as any);
+      setLifecycleStage("draft");
+      setView("work" as ViewState);
       toast({ title: "Draft quote created", description: "You can now edit and send this quote." });
     },
     onError: () => {
@@ -762,7 +815,7 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
-              onClick={() => setView("newJobs" as ViewState)}
+              onClick={() => { setLifecycleStage("new"); setView("work" as ViewState); }}
             >
               <Briefcase className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Requests</span>
@@ -773,7 +826,7 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
-              onClick={() => setView("quotes" as ViewState)}
+              onClick={() => { setLifecycleStage("draft"); setView("work" as ViewState); }}
             >
               <Receipt className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Quotes</span>
@@ -784,7 +837,7 @@ export default function Contractor() {
             <Button 
               variant="ghost" 
               className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
-              onClick={() => setView("activeJobs" as ViewState)}
+              onClick={() => { setLifecycleStage("awaiting"); setView("work" as ViewState); }}
             >
               <CheckCircle className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">Jobs</span>
@@ -884,9 +937,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" && view !== "work" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -913,7 +966,7 @@ export default function Contractor() {
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
         <main className={`flex flex-col ${
-          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule"
+          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule" || view === "work"
             ? "flex-1 min-h-0 overflow-hidden" 
             : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
         }`}>
@@ -1035,7 +1088,7 @@ export default function Contractor() {
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
-                    onClick={() => setView("newJobs" as ViewState)}
+                    onClick={() => { setLifecycleStage("new"); setView("work" as ViewState); }}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
@@ -1115,7 +1168,7 @@ export default function Contractor() {
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
-                    onClick={() => setView("quotes" as ViewState)}
+                    onClick={() => { setLifecycleStage("draft"); setView("work" as ViewState); }}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
@@ -1192,7 +1245,7 @@ export default function Contractor() {
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
-                    onClick={() => setView("activeJobs" as ViewState)}
+                    onClick={() => { setLifecycleStage("awaiting"); setView("work" as ViewState); }}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
@@ -1269,7 +1322,7 @@ export default function Contractor() {
                     </ThoughtBubble>
                   <button
                     className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
-                    onClick={() => setView("quotes" as ViewState)}
+                    onClick={() => toast({ title: "Invoices", description: "Invoice management coming soon" })}
                     style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
@@ -1588,6 +1641,161 @@ export default function Contractor() {
             emptyIcon={<Receipt className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage="No quotes found"
           />
+        )}
+
+        {/* Unified Work View with Lifecycle Bar */}
+        {view === "work" && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="shrink-0 px-4 pt-3 pb-2">
+              <LifecycleBar
+                activeStage={lifecycleStage}
+                onStageClick={(stageId) => {
+                  setLifecycleStage(stageId);
+                  setSelectedCaseId(null);
+                }}
+                counts={lifecycleCounts}
+                statusMessage={lifecycleStatusMessage}
+              />
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {lifecycleGroup === "requests" && (
+                <MayaCarouselLayout
+                  title={lifecycleStage === "reviewing" ? "Reviewing Requests" : "New Job Requests"}
+                  subtitle={lifecycleStage === "reviewing" ? "Requests currently under review" : "Jobs waiting for your response"}
+                  items={jobs.filter(j => ["New", "In Review", "Submitted"].includes(j.status)).map(job => ({
+                    id: job.id,
+                    title: job.title,
+                    customerName: job.customerName,
+                    customerInitials: job.customerInitials,
+                    description: job.description,
+                    status: job.status,
+                    priority: job.priority,
+                    estimatedValue: job.estimatedValue,
+                    scheduledDate: job.scheduledDate,
+                    address: job.address,
+                    category: job.category,
+                    createdAt: job.createdAt,
+                    color: job.color,
+                    reporterUserId: (job as any).reporterUserId,
+                    orgId: (job as any).orgId,
+                    aiTriageJson: (job as any).aiTriageJson,
+                    media: (job as any).media,
+                  }))}
+                  activeFilter={lifecycleToFilter[lifecycleStage]}
+                  onFilterChange={() => {}}
+                  showSearch={true}
+                  showCategoryFilter={true}
+                  showPriorityFilter={true}
+                  showSort={true}
+                  categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
+                  itemType="request"
+                  onItemSelect={(item) => { handleSelectCase(item.id); }}
+                  acceptLabel="Accept & Quote"
+                  onAccept={(item) => { openAcceptQuoteDialog(item); }}
+                  onDecline={(item) => { dismissCaseMutation.mutate(item.id); }}
+                  emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
+                  emptyMessage="No requests in this stage"
+                />
+              )}
+              {lifecycleGroup === "quotes" && (
+                <MayaCarouselLayout
+                  title="Quotes"
+                  subtitle={lifecycleStage === "sent" ? "Quotes sent to customers" : "Draft quotes to finalize"}
+                  items={quotes.map(quote => {
+                    const customer = (quote as any).customer || quote.customer || customers.find(c => c.id === quote.customerId);
+                    const customerName = customer?.name || customer?.company || "Unknown Customer";
+                    const initials = customerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+                    const colors = [
+                      { bg: "bg-blue-500", text: "text-blue-600" },
+                      { bg: "bg-emerald-500", text: "text-emerald-600" },
+                      { bg: "bg-violet-500", text: "text-violet-600" },
+                      { bg: "bg-orange-500", text: "text-orange-600" },
+                    ];
+                    const colorIdx = customerName.charCodeAt(0) % colors.length;
+                    const caseStatus = (quote as any).caseStatus;
+                    let filterGroup = quote.status;
+                    if (quote.status === 'approved') filterGroup = 'approved';
+                    return {
+                      id: quote.id,
+                      title: quote.title || `Quote #${quote.id.slice(0, 8)}`,
+                      customerName,
+                      customerInitials: initials,
+                      description: `Total: $${parseFloat(quote.total).toLocaleString()}`,
+                      status: quote.status === 'cancelled' ? 'Cancelled' : quote.status.charAt(0).toUpperCase() + quote.status.slice(1),
+                      estimatedValue: parseFloat(quote.total),
+                      subtotal: parseFloat(quote.subtotal),
+                      taxAmount: parseFloat(quote.taxAmount || "0"),
+                      total: parseFloat(quote.total),
+                      expiresAt: quote.expiresAt,
+                      createdAt: new Date(quote.createdAt).toLocaleDateString(),
+                      color: colors[colorIdx],
+                      caseId: quote.caseId,
+                      customerId: quote.customerId,
+                      clientMessage: quote.clientMessage,
+                      internalNotes: quote.internalNotes,
+                      discountAmount: parseFloat(quote.discountAmount || "0"),
+                      taxPercent: parseFloat(quote.taxPercent || "0"),
+                      depositType: quote.depositType,
+                      depositValue: parseFloat(quote.depositValue || "0"),
+                      availableStartDate: (quote as any).availableStartDate,
+                      availableEndDate: (quote as any).availableEndDate,
+                      estimatedDays: (quote as any).estimatedDays,
+                      reporterUserId: (quote as any).reporterUserId,
+                      filterGroup,
+                      caseStatus,
+                      caseScheduledStartAt: (quote as any).caseScheduledStartAt,
+                    };
+                  })}
+                  activeFilter={lifecycleToFilter[lifecycleStage]}
+                  onFilterChange={() => {}}
+                  showSearch={true}
+                  showSort={true}
+                  itemType="quote"
+                  onItemSelect={() => {}}
+                  emptyIcon={<Receipt className="h-12 w-12 mx-auto opacity-50" />}
+                  emptyMessage="No quotes in this stage"
+                />
+              )}
+              {lifecycleGroup === "jobs" && (
+                <MayaCarouselLayout
+                  title="Jobs"
+                  subtitle="Track and manage your active work"
+                  items={jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed", "Completed", "Resolved"].includes(j.status)).map(job => ({
+                    id: job.id,
+                    title: job.title,
+                    customerName: job.customerName,
+                    customerInitials: job.customerInitials,
+                    description: job.description,
+                    status: job.status,
+                    priority: job.priority,
+                    estimatedValue: job.estimatedValue,
+                    scheduledDate: job.scheduledDate,
+                    address: job.address,
+                    category: job.category,
+                    createdAt: job.createdAt,
+                    color: job.color,
+                    reporterUserId: (job as any).reporterUserId,
+                    orgId: (job as any).orgId,
+                    aiTriageJson: (job as any).aiTriageJson,
+                    media: (job as any).media,
+                  }))}
+                  activeFilter={lifecycleToFilter[lifecycleStage]}
+                  onFilterChange={() => {}}
+                  showSearch={true}
+                  showCategoryFilter={true}
+                  showSort={true}
+                  categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
+                  itemType="job"
+                  onItemSelect={(item) => { handleSelectCase(item.id); }}
+                  onConfirmJob={handleConfirmJob}
+                  onStartJob={handleStartJob}
+                  onCompleteJob={handleCompleteJob}
+                  emptyIcon={<CheckCircle className="h-12 w-12 mx-auto opacity-50" />}
+                  emptyMessage="No jobs in this stage"
+                />
+              )}
+            </div>
+          </div>
         )}
 
         {/* Messages View */}
