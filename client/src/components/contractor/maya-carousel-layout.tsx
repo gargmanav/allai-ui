@@ -16,6 +16,7 @@ import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { InlineQuoteDetail } from "./inline-quote-detail";
+import { UnifiedLifecycleTracker } from "@/components/unified-lifecycle-tracker";
 
 interface AiTriageData {
   urgency?: string;
@@ -1144,6 +1145,15 @@ export function MayaCarouselLayout({
                     </div>
                   </div>
                   <CardContent className="p-4">
+                    <div className="mb-3">
+                      <UnifiedLifecycleTracker
+                        caseStatus={selectedItem.caseStatus || (itemType === "quote" ? "In Review" : selectedItem.status)}
+                        quoteStatus={selectedItem.filterGroup || (itemType === "quote" ? selectedItem.status : null)}
+                        scheduledDate={selectedItem.caseScheduledStartAt || null}
+                        contractorName={null}
+                      />
+                    </div>
+
                     <div className="flex items-center gap-3 mb-4">
                       {onSendQuote && !onAccept && (
                         <Button className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
@@ -1647,6 +1657,14 @@ export function MayaCarouselLayout({
                       <Button variant="ghost" size="sm" onClick={() => setSelectedItemId(null)}>
                         <X className="h-4 w-4" />
                       </Button>
+                    </div>
+                    <div className="mb-3">
+                      <UnifiedLifecycleTracker
+                        caseStatus={selectedItem.caseStatus || (itemType === "quote" ? "In Review" : selectedItem.status)}
+                        quoteStatus={selectedItem.filterGroup || (itemType === "quote" ? selectedItem.status : null)}
+                        scheduledDate={selectedItem.caseScheduledStartAt || null}
+                        contractorName={null}
+                      />
                     </div>
                     <p className="text-sm text-gray-600 mb-3">{selectedItem.description || "No description provided"}</p>
                     <div className="flex gap-2">
