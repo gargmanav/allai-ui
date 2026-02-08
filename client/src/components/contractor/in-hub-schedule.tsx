@@ -78,6 +78,7 @@ const HOUR_WIDTH = 60;
 const TIMELINE_START = 6;
 const TIMELINE_END = 20;
 const TOTAL_HOURS = TIMELINE_END - TIMELINE_START;
+const HOUR_HEIGHT = 60;
 
 function formatHour(h: number) {
   if (h === 12) return "12 PM";
@@ -151,11 +152,13 @@ function DroppableCell({
   children,
   isOver,
   className,
+  style,
 }: {
   id: string;
   children: React.ReactNode;
   isOver?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const { setNodeRef, isOver: cellIsOver } = useDroppable({ id });
   const active = isOver || cellIsOver;
@@ -168,6 +171,7 @@ function DroppableCell({
           ? "bg-violet-50 border border-dashed border-violet-300 rounded"
           : "border border-transparent"
       } ${className || ""}`}
+      style={style}
     >
       {children}
     </div>
@@ -372,64 +376,6 @@ function DayTimelineJobBlock({
             )}
           </div>
         </div>
-      </button>
-    </JobCardPopover>
-  );
-}
-
-function WeekJobCard({
-  job,
-  team,
-  teams,
-  spanDays,
-}: {
-  job: ScheduledJob;
-  team?: Team;
-  teams: Team[];
-  spanDays?: number;
-}) {
-  const category = getTimeCategory(job);
-  const colors = getJobCardColors(category);
-  const teamColor = team?.color || "#6366f1";
-
-  const isAllDay = job.isAllDay || !job.scheduledEndAt;
-  const timeStr = !isAllDay && job.scheduledStartAt
-    ? format(parseISO(job.scheduledStartAt), "h:mm a")
-    : "";
-
-  return (
-    <JobCardPopover job={job} team={team} teams={teams}>
-      <button
-        className="w-full text-left rounded-md p-1 transition-all hover:shadow-sm cursor-pointer group overflow-hidden"
-        style={{
-          borderLeft: `3px solid ${teamColor}`,
-          background: colors.bg,
-          border: colors.border,
-          borderLeftWidth: "3px",
-          borderLeftColor: teamColor,
-          gridColumn: spanDays && spanDays > 1 ? `span ${spanDays}` : undefined,
-        }}
-      >
-        <div className="flex items-center gap-1">
-          {isAllDay ? (
-            <span className="text-[7px] font-semibold text-violet-500 bg-violet-50 px-1 rounded leading-none py-0.5">
-              ALL DAY
-            </span>
-          ) : timeStr ? (
-            <span className="text-[8px] font-medium text-gray-400 leading-none">
-              {timeStr}
-            </span>
-          ) : null}
-          {category === "complete" && (
-            <CheckCircle className="h-2.5 w-2.5 text-green-500 flex-shrink-0 ml-auto" />
-          )}
-        </div>
-        <p className="text-[10px] font-medium text-gray-800 truncate leading-tight group-hover:text-violet-700 mt-0.5">
-          {job.title}
-        </p>
-        {job.customerName && (
-          <p className="text-[8px] text-gray-400 truncate mt-0.5">{job.customerName}</p>
-        )}
       </button>
     </JobCardPopover>
   );
@@ -884,6 +830,8 @@ export function InHubSchedule() {
                 displayRows={displayRows}
                 teams={teams}
                 getJobsForTeamAndDay={getJobsForTeamAndDay}
+                timelineMarkers={timelineMarkers}
+                currentTimePos={currentTimePos}
               />
             )}
           </div>
@@ -1014,142 +962,237 @@ function DayView({
   );
 }
 
+function WeekTimelineJobBlock({
+  job,
+  team,
+  teams,
+}: {
+  job: ScheduledJob;
+  team?: Team;
+  teams: Team[];
+}) {
+  if (!job.scheduledStartAt) return null;
+
+  const start = parseISO(job.scheduledStartAt);
+  let startHour: number;
+  let endHour: number;
+
+  if (job.isAllDay || !job.scheduledEndAt) {
+    startHour = TIMELINE_START;
+    endHour = TIMELINE_END;
+  } else {
+    const end = parseISO(job.scheduledEndAt);
+    startHour = start.getHours() + start.getMinutes() / 60;
+    endHour = end.getHours() + end.getMinutes() / 60;
+    if (endHour <= startHour) endHour = startHour + 1;
+  }
+
+  const clampedStart = Math.max(startHour, TIMELINE_START);
+  const clampedEnd = Math.min(endHour, TIMELINE_END);
+  if (clampedEnd <= clampedStart) return null;
+
+  const top = (clampedStart - TIMELINE_START) * HOUR_HEIGHT;
+  const height = Math.max((clampedEnd - clampedStart) * HOUR_HEIGHT, 24);
+
+  const category = getTimeCategory(job);
+  const colors = getJobCardColors(category);
+  const teamColor = team?.color || "#6366f1";
+  const isUrgent = job.urgency === "High" || job.urgency === "Emergent";
+  const isAllDay = job.isAllDay || !job.scheduledEndAt;
+  const timeStr = !isAllDay ? format(start, "h:mm a") : "";
+
+  return (
+    <JobCardPopover job={job} team={team} teams={teams}>
+      <button
+        className="absolute left-0.5 right-0.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:z-20 rounded-sm overflow-hidden"
+        style={{
+          top,
+          height,
+          zIndex: 10,
+        }}
+      >
+        <div
+          className="h-full flex overflow-hidden rounded-sm"
+          style={{
+            background: colors.bg,
+            backdropFilter: "blur(8px)",
+            border: colors.border,
+          }}
+        >
+          <div className="w-1 flex-shrink-0" style={{ backgroundColor: teamColor }} />
+          <div className="flex-1 px-1 py-0.5 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-0.5">
+              {isAllDay ? (
+                <span className="text-[7px] font-semibold text-violet-500 bg-violet-50 px-0.5 rounded leading-none">
+                  ALL DAY
+                </span>
+              ) : timeStr ? (
+                <span className="text-[7px] font-medium text-gray-400 leading-none">
+                  {timeStr}
+                </span>
+              ) : null}
+              {isUrgent && (
+                <span className="flex-shrink-0 px-0.5 text-[6px] font-bold bg-amber-100 text-amber-700 rounded">
+                  !
+                </span>
+              )}
+              {category === "complete" && (
+                <CheckCircle className="h-2.5 w-2.5 text-green-600 flex-shrink-0 ml-auto" />
+              )}
+            </div>
+            <p className="text-[9px] font-medium text-gray-700 truncate leading-tight mt-0.5">
+              {job.title}
+            </p>
+          </div>
+        </div>
+      </button>
+    </JobCardPopover>
+  );
+}
+
 function WeekView({
   days,
   displayRows,
   teams,
   getJobsForTeamAndDay,
+  timelineMarkers,
+  currentTimePos,
 }: {
   days: Date[];
   displayRows: Team[];
   teams: Team[];
   getJobsForTeamAndDay: (teamId: string, day: Date) => ScheduledJob[];
+  timelineMarkers: number[];
+  currentTimePos: number | null;
 }) {
+  const totalHeight = TOTAL_HOURS * HOUR_HEIGHT;
+
+  const getAllJobsForDay = (day: Date) => {
+    const allJobs: ScheduledJob[] = [];
+    displayRows.forEach((team) => {
+      allJobs.push(...getJobsForTeamAndDay(team.id, day));
+    });
+    return allJobs;
+  };
+
   return (
-    <>
-      <div
-        className="sticky top-0 z-10 flex border-b border-gray-100"
-        style={{
-          background: "rgba(255,255,255,0.95)",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <div className="w-14 flex-shrink-0 sticky left-0 z-20 bg-gray-50/95 backdrop-blur-sm" />
-        <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
-          {days.map((day) => (
+    <div
+      className="rounded-xl overflow-hidden m-2"
+      style={{
+        background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
+        border: "1px solid rgba(0,0,0,0.05)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.03)",
+      }}
+    >
+      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
+        <div className="flex" style={{ minWidth: days.length * 100 + 48 }}>
+          <div className="w-12 flex-shrink-0 sticky left-0 z-20">
             <div
-              key={day.toISOString()}
-              className={`text-center py-2 border-r border-gray-100 last:border-r-0 ${
-                isToday(day) ? "bg-violet-50/60" : ""
-              }`}
-            >
-              <p
-                className={`text-[10px] font-semibold uppercase tracking-wider ${
-                  isToday(day) ? "text-violet-600" : "text-gray-400"
-                }`}
-              >
-                {format(day, "EEE")}
-              </p>
-              <p
-                className={`text-sm font-bold ${
-                  isToday(day) ? "text-violet-700" : "text-gray-700"
-                }`}
-              >
-                {format(day, "d")}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {displayRows.map((team, teamIdx) => {
-        const initials = team.name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase();
-
-        return (
-          <div
-            key={team.id}
-            className={`flex ${
-              teamIdx < displayRows.length - 1 ? "border-b border-gray-100" : ""
-            }`}
-          >
-            <div
-              className="w-14 flex-shrink-0 flex items-start justify-center py-2 sticky left-0 z-10"
+              className="h-[44px] border-b border-gray-100 flex items-end justify-center pb-1"
               style={{
-                background: "rgba(255,255,255,0.95)",
-                backdropFilter: "blur(12px)",
+                background: "rgba(249,250,251,0.98)",
+                backdropFilter: "blur(8px)",
               }}
             >
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold transition-transform hover:scale-110"
-                style={{
-                  background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,245,250,0.7) 50%, rgba(230,238,248,0.6) 100%)",
-                  border: "1.5px solid rgba(255, 255, 255, 0.8)",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08), inset 0 2px 4px rgba(255,255,255,0.9)",
-                  color: "#334155",
-                }}
-                title={team.name}
-              >
-                {initials}
-              </div>
+              <Clock className="h-3 w-3 text-gray-400" />
             </div>
-
-            <div
-              className="flex-1 grid"
-              style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}
-            >
-              {days.map((day) => {
-                const cellId = `cell-${format(day, "yyyy-MM-dd")}-team-${team.id}`;
-                const dayJobs = getJobsForTeamAndDay(team.id, day)
-                  .sort((a, b) => {
-                    if (!a.scheduledStartAt) return 1;
-                    if (!b.scheduledStartAt) return -1;
-                    return a.scheduledStartAt.localeCompare(b.scheduledStartAt);
-                  });
-
-                return (
-                  <div
-                    key={cellId}
-                    className={`border-r border-gray-100 last:border-r-0 ${
-                      isToday(day) ? "bg-violet-50/30" : ""
-                    }`}
-                  >
-                    <DroppableCell id={cellId}>
-                      <div className="space-y-0.5">
-                        {dayJobs.map((job) => {
-                          const span =
-                            job.durationDays && job.durationDays > 1
-                              ? Math.min(
-                                  job.durationDays,
-                                  days.length -
-                                    days.findIndex((d) =>
-                                      isSameDay(d, parseISO(job.scheduledStartAt!))
-                                    )
-                                )
-                              : 1;
-                          return (
-                            <WeekJobCard
-                              key={job.id}
-                              job={job}
-                              team={teams.find((t) => t.id === job.teamId) || team}
-                              teams={teams}
-                              spanDays={span}
-                            />
-                          );
-                        })}
-                      </div>
-                    </DroppableCell>
-                  </div>
-                );
-              })}
+            <div className="relative" style={{ height: totalHeight }}>
+              {timelineMarkers.map((hour) => (
+                <div
+                  key={hour}
+                  className="absolute left-0 right-0 flex items-start justify-end pr-1.5"
+                  style={{ top: (hour - TIMELINE_START) * HOUR_HEIGHT }}
+                >
+                  <span className="text-[9px] text-gray-400 font-medium leading-none -translate-y-[5px]">
+                    {formatHour(hour)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        );
-      })}
-    </>
+
+          <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+            {days.map((day) => {
+              const dayJobs = getAllJobsForDay(day);
+              const cellId = `cell-${format(day, "yyyy-MM-dd")}-team-__unassigned__`;
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`border-r border-gray-100 last:border-r-0 ${
+                    isToday(day) ? "bg-violet-50/20" : ""
+                  }`}
+                >
+                  <div
+                    className={`sticky top-0 z-10 text-center py-2 border-b border-gray-100 ${
+                      isToday(day) ? "bg-violet-50/80" : ""
+                    }`}
+                    style={{
+                      background: isToday(day) ? "rgba(245,243,255,0.98)" : "rgba(249,250,251,0.98)",
+                      backdropFilter: "blur(8px)",
+                    }}
+                  >
+                    <p
+                      className={`text-[10px] font-semibold uppercase tracking-wider ${
+                        isToday(day) ? "text-violet-600" : "text-gray-400"
+                      }`}
+                    >
+                      {format(day, "EEE")}
+                    </p>
+                    <p
+                      className={`text-sm font-bold ${
+                        isToday(day) ? "text-violet-700" : "text-gray-700"
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </p>
+                  </div>
+
+                  <DroppableCell id={cellId} className="relative" style={{ height: totalHeight }}>
+                    {timelineMarkers.map((hour) => (
+                      <div
+                        key={hour}
+                        className="absolute left-0 right-0 border-t border-gray-100"
+                        style={{ top: (hour - TIMELINE_START) * HOUR_HEIGHT }}
+                      />
+                    ))}
+
+                    {isToday(day) && currentTimePos !== null && (() => {
+                      const now = new Date();
+                      const currentHr = now.getHours() + now.getMinutes() / 60;
+                      if (currentHr < TIMELINE_START || currentHr > TIMELINE_END) return null;
+                      const yPos = (currentHr - TIMELINE_START) * HOUR_HEIGHT;
+                      return (
+                        <div
+                          className="absolute left-0 right-0 z-30 pointer-events-none"
+                          style={{ top: yPos }}
+                        >
+                          <div className="relative">
+                            <div className="absolute -left-[3px] -top-[3px] w-[7px] h-[7px] rounded-full bg-red-500" />
+                            <div className="h-[1px] bg-red-400 opacity-60" />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {dayJobs.map((job) => {
+                      const team = teams.find((t) => t.id === job.teamId);
+                      return (
+                        <WeekTimelineJobBlock
+                          key={job.id}
+                          job={job}
+                          team={team}
+                          teams={teams}
+                        />
+                      );
+                    })}
+                  </DroppableCell>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
