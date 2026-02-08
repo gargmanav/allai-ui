@@ -116,15 +116,6 @@ export default function Homeowner() {
     });
   }, []);
 
-  useEffect(() => {
-    if (selectedRequest?.id && pastRequests.length > 0) {
-      const updated = pastRequests.find((r: any) => r.id === selectedRequest.id);
-      if (updated && (updated.status !== selectedRequest.status || updated.scheduledStartAt !== selectedRequest.scheduledStartAt)) {
-        setSelectedRequest(updated);
-      }
-    }
-  }, [pastRequests, selectedRequest?.id]);
-
   const firstName = user?.firstName || "there";
 
   const categories = [
@@ -155,6 +146,15 @@ export default function Homeowner() {
     queryKey: ["/api/property-owner/cases"],
     enabled: !!user,
   });
+
+  useEffect(() => {
+    if (selectedRequest?.id && pastRequests.length > 0) {
+      const updated = pastRequests.find((r: any) => r.id === selectedRequest.id);
+      if (updated && (updated.status !== selectedRequest.status || updated.scheduledStartAt !== selectedRequest.scheduledStartAt)) {
+        setSelectedRequest(updated);
+      }
+    }
+  }, [pastRequests, selectedRequest?.id]);
 
   const { data: homeownerConversations = [] } = useQuery<any[]>({
     queryKey: ["/api/messaging/conversations"],

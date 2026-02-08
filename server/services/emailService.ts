@@ -111,8 +111,8 @@ export async function verifyEmailToken(token: string): Promise<{ success: boolea
   try {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     
-    // Find valid token
-    const verificationToken = await db.query.verificationTokens.findFirst({
+    // Find valid token (pending and not expired)
+    let verificationToken = await db.query.verificationTokens.findFirst({
       where: and(
         eq(verificationTokens.tokenHash, tokenHash),
         eq(verificationTokens.type, 'email'),
@@ -121,7 +121,22 @@ export async function verifyEmailToken(token: string): Promise<{ success: boolea
       ),
     });
 
+    // Also accept recently verified tokens (within 2 minutes) for idempotency
+    // This handles browser prefetch / double-call race conditions
     if (!verificationToken) {
+      verificationToken = await db.query.verificationTokens.findFirst({
+        where: and(
+          eq(verificationTokens.tokenHash, tokenHash),
+          eq(verificationTokens.type, 'email'),
+          eq(verificationTokens.status, 'verified'),
+        ),
+      });
+      if (verificationToken && verificationToken.verifiedAt) {
+        const verifiedAgo = Date.now() - new Date(verificationToken.verifiedAt).getTime();
+        if (verifiedAgo < 2 * 60 * 1000) {
+          return { success: true, userId: verificationToken.userId || undefined };
+        }
+      }
       return { success: false, error: 'Invalid or expired token' };
     }
 
