@@ -1279,7 +1279,8 @@ export default function Homeowner() {
                               const caseStatus = selectedRequest.status;
                               const scheduledAt = selectedRequest.scheduledStartAt;
                               const isApproved = quote.status === 'approved';
-                              if (isApproved && scheduledAt && ['Scheduled', 'In Progress', 'Resolved', 'Completed', 'Closed'].includes(caseStatus)) {
+                              const jobProgressed = ['Scheduled', 'In Progress', 'Resolved', 'Completed', 'Closed'].includes(caseStatus);
+                              if (isApproved && scheduledAt && jobProgressed) {
                                 return (
                                   <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-violet-50/60 border border-violet-100/60">
                                     <CalendarDays className="h-3.5 w-3.5 text-violet-400 shrink-0" />
@@ -1288,6 +1289,9 @@ export default function Homeowner() {
                                     </span>
                                   </div>
                                 );
+                              }
+                              if (isApproved && jobProgressed) {
+                                return null;
                               }
                               if (startDate || endDate) {
                                 return (
@@ -1336,7 +1340,7 @@ export default function Homeowner() {
                                         disabled={cancelQuoteMutation.isPending}
                                         onClick={() => cancelQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
                                       >
-                                        {cancelQuoteMutation.isPending ? "Cancelling..." : "Cancel Acceptance"}
+                                        {cancelQuoteMutation.isPending ? "Cancelling..." : "Cancel Work"}
                                       </button>
                                     )}
                                   </div>
