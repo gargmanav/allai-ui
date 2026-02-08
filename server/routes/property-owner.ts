@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { db } from '../db';
 import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users, quotes, quoteLineItems, caseMedia } from '@shared/schema';
-import { eq, and, or, desc, isNull } from 'drizzle-orm';
+import { eq, and, or, desc, ne, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { aiTriageService } from '../aiTriage';
@@ -390,6 +390,73 @@ router.post('/cases/:caseId/quotes/:quoteId/decline', async (req: any, res) => {
   } catch (error) {
     console.error('Error declining quote:', error);
     res.status(500).json({ error: 'Failed to decline quote' });
+  }
+});
+
+// Cancel an accepted quote - reverts to open bidding
+router.post('/cases/:caseId/quotes/:quoteId/cancel', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId, quoteId } = req.params;
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId),
+        eq(smartCases.reporterUserId, userId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const quote = await db.query.quotes.findFirst({
+      where: and(eq(quotes.id, quoteId), eq(quotes.caseId, caseId)),
+    });
+
+    if (!quote || quote.status !== 'approved') {
+      return res.status(400).json({ error: 'Only approved quotes can be cancelled' });
+    }
+
+    // Mark this quote as cancelled
+    await db.update(quotes)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(quotes.id, quoteId));
+
+    // Revert previously auto-declined quotes back to sent so homeowner can re-evaluate
+    await db.update(quotes)
+      .set({ status: 'sent', declinedAt: null, updatedAt: new Date() })
+      .where(and(
+        eq(quotes.caseId, caseId),
+        ne(quotes.id, quoteId),
+        isNull(quotes.archivedAt)
+      ));
+
+    // Reset case status back to open
+    await db.update(smartCases)
+      .set({
+        status: 'New',
+        assignedContractorId: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(smartCases.id, caseId));
+
+    res.json({ success: true, message: 'Acceptance cancelled' });
+  } catch (error) {
+    console.error('Error cancelling quote acceptance:', error);
+    res.status(500).json({ error: 'Failed to cancel acceptance' });
   }
 });
 

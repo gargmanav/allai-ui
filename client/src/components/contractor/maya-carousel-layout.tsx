@@ -572,6 +572,7 @@ export function MayaCarouselLayout({
       case "Draft": return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
       case "Sent": case "Awaiting_response": return "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400";
       case "Approved": return "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400";
+      case "Cancelled": return "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400";
       case "Declined": return "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400";
       case "Passed": return "bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400";
       case "Expired": return "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400";
@@ -1042,6 +1043,18 @@ export function MayaCarouselLayout({
                         <div className="flex items-center gap-2 col-span-2">
                           <MapPin className="h-3 w-3 text-muted-foreground" />
                           <span>{selectedItem.address}</span>
+                        </div>
+                      )}
+                      {selectedItem.availableStartDate && (
+                        <div className="flex items-center gap-2 col-span-2">
+                          <Calendar className="h-3 w-3 text-violet-400" />
+                          <span className="text-sm text-violet-600">
+                            Available {new Date(selectedItem.availableStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {selectedItem.availableEndDate && new Date(selectedItem.availableEndDate).getTime() !== new Date(selectedItem.availableStartDate).getTime()
+                              ? ` – ${new Date(selectedItem.availableEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                              : ''}
+                            {selectedItem.estimatedDays ? ` (${selectedItem.estimatedDays} day${selectedItem.estimatedDays > 1 ? 's' : ''})` : ''}
+                          </span>
                         </div>
                       )}
                     </div>

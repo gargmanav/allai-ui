@@ -169,7 +169,7 @@ export const contractorCustomers = pgTable("contractor_customers", {
 // ============================================================================
 
 // Quote enums
-export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "awaiting_response", "approved", "declined", "expired"]);
+export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "awaiting_response", "approved", "declined", "expired", "cancelled"]);
 export const depositTypeEnum = pgEnum("deposit_type", ["none", "percent", "fixed"]);
 
 // Quotes - Contractor quotes sent to customers or landlords for work orders

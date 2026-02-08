@@ -1509,7 +1509,7 @@ export default function Contractor() {
                 customerName,
                 customerInitials: initials,
                 description: `Total: $${parseFloat(quote.total).toLocaleString()}`,
-                status: quote.status.charAt(0).toUpperCase() + quote.status.slice(1),
+                status: quote.status === 'cancelled' ? 'Cancelled' : quote.status.charAt(0).toUpperCase() + quote.status.slice(1),
                 estimatedValue: parseFloat(quote.total),
                 subtotal: parseFloat(quote.subtotal),
                 taxAmount: parseFloat(quote.taxAmount || "0"),
@@ -1525,6 +1525,9 @@ export default function Contractor() {
                 taxPercent: parseFloat(quote.taxPercent || "0"),
                 depositType: quote.depositType,
                 depositValue: parseFloat(quote.depositValue || "0"),
+                availableStartDate: quote.availableStartDate,
+                availableEndDate: quote.availableEndDate,
+                estimatedDays: quote.estimatedDays,
               };
             })}
             filterTabs={[
@@ -1533,6 +1536,7 @@ export default function Contractor() {
               { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
               { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved").length },
               { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
+              { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
             ]}
             activeFilter="draft"

@@ -39,8 +39,9 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
       return res.json();
     },
     enabled: !!resolvedHomeowner && !!resolvedContractor && !!caseId,
-    staleTime: 60000,
-    gcTime: 120000,
+    staleTime: Infinity,
+    gcTime: 300000,
+    refetchOnMount: false,
   });
 
   const threadId = threadQuery.data?.id;
@@ -54,7 +55,8 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     enabled: !!threadId,
     refetchInterval: 15000,
-    staleTime: 10000,
+    staleTime: 5000,
+    refetchOnMount: 'always',
   });
 
   const sendMutation = useMutation({
@@ -80,6 +82,7 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations"] });
     },
   });
 

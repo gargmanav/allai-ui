@@ -267,6 +267,23 @@ export default function Homeowner() {
     },
   });
 
+  const cancelQuoteMutation = useMutation({
+    mutationFn: async ({ caseId, quoteId }: { caseId: string; quoteId: string }) => {
+      const response = await apiRequest("POST", `/api/property-owner/cases/${caseId}/quotes/${quoteId}/cancel`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases"] });
+      if (selectedRequest?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
+      }
+      toast({ title: "Acceptance cancelled", description: "Other quotes have been re-opened for consideration." });
+    },
+    onError: () => {
+      toast({ title: "Failed to cancel acceptance", variant: "destructive" });
+    },
+  });
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!problemDescription.trim()) return;
@@ -1132,6 +1149,8 @@ export default function Homeowner() {
                 {caseQuotes.map((quote: any) => {
                   const isSelected = selectedContractorId === quote.contractorId && !showMayaPanel;
                   const initials = (quote.contractorFirstName?.[0] || 'C').toUpperCase() + (quote.contractorName?.split(' ')[1]?.[0] || '').toUpperCase();
+                  const isAccepted = quote.status === 'approved';
+                  const isCancelled = quote.status === 'cancelled';
                   return (
                     <button
                       key={quote.id}
@@ -1159,12 +1178,26 @@ export default function Homeowner() {
                         <span className={`text-sm font-bold transition-colors duration-300 ${isSelected ? "text-violet-600" : "text-gray-500"}`}>
                           {initials}
                         </span>
+                        {isAccepted && (
+                          <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center ring-2 ring-white">
+                            <CheckCircle className="h-3 w-3 text-white" />
+                          </div>
+                        )}
+                        {isCancelled && (
+                          <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center ring-2 ring-white">
+                            <X className="h-3 w-3 text-white" />
+                          </div>
+                        )}
                       </div>
                       <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${isSelected ? "text-violet-600" : "text-foreground"}`}>
                         {quote.contractorFirstName}
                       </span>
-                      <span className={`text-[10px] font-medium transition-colors duration-300 ${isSelected ? "text-violet-600" : "text-muted-foreground"}`}>
-                        ${Number(quote.total || 0).toLocaleString()}
+                      <span className={`text-[10px] font-medium transition-colors duration-300 ${
+                        isAccepted ? "text-emerald-600" : 
+                        isCancelled ? "text-amber-600" :
+                        isSelected ? "text-violet-600" : "text-muted-foreground"
+                      }`}>
+                        {isAccepted ? "Accepted" : isCancelled ? "Cancelled" : `$${Number(quote.total || 0).toLocaleString()}`}
                       </span>
                     </button>
                   );
@@ -1236,37 +1269,75 @@ export default function Homeowner() {
                                 </span>
                               </div>
                             )}
-                            {quote.status === 'approved' ? (
-                              <div className="mt-4 p-2 bg-violet-50 border border-violet-200/60 rounded-lg text-center">
-                                <span className="text-sm font-medium text-violet-700 flex items-center justify-center gap-1">
-                                  <CheckCircle className="h-4 w-4" /> Quote Accepted
-                                </span>
-                              </div>
-                            ) : quote.status === 'declined' ? (
-                              <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-lg text-center">
-                                <span className="text-sm font-medium text-slate-500">Declined</span>
-                              </div>
-                            ) : (
-                              <div className="flex gap-2 mt-4">
-                                <Button 
-                                  size="sm" 
-                                  className="flex-1 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
-                                  disabled={acceptQuoteMutation.isPending}
-                                  onClick={() => acceptQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
-                                >
-                                  {acceptQuoteMutation.isPending ? "Accepting..." : "Accept Quote"}
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50"
-                                  disabled={declineQuoteMutation.isPending}
-                                  onClick={() => declineQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
-                                >
-                                  Decline
-                                </Button>
-                              </div>
-                            )}
+                            {(() => {
+                              const hasAnyAccepted = caseQuotes.some((q: any) => q.status === 'approved');
+                              const isThisAccepted = quote.status === 'approved';
+                              const isThisCancelled = quote.status === 'cancelled';
+                              const isThisDeclined = quote.status === 'declined';
+
+                              if (isThisAccepted) {
+                                return (
+                                  <div className="mt-4 space-y-2">
+                                    <div className="p-2 bg-violet-50 border border-violet-200/60 rounded-lg text-center">
+                                      <span className="text-sm font-medium text-violet-700 flex items-center justify-center gap-1">
+                                        <CheckCircle className="h-4 w-4" /> Quote Accepted
+                                      </span>
+                                    </div>
+                                    <button
+                                      className="w-full text-xs text-amber-600 hover:text-amber-700 hover:underline py-1"
+                                      disabled={cancelQuoteMutation.isPending}
+                                      onClick={() => cancelQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                    >
+                                      {cancelQuoteMutation.isPending ? "Cancelling..." : "Cancel Acceptance"}
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              if (isThisCancelled) {
+                                return (
+                                  <div className="mt-4 p-2 bg-amber-50 border border-amber-200/60 rounded-lg text-center">
+                                    <span className="text-sm font-medium text-amber-600 flex items-center justify-center gap-1">
+                                      <AlertCircle className="h-4 w-4" /> Acceptance Cancelled
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (isThisDeclined && !hasAnyAccepted) {
+                                return (
+                                  <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                                    <span className="text-sm font-medium text-slate-500">Declined</span>
+                                  </div>
+                                );
+                              }
+                              if (hasAnyAccepted) {
+                                return (
+                                  <div className="mt-4 p-2 bg-slate-50/80 border border-slate-200/60 rounded-lg text-center">
+                                    <span className="text-xs text-slate-400">Another quote accepted</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="flex gap-2 mt-4">
+                                  <Button 
+                                    size="sm" 
+                                    className="flex-1 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                                    disabled={acceptQuoteMutation.isPending}
+                                    onClick={() => acceptQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                  >
+                                    {acceptQuoteMutation.isPending ? "Accepting..." : "Accept Quote"}
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50"
+                                    disabled={declineQuoteMutation.isPending}
+                                    onClick={() => declineQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                  >
+                                    Decline
+                                  </Button>
+                                </div>
+                              );
+                            })()}
                             {quote.lineItems && quote.lineItems.length > 0 && (
                               <div className="mt-3 pt-3 border-t border-violet-100/40 space-y-1">
                                 <p className="text-xs font-medium text-muted-foreground mb-1">Line Items</p>
