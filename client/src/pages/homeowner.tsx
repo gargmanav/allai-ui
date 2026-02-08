@@ -1330,11 +1330,11 @@ export default function Homeowner() {
                               if (isThisAccepted) {
                                 const caseStatus = selectedRequest.status;
                                 const lifecycleLabel = 
-                                  caseStatus === 'In Review' ? 'Quote Accepted' :
+                                  caseStatus === 'In Review' ? 'Awaiting Scheduling' :
                                   caseStatus === 'Scheduled' ? 'Scheduled' :
                                   caseStatus === 'In Progress' ? 'In Progress' :
                                   ['Resolved', 'Completed', 'Closed'].includes(caseStatus) ? 'Completed' :
-                                  'Quote Accepted';
+                                  'Awaiting Scheduling';
                                 const lifecycleColors = 
                                   ['Resolved', 'Completed', 'Closed'].includes(caseStatus)
                                     ? 'bg-emerald-50/60 border-emerald-200/50 text-emerald-600'

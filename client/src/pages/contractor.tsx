@@ -973,7 +973,7 @@ export default function Contractor() {
             {(() => {
               const requestsCount = newJobsCount;
               const requestsValue = jobs
-                .filter(j => ["New", "In Review", "Pending", "Submitted", "Open"].includes(j.status))
+                .filter(j => ["New", "In Review", "Submitted", "Open"].includes(j.status))
                 .reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
               
               const draftQuotes = quotes.filter(q => q.status === 'draft');
@@ -1389,7 +1389,7 @@ export default function Contractor() {
                   aiTriageJson: (job as any).aiTriageJson,
                   media: (job as any).media,
                 }))
-              : jobs.filter(j => ["New", "In Review", "Pending", "Submitted"].includes(j.status)).map(job => ({
+              : jobs.filter(j => ["New", "In Review", "Submitted"].includes(j.status)).map(job => ({
                   id: job.id,
                   title: job.title,
                   customerName: job.customerName,
@@ -1411,8 +1411,7 @@ export default function Contractor() {
             }
             filterTabs={[
               { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
-              { id: "in review", label: "In Review", count: jobs.filter(j => j.status === "In Review").length },
-              { id: "pending", label: "Pending", count: jobs.filter(j => j.status === "Pending").length },
+              { id: "in review", label: "Reviewing", count: jobs.filter(j => j.status === "In Review").length },
               { id: "passed", label: "Passed", count: dismissedJobs.length, secondary: true },
             ]}
             activeFilter={requestsFilter === "all" ? "new" : requestsFilter}
@@ -1465,7 +1464,7 @@ export default function Contractor() {
               media: (job as any).media,
             }))}
             filterTabs={[
-              { id: "in review", label: "Needs Confirmation", count: jobs.filter(j => j.status === "In Review").length },
+              { id: "in review", label: "Awaiting Scheduling", count: jobs.filter(j => j.status === "In Review").length },
               { id: "scheduled", label: "Scheduled", count: jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length },
               { id: "in progress", label: "In Progress", count: jobs.filter(j => j.status === "In Progress").length },
               { id: "completed", label: "Completed", count: completedJobsCount },
@@ -1577,7 +1576,6 @@ export default function Contractor() {
             filterTabs={[
               { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
               { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
-              { id: "approved", label: "Accepted", count: quotes.filter(q => q.status === "approved").length },
               { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length, groupedWith: ["cancelled", "expired"] },
               { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },

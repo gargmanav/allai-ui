@@ -38,8 +38,8 @@ export function JobProgressTracker({ status, scheduledDate, contractorName }: Jo
 
   const statusMessages: Record<number, string> = {
     0: contractorName
-      ? `${contractorName} will confirm scheduling soon`
-      : "Waiting for contractor to confirm scheduling",
+      ? `${contractorName} is reviewing and will schedule soon`
+      : "Awaiting scheduling from your contractor",
     1: scheduledDate
       ? `Work scheduled for ${(() => {
           const iso = typeof scheduledDate === 'string' ? scheduledDate : new Date(scheduledDate).toISOString();

@@ -728,7 +728,7 @@ export default function TenantDashboard() {
                               </p>
                             </div>
                             <Badge variant="outline" className={STATUS_COLORS[c.status] || ''}>
-                              {c.status}
+                              {c.status === "In Review" ? "Reviewing" : c.status}
                             </Badge>
                           </div>
                         ))}
@@ -845,7 +845,7 @@ export default function TenantDashboard() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <h4 className="font-semibold">{c.title}</h4>
                                   <Badge variant="outline" className={STATUS_COLORS[c.status] || ''}>
-                                    {c.status}
+                                    {c.status === "In Review" ? "Reviewing" : c.status}
                                   </Badge>
                                   <Badge variant="outline" className={PRIORITY_COLORS[c.priority] || ''}>
                                     {c.priority}

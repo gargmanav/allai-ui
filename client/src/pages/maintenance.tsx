@@ -1527,7 +1527,7 @@ export default function Maintenance() {
                   <SelectItem value="active">Active Work</SelectItem>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="In Review">In Review</SelectItem>
+                  <SelectItem value="In Review">Reviewing</SelectItem>
                   <SelectItem value="Scheduled">Scheduled</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="On Hold">On Hold</SelectItem>
@@ -2270,7 +2270,7 @@ export default function Maintenance() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="New">New</SelectItem>
-                          <SelectItem value="In Review">In Review</SelectItem>
+                          <SelectItem value="In Review">Reviewing</SelectItem>
                           <SelectItem value="Scheduled">Scheduled</SelectItem>
                           <SelectItem value="In Progress">In Progress</SelectItem>
                           <SelectItem value="On Hold">On Hold</SelectItem>
@@ -2675,7 +2675,7 @@ export default function Maintenance() {
                         >
                           {/* Column Header */}
                           <div className="flex items-center justify-between mb-4 pb-2 border-b">
-                            <h3 className="font-semibold text-lg">{status}</h3>
+                            <h3 className="font-semibold text-lg">{status === "In Review" ? "Reviewing" : status}</h3>
                             <Badge variant="outline" className="text-xs" data-testid={`kanban-count-${status.toLowerCase().replace(' ', '-')}`}>
                               {statusCases.length}
                             </Badge>

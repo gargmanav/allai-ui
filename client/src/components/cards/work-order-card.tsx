@@ -144,7 +144,7 @@ export default function WorkOrderCard({
       case "Resolved": return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Resolved</Badge>;
       case "Closed": return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Closed</Badge>;
       case "Scheduled": return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100">Scheduled</Badge>;
-      case "In Review": return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">In Review</Badge>;
+      case "In Review": return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">Reviewing</Badge>;
       case "On Hold": return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100">On Hold</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
@@ -343,7 +343,7 @@ export default function WorkOrderCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="In Review">In Review</SelectItem>
+                  <SelectItem value="In Review">Reviewing</SelectItem>
                   <SelectItem value="Scheduled">Scheduled</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="On Hold">On Hold</SelectItem>

@@ -1078,7 +1078,7 @@ export function MayaCarouselLayout({
                         <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
                       ) : (
                         <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                          {item.status === "In Review" ? "Confirm" : item.status === "Resolved" ? "Completed" : item.status}
+                          {item.status === "In Review" ? "Awaiting Scheduling" : item.status === "Resolved" ? "Completed" : item.status}
                         </span>
                       )}
                       <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>

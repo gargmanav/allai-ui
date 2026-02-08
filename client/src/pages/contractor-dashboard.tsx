@@ -147,7 +147,7 @@ const CaseCard = ({
                 {case_.priority}
               </Badge>
               <Badge variant="outline" className={STATUS_COLORS[case_.status as keyof typeof STATUS_COLORS] || "bg-gray-100"}>
-                {case_.status}
+                {case_.status === "In Review" ? "Reviewing" : case_.status}
               </Badge>
             </div>
           </div>
