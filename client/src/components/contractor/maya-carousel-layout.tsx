@@ -16,7 +16,7 @@ import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { InlineQuoteDetail } from "./inline-quote-detail";
-import { UnifiedLifecycleTracker } from "@/components/unified-lifecycle-tracker";
+import { UnifiedLifecycleTracker, MiniLifecycleTracker } from "@/components/unified-lifecycle-tracker";
 
 interface AiTriageData {
   urgency?: string;
@@ -1075,13 +1075,10 @@ export function MayaCarouselLayout({
                       <span className={`text-xs mt-2 font-medium truncate max-w-[65px] ${isSelected ? "text-violet-700" : "text-foreground"}`}>
                         {item.customerName.split(" ")[0]}
                       </span>
-                      {itemType === "quote" ? (
-                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
-                      ) : (
-                        <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                          {item.status === "In Review" ? "Awaiting Scheduling" : item.status === "Resolved" ? "Completed" : item.status}
-                        </span>
-                      )}
+                      <MiniLifecycleTracker
+                        caseStatus={item.caseStatus || (itemType === "quote" ? "In Review" : item.status)}
+                        quoteStatus={item.filterGroup || (itemType === "quote" ? item.status : null)}
+                      />
                       <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>
                         ${(item.estimatedValue || 0).toLocaleString()}
                       </span>

@@ -86,6 +86,76 @@ function getStatusMessage(stepIndex: number, contractorName?: string | null, sch
   }
 }
 
+interface MiniLifecycleTrackerProps {
+  caseStatus: string;
+  quoteStatus?: string | null;
+}
+
+const MINI_STEPS = [
+  { sectionId: "requests", label: "R" },
+  { sectionId: "quotes", label: "Q" },
+  { sectionId: "jobs", label: "J" },
+  { sectionId: "invoices", label: "I" },
+];
+
+function getSectionIndex(stepIndex: number): number {
+  if (stepIndex <= 1) return 0;
+  if (stepIndex <= 3) return 1;
+  if (stepIndex <= 7) return 2;
+  return 3;
+}
+
+function getSectionProgress(stepIndex: number, sectionIdx: number): "complete" | "active" | "future" | "invoice" {
+  if (sectionIdx === 3) return "invoice";
+  const currentSection = getSectionIndex(stepIndex);
+  if (sectionIdx < currentSection) return "complete";
+  if (sectionIdx === currentSection) return "active";
+  return "future";
+}
+
+export function MiniLifecycleTracker({ caseStatus, quoteStatus }: MiniLifecycleTrackerProps) {
+  const activeStepIndex = getActiveStepIndex(caseStatus, quoteStatus);
+  const currentSection = getSectionIndex(activeStepIndex);
+
+  return (
+    <div className="flex items-center gap-[2px] w-full max-w-[72px] mx-auto mt-1">
+      {MINI_STEPS.map((step, idx) => {
+        const progress = getSectionProgress(activeStepIndex, idx);
+        const isInvoice = step.sectionId === "invoices";
+
+        return (
+          <div key={step.sectionId} className="flex items-center" style={{ flex: idx === 2 ? 2 : 1 }}>
+            {idx > 0 && (
+              <div
+                className="h-[1.5px] flex-shrink-0"
+                style={{
+                  width: "3px",
+                  background: progress === "complete" || (progress === "active" && idx <= currentSection)
+                    ? "rgba(139, 92, 246, 0.4)"
+                    : "rgba(148, 163, 184, 0.3)",
+                }}
+              />
+            )}
+            <div
+              className="flex-1 h-[3px] rounded-full"
+              style={{
+                background: isInvoice
+                  ? "rgba(148, 163, 184, 0.15)"
+                  : progress === "complete"
+                  ? "linear-gradient(90deg, rgba(139, 92, 246, 0.7), rgba(139, 92, 246, 0.5))"
+                  : progress === "active"
+                  ? "linear-gradient(90deg, rgba(139, 92, 246, 0.6), rgba(139, 92, 246, 0.25))"
+                  : "rgba(148, 163, 184, 0.2)",
+                boxShadow: progress === "active" ? "0 0 4px rgba(139, 92, 246, 0.3)" : "none",
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function UnifiedLifecycleTracker({ caseStatus, quoteStatus, scheduledDate, contractorName }: UnifiedLifecycleTrackerProps) {
   const activeStepIndex = getActiveStepIndex(caseStatus, quoteStatus);
   const totalSteps = ALL_STEPS.length;
