@@ -1907,7 +1907,7 @@ export default function Contractor() {
                 <Label htmlFor="price-option" className="font-normal cursor-pointer">Set a price</Label>
               </div>
               {!acceptQuotePriceTbd && (
-                <div className="pl-7">
+                <div className="pl-7 space-y-2">
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -1920,6 +1920,17 @@ export default function Contractor() {
                       step="0.01"
                     />
                   </div>
+                  {acceptQuoteCase?.aiTriageJson?.estimatedCost && (
+                    <div className="flex items-start gap-2 p-2.5 rounded-md bg-slate-50 border border-slate-100">
+                      <Sparkles className="h-3.5 w-3.5 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-500">
+                          Maya estimate: <span className="font-medium text-slate-600">{acceptQuoteCase.aiTriageJson.estimatedCost}</span>
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Enter any price you see fit</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex items-center space-x-3">
