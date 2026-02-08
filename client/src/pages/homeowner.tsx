@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { useAuth } from "@/hooks/useAuth";
@@ -115,6 +115,15 @@ export default function Homeowner() {
       return prev.filter((_, i) => i !== index);
     });
   }, []);
+
+  useEffect(() => {
+    if (selectedRequest?.id && pastRequests.length > 0) {
+      const updated = pastRequests.find((r: any) => r.id === selectedRequest.id);
+      if (updated && (updated.status !== selectedRequest.status || updated.scheduledStartAt !== selectedRequest.scheduledStartAt)) {
+        setSelectedRequest(updated);
+      }
+    }
+  }, [pastRequests, selectedRequest?.id]);
 
   const firstName = user?.firstName || "there";
 
@@ -245,7 +254,7 @@ export default function Homeowner() {
       if (selectedRequest?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
       }
-      toast({ title: "Quote accepted!", description: "The contractor has been notified and will begin work soon." });
+      toast({ title: "Quote accepted!", description: "The contractor has been notified and will schedule your job shortly." });
     },
     onError: () => {
       toast({ title: "Failed to accept quote", variant: "destructive" });
