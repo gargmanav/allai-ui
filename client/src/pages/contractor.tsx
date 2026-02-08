@@ -1470,7 +1470,7 @@ export default function Contractor() {
               { id: "scheduled", label: "Scheduled", count: jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length },
               { id: "completed", label: "Completed", count: completedJobsCount },
             ]}
-            activeFilter="all"
+            activeFilter="in review"
             showSearch={true}
             showCategoryFilter={true}
             showSort={true}
