@@ -48,19 +48,16 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
 
   const threadId = threadQuery.data?.id;
 
-  const messagesQuery = useQuery({
-    queryKey: ["thread-messages", threadId],
-    queryFn: async () => {
-      const res = await fetch(`/api/messaging/conversations/${threadId}/messages`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch messages");
-      return res.json();
-    },
+  const messagesQuery = useQuery<any[]>({
+    queryKey: threadId ? [`/api/messaging/conversations/${threadId}/messages`] : ["thread-messages-disabled"],
     enabled: !!threadId,
     refetchInterval: 15000,
     staleTime: 5000,
     gcTime: 1000 * 60 * 10,
     refetchOnMount: 'always',
   });
+
+  const messagesKey = threadId ? [`/api/messaging/conversations/${threadId}/messages`] : ["thread-messages-disabled"];
 
   const sendMutation = useMutation({
     mutationFn: async (body: string) => {
@@ -69,9 +66,9 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     onMutate: async (body: string) => {
       setMessage("");
-      await queryClient.cancelQueries({ queryKey: ["thread-messages", threadId] });
-      const prev = queryClient.getQueryData(["thread-messages", threadId]);
-      queryClient.setQueryData(["thread-messages", threadId], (old: any[] = []) => [
+      await queryClient.cancelQueries({ queryKey: messagesKey });
+      const prev = queryClient.getQueryData(messagesKey);
+      queryClient.setQueryData(messagesKey, (old: any[] = []) => [
         ...old,
         { id: `temp-${Date.now()}`, threadId, senderId: user?.id, body, createdAt: new Date().toISOString() },
       ]);
@@ -79,12 +76,12 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     onError: (_err, _body, context) => {
       if (context?.prev) {
-        queryClient.setQueryData(["thread-messages", threadId], context.prev);
+        queryClient.setQueryData(messagesKey, context.prev);
       }
       setMessage(_body || "");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["thread-messages", threadId] });
+      queryClient.invalidateQueries({ queryKey: messagesKey });
     },
   });
 
