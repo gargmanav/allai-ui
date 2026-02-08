@@ -62,7 +62,8 @@ interface ScheduledJob {
 interface UnscheduledItem {
   id: string;
   title: string;
-  type: "case" | "job" | "quote";
+  type: "job" | "quote";
+  caseId?: string;
   urgency?: string;
   estimatedValue?: number;
   status?: string;
@@ -108,8 +109,8 @@ function DraggableItem({ item }: { item: UnscheduledItem }) {
       }
     : undefined;
 
-  const typeLabel = item.type === "case" ? "Case" : item.type === "quote" ? "Quote" : "Job";
-  const typeColor = item.type === "case" ? "bg-blue-50 text-blue-600 border-blue-100" : item.type === "quote" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-violet-50 text-violet-600 border-violet-100";
+  const typeLabel = item.type === "quote" ? "Accepted Quote" : "Job";
+  const typeColor = item.type === "quote" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-violet-50 text-violet-600 border-violet-100";
 
   return (
     <div
@@ -513,16 +514,22 @@ export function InHubSchedule() {
     const unscheduledCases = (cases || []).filter(
       (c: any) => c.status === "In Review" && !c.scheduledStartAt
     );
-    unscheduledCases.forEach((c: any) => {
-      items.push({
-        id: c.id,
-        title: c.title || "Untitled Case",
-        type: "case",
-        urgency: c.priority === "emergency" ? "Emergent" : c.priority === "high" ? "High" : "Low",
-        estimatedValue: c.estimatedCost ? parseFloat(c.estimatedCost) : 0,
-        status: c.status,
+    const existingJobCaseIds = new Set(
+      needsConfirmation.filter((j: any) => j.caseId).map((j: any) => j.caseId)
+    );
+    unscheduledCases
+      .filter((c: any) => !existingJobCaseIds.has(c.id))
+      .forEach((c: any) => {
+        items.push({
+          id: c.id,
+          title: c.title || "Untitled Job",
+          type: "job",
+          caseId: c.id,
+          urgency: c.priority === "emergency" ? "Emergent" : c.priority === "high" ? "High" : "Low",
+          estimatedValue: c.estimatedCost ? parseFloat(c.estimatedCost) : 0,
+          status: c.status,
+        });
       });
-    });
 
     const acceptedQuotes = (quotes || []).filter(
       (q: any) => q.status === "Accepted" && !q.scheduledStartAt
@@ -615,10 +622,17 @@ export function InHubSchedule() {
         ...(teamId ? { teamId } : {}),
       };
 
-      if (item.type === "case" || item.type === "quote") {
+      if (item.type === "quote") {
         return apiRequest("POST", `/api/scheduled-jobs`, {
           title: item.title,
-          ...(item.type === "case" ? { caseId: item.id } : { quoteId: item.id }),
+          quoteId: item.id,
+          ...payload,
+        });
+      }
+      if (item.caseId) {
+        return apiRequest("POST", `/api/scheduled-jobs`, {
+          title: item.title,
+          caseId: item.caseId,
           ...payload,
         });
       }
