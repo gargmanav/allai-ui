@@ -81,11 +81,6 @@ router.post("/conversations/find-or-create", async (req: any, res) => {
     const { caseId, quoteId, customerId, homeownerUserId, contractorUserId, subject, orgId } = req.body;
     const userId = req.user.id;
 
-    const resolvedOrgId = orgId || req.user.orgId;
-    if (!resolvedOrgId) {
-      return res.status(400).json({ error: "Organization ID required" });
-    }
-
     const resolvedHomeowner = homeownerUserId || (req.user.role !== "contractor" ? userId : undefined);
     const resolvedContractor = contractorUserId || (req.user.role === "contractor" ? userId : undefined);
 
@@ -93,8 +88,10 @@ router.post("/conversations/find-or-create", async (req: any, res) => {
       return res.status(400).json({ error: "Both homeowner and contractor IDs are required" });
     }
 
+    const resolvedOrgId = orgId || req.user.orgId;
+
     const thread = await storage.findOrCreateThread({
-      orgId: resolvedOrgId,
+      orgId: resolvedOrgId || '',
       caseId,
       quoteId,
       customerId,

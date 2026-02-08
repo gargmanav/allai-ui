@@ -3663,8 +3663,14 @@ export class DatabaseStorage implements IStorage {
     const [existing] = await db.select().from(messageThreads).where(and(...conditions));
     if (existing) return existing;
 
+    let resolvedOrgId = opts.orgId;
+    if (!resolvedOrgId && opts.caseId) {
+      const caseRecord = await db.select({ orgId: smartCases.orgId }).from(smartCases).where(eq(smartCases.id, opts.caseId)).limit(1);
+      resolvedOrgId = caseRecord[0]?.orgId || '';
+    }
+
     const [created] = await db.insert(messageThreads).values({
-      orgId: opts.orgId,
+      orgId: resolvedOrgId,
       subject: opts.subject || 'Conversation',
       isDirect: true,
       caseId: opts.caseId,

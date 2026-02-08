@@ -26,7 +26,7 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
   const resolvedHomeowner = homeownerUserId || (user?.primaryRole !== "contractor" ? user?.id : undefined);
 
   const threadQuery = useQuery({
-    queryKey: ["/api/messaging/conversations/find-or-create", caseId, resolvedHomeowner, resolvedContractor],
+    queryKey: ["thread-chat", caseId, resolvedHomeowner, resolvedContractor],
     queryFn: async () => {
       if (!resolvedHomeowner || !resolvedContractor) return null;
       const res = await apiRequest("POST", "/api/messaging/conversations/find-or-create", {
@@ -39,14 +39,17 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
       return res.json();
     },
     enabled: !!resolvedHomeowner && !!resolvedContractor && !!caseId,
-    staleTime: 60000,
-    gcTime: 300000,
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 30,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const threadId = threadQuery.data?.id;
 
   const messagesQuery = useQuery({
-    queryKey: ["/api/messaging/conversations", threadId, "messages"],
+    queryKey: ["thread-messages", threadId],
     queryFn: async () => {
       const res = await fetch(`/api/messaging/conversations/${threadId}/messages`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch messages");
@@ -55,6 +58,7 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     enabled: !!threadId,
     refetchInterval: 15000,
     staleTime: 5000,
+    gcTime: 1000 * 60 * 10,
     refetchOnMount: 'always',
   });
 
@@ -65,9 +69,9 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     onMutate: async (body: string) => {
       setMessage("");
-      await queryClient.cancelQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
-      const prev = queryClient.getQueryData(["/api/messaging/conversations", threadId, "messages"]);
-      queryClient.setQueryData(["/api/messaging/conversations", threadId, "messages"], (old: any[] = []) => [
+      await queryClient.cancelQueries({ queryKey: ["thread-messages", threadId] });
+      const prev = queryClient.getQueryData(["thread-messages", threadId]);
+      queryClient.setQueryData(["thread-messages", threadId], (old: any[] = []) => [
         ...old,
         { id: `temp-${Date.now()}`, threadId, senderId: user?.id, body, createdAt: new Date().toISOString() },
       ]);
@@ -75,13 +79,12 @@ export function ThreadChat({ caseId, homeownerUserId, contractorUserId, orgId, s
     },
     onError: (_err, _body, context) => {
       if (context?.prev) {
-        queryClient.setQueryData(["/api/messaging/conversations", threadId, "messages"], context.prev);
+        queryClient.setQueryData(["thread-messages", threadId], context.prev);
       }
       setMessage(_body || "");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations", threadId, "messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/messaging/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["thread-messages", threadId] });
     },
   });
 
