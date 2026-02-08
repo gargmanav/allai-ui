@@ -1464,10 +1464,9 @@ export default function Contractor() {
               media: (job as any).media,
             }))}
             filterTabs={[
-              { id: "all", label: "All Jobs", count: jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed", "Completed", "Resolved"].includes(j.status)).length },
               { id: "in review", label: "Needs Confirmation", count: jobs.filter(j => j.status === "In Review").length },
-              { id: "in progress", label: "In Progress", count: jobs.filter(j => j.status === "In Progress").length },
               { id: "scheduled", label: "Scheduled", count: jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length },
+              { id: "in progress", label: "In Progress", count: jobs.filter(j => j.status === "In Progress").length },
               { id: "completed", label: "Completed", count: completedJobsCount },
             ]}
             activeFilter="in review"

@@ -211,16 +211,17 @@ export function MayaCarouselLayout({
     onFilterChange?.(filterId);
   };
   
+  const defaultFilter = initialActiveFilter || "all";
   const clearAllFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
     setPriorityFilter("all");
-    setInternalFilter("all");
+    setInternalFilter(defaultFilter);
     setSelectedItemId(null);
-    onFilterChange?.("all");
+    onFilterChange?.(defaultFilter);
   };
   
-  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || activeFilter !== "all";
+  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || (activeFilter !== "all" && activeFilter !== defaultFilter);
   
   const filteredItems = useMemo(() => {
     let result = [...items];
@@ -814,8 +815,40 @@ export function MayaCarouselLayout({
           {/* Unified Toolbar - View dropdown + Search + Category + Sort + Cards/List toggle */}
           <div className="shrink-0 px-4 py-3 border-b bg-white">
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              {/* View Dropdown */}
-              {filterTabs && filterTabs.length > 0 && (
+              {/* Lifecycle Pipeline Bar for Jobs */}
+              {filterTabs && filterTabs.length > 0 && itemType === "job" && (
+                <div className="flex items-center gap-0 shrink-0">
+                  {filterTabs.map((tab, idx) => {
+                    const isActive = activeFilter === tab.id;
+                    return (
+                      <div key={tab.id} className="flex items-center">
+                        {idx > 0 && (
+                          <div className="w-4 h-[1.5px] bg-slate-200" />
+                        )}
+                        <button
+                          onClick={() => handleFilterChange(tab.id)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap ${
+                            isActive
+                              ? "bg-violet-100/80 text-violet-700 border border-violet-300/60 shadow-sm"
+                              : "bg-slate-50/60 text-slate-500 border border-slate-200/60 hover:bg-slate-100/80 hover:text-slate-600"
+                          }`}
+                        >
+                          {tab.label}
+                          {tab.count > 0 && (
+                            <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold ${
+                              isActive ? "bg-violet-200/80 text-violet-800" : "bg-slate-200/80 text-slate-600"
+                            }`}>
+                              {tab.count}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* View Dropdown for non-job types */}
+              {filterTabs && filterTabs.length > 0 && itemType !== "job" && (
                 <select
                   value={activeFilter}
                   onChange={(e) => handleFilterChange(e.target.value)}
