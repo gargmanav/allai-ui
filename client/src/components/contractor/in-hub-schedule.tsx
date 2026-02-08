@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { format, addDays, startOfWeek, parseISO, isSameDay, isToday, subDays, isAfter, isBefore } from "date-fns";
+import { format, addDays, startOfWeek, startOfMonth, getDay, getDaysInMonth, addMonths, subMonths, parseISO, isSameDay, isSameMonth, isToday, subDays, isAfter, isBefore } from "date-fns";
 import {
   DndContext,
   useDraggable,
@@ -383,7 +383,7 @@ function DayTimelineJobBlock({
 
 export function InHubSchedule() {
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<"day" | "week">("week");
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hideWeekends, setHideWeekends] = useState(false);
   const [unscheduledOpen, setUnscheduledOpen] = useState(true);
@@ -616,20 +616,27 @@ export function InHubSchedule() {
   const navigatePrev = () => {
     if (viewMode === "day") {
       setCurrentDate((d) => subDays(d, 1));
-    } else {
+    } else if (viewMode === "week") {
       setCurrentDate((d) => subDays(d, 7));
+    } else {
+      setCurrentDate((d) => subMonths(d, 1));
     }
   };
 
   const navigateNext = () => {
     if (viewMode === "day") {
       setCurrentDate((d) => addDays(d, 1));
-    } else {
+    } else if (viewMode === "week") {
       setCurrentDate((d) => addDays(d, 7));
+    } else {
+      setCurrentDate((d) => addMonths(d, 1));
     }
   };
 
-  const goToToday = () => setCurrentDate(new Date());
+  const goToToday = () => {
+    setCurrentDate(new Date());
+    setViewMode("day");
+  };
 
   const now = new Date();
   const currentHour = now.getHours();
@@ -688,7 +695,9 @@ export function InHubSchedule() {
             <span className="text-sm font-semibold text-gray-700 ml-1">
               {viewMode === "day"
                 ? format(currentDate, "EEEE, MMM d, yyyy")
-                : `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`}
+                : viewMode === "week"
+                  ? `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`
+                  : format(currentDate, "MMMM yyyy")}
             </span>
           </div>
 
@@ -732,6 +741,16 @@ export function InHubSchedule() {
                 onClick={() => setViewMode("week")}
               >
                 Week
+              </button>
+              <button
+                className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  viewMode === "month"
+                    ? "bg-violet-100 text-violet-700"
+                    : "bg-white text-gray-500 hover:bg-gray-50"
+                }`}
+                onClick={() => setViewMode("month")}
+              >
+                Month
               </button>
             </div>
             {viewMode === "week" && (
@@ -824,7 +843,7 @@ export function InHubSchedule() {
                 timelineMarkers={timelineMarkers}
                 currentTimePos={currentTimePos}
               />
-            ) : (
+            ) : viewMode === "week" ? (
               <WeekView
                 days={days}
                 displayRows={displayRows}
@@ -832,6 +851,16 @@ export function InHubSchedule() {
                 getJobsForTeamAndDay={getJobsForTeamAndDay}
                 timelineMarkers={timelineMarkers}
                 currentTimePos={currentTimePos}
+              />
+            ) : (
+              <MonthView
+                currentDate={currentDate}
+                scheduledJobs={scheduledJobs}
+                teams={teams}
+                onDayClick={(day: Date) => {
+                  setCurrentDate(day);
+                  setViewMode("day");
+                }}
               />
             )}
           </div>
@@ -1192,6 +1221,140 @@ function WeekView({
             })}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function MonthView({
+  currentDate,
+  scheduledJobs,
+  teams,
+  onDayClick,
+}: {
+  currentDate: Date;
+  scheduledJobs: ScheduledJob[];
+  teams: Team[];
+  onDayClick: (day: Date) => void;
+}) {
+  const monthStart = startOfMonth(currentDate);
+  const startDayOfWeek = getDay(monthStart);
+  const daysInMonth = getDaysInMonth(currentDate);
+  const leadingBlanks = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+  const jobsByDay = useMemo(() => {
+    const map = new Map<string, ScheduledJob[]>();
+    scheduledJobs.forEach((job) => {
+      if (!job.scheduledStartAt) return;
+      const d = parseISO(job.scheduledStartAt);
+      if (!isSameMonth(d, currentDate)) return;
+      const key = format(d, "yyyy-MM-dd");
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(job);
+    });
+    return map;
+  }, [scheduledJobs, currentDate]);
+
+  const calendarDays: (Date | null)[] = [];
+  for (let i = 0; i < leadingBlanks; i++) calendarDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    calendarDays.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), d));
+  }
+  const trailingBlanks = (7 - (calendarDays.length % 7)) % 7;
+  for (let i = 0; i < trailingBlanks; i++) calendarDays.push(null);
+
+  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden m-2"
+      style={{
+        background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
+        border: "1px solid rgba(0,0,0,0.05)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.03)",
+      }}
+    >
+      <div className="grid grid-cols-7 border-b border-gray-100">
+        {weekDays.map((wd) => (
+          <div
+            key={wd}
+            className="text-center py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400"
+          >
+            {wd}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {calendarDays.map((day, i) => {
+          if (!day) {
+            return <div key={`blank-${i}`} className="min-h-[80px] border-r border-b border-gray-50" />;
+          }
+
+          const key = format(day, "yyyy-MM-dd");
+          const dayJobs = jobsByDay.get(key) || [];
+          const today = isToday(day);
+          const hasJobs = dayJobs.length > 0;
+
+          const urgentCount = dayJobs.filter(
+            (j) => j.urgency === "High" || j.urgency === "Emergent"
+          ).length;
+          return (
+            <button
+              key={key}
+              className={`min-h-[80px] border-r border-b border-gray-50 p-1.5 text-left transition-colors cursor-pointer hover:bg-violet-50/40 ${
+                today ? "bg-violet-50/50" : ""
+              }`}
+              onClick={() => onDayClick(day)}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span
+                  className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                    today
+                      ? "bg-violet-600 text-white"
+                      : "text-gray-700"
+                  }`}
+                >
+                  {day.getDate()}
+                </span>
+                {hasJobs && (
+                  <span className="text-[8px] font-medium text-gray-400">
+                    {dayJobs.length}
+                  </span>
+                )}
+              </div>
+
+              {hasJobs && (
+                <div className="flex flex-wrap gap-[3px] mt-1 justify-center">
+                  {dayJobs.slice(0, 5).map((job) => {
+                    const category = getTimeCategory(job);
+                    const dotColor =
+                      category === "complete"
+                        ? "#86efac"
+                        : category === "active"
+                          ? "#fb923c"
+                          : urgentCount > 0 && (job.urgency === "High" || job.urgency === "Emergent")
+                            ? "#f87171"
+                            : "#93c5fd";
+                    return (
+                      <div
+                        key={job.id}
+                        className="w-[6px] h-[6px] rounded-full"
+                        style={{ backgroundColor: dotColor }}
+                        title={job.title}
+                      />
+                    );
+                  })}
+                  {dayJobs.length > 5 && (
+                    <span className="text-[7px] text-gray-400 leading-none">
+                      +{dayJobs.length - 5}
+                    </span>
+                  )}
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
