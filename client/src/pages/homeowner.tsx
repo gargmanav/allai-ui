@@ -93,6 +93,9 @@ export default function Homeowner() {
   const [mayaChatInput, setMayaChatInput] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [renamingRequestId, setRenamingRequestId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<{ file: File; preview: string }[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -294,6 +297,48 @@ export default function Homeowner() {
     },
   });
 
+  const renameCaseMutation = useMutation({
+    mutationFn: async ({ caseId, title }: { caseId: string; title: string }) => {
+      const response = await apiRequest("PATCH", `/api/property-owner/cases/${caseId}`, { title });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases"] });
+      setRenamingRequestId(null);
+      setRenameValue("");
+      toast({ title: "Request renamed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to rename request", variant: "destructive" });
+    },
+  });
+
+  const deleteCaseMutation = useMutation({
+    mutationFn: async (caseId: string) => {
+      const response = await apiRequest("DELETE", `/api/property-owner/cases/${caseId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases"] });
+      setDeletingRequestId(null);
+      if (selectedRequest?.id === deletingRequestId) {
+        setSelectedRequest(null);
+        setView("landing");
+      }
+      toast({ title: "Request deleted" });
+    },
+    onError: (error: any) => {
+      let msg = "Failed to delete request";
+      try {
+        const raw = error?.message || "";
+        const jsonPart = raw.substring(raw.indexOf("{"));
+        const parsed = JSON.parse(jsonPart);
+        if (parsed.error) msg = parsed.error;
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
+    },
+  });
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!problemDescription.trim()) return;
@@ -417,41 +462,113 @@ export default function Homeowner() {
                 })
                 .slice(0, searchQuery ? 20 : 5)
                 .map((request: any) => (
-                <div 
-                  key={request.id}
-                  className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                  onClick={() => {
-                    setSelectedRequest(request);
-                    setSelectedContractorId(null);
-                    setView("requestDetail");
-                  }}
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm truncate flex-1">
-                    {request.title || request.description?.slice(0, 30) || "Untitled Request"}
-                  </span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Pencil className="h-3 w-3 mr-2" />
-                        Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="h-3 w-3 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div key={request.id}>
+                  {deletingRequestId === request.id ? (
+                    <div className="px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
+                      <p className="text-xs text-destructive font-medium">Delete this request?</p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs"
+                          disabled={deleteCaseMutation.isPending}
+                          onClick={() => deleteCaseMutation.mutate(request.id)}
+                        >
+                          {deleteCaseMutation.isPending ? "Deleting..." : "Delete"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => setDeletingRequestId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : renamingRequestId === request.id ? (
+                    <div className="px-3 py-2 rounded-lg bg-muted space-y-2">
+                      <Input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && renameValue.trim()) {
+                            renameCaseMutation.mutate({ caseId: request.id, title: renameValue.trim() });
+                          } else if (e.key === "Escape") {
+                            setRenamingRequestId(null);
+                            setRenameValue("");
+                          }
+                        }}
+                        className="h-7 text-sm"
+                        placeholder="New name..."
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={!renameValue.trim() || renameCaseMutation.isPending}
+                          onClick={() => renameCaseMutation.mutate({ caseId: request.id, title: renameValue.trim() })}
+                        >
+                          {renameCaseMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => { setRenamingRequestId(null); setRenameValue(""); }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setSelectedContractorId(null);
+                        setView("requestDetail");
+                      }}
+                    >
+                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm truncate flex-1">
+                        {request.title || request.description?.slice(0, 30) || "Untitled Request"}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingRequestId(request.id);
+                            setRenameValue(request.title || "");
+                          }}>
+                            <Pencil className="h-3 w-3 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingRequestId(request.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
               ))}
               {pastRequests.length === 0 && !searchQuery && (

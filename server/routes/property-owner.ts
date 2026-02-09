@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { db } from '../db';
-import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users, quotes, quoteLineItems, caseMedia } from '@shared/schema';
-import { eq, and, or, desc, ne, isNull } from 'drizzle-orm';
+import { properties, smartCases, organizationMembers, favoriteContractors, vendors, users, quotes, quoteLineItems, caseMedia, caseEvents, contractorDismissedCases } from '@shared/schema';
+import { eq, and, or, desc, ne, isNull, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { aiTriageService } from '../aiTriage';
@@ -570,6 +570,118 @@ router.get('/cases/:caseId/photos', async (req: any, res) => {
   } catch (error) {
     console.error('Error fetching photos:', error);
     res.status(500).json({ error: 'Failed to fetch photos' });
+  }
+});
+
+router.patch('/cases/:caseId', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId } = req.params;
+    const { title } = req.body;
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId),
+        eq(smartCases.reporterUserId, userId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const [updated] = await db.update(smartCases)
+      .set({ title: title.trim() })
+      .where(eq(smartCases.id, caseId))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error renaming case:', error);
+    res.status(500).json({ error: 'Failed to rename case' });
+  }
+});
+
+router.delete('/cases/:caseId', async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    const { caseId } = req.params;
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, userId),
+        eq(organizationMembers.orgRole, 'property_owner')
+      ),
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.orgId, membership.orgId),
+        eq(smartCases.reporterUserId, userId)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const activeStatuses = ["In Review", "Scheduled", "In Progress", "On Hold"];
+    if (activeStatuses.includes(caseRecord.status || "")) {
+      return res.status(400).json({ 
+        error: 'Cannot delete a request that has active work in progress. Cancel the work first.' 
+      });
+    }
+
+    const activeQuotes = await db.query.quotes.findMany({
+      where: and(
+        eq(quotes.caseId, caseId),
+        isNull(quotes.archivedAt)
+      ),
+    });
+
+    const hasActiveQuote = activeQuotes.some(q => ['approved', 'accepted', 'in_progress'].includes(q.status || ''));
+    if (hasActiveQuote) {
+      return res.status(400).json({ 
+        error: 'Cannot delete a request with an accepted quote. Cancel the work first.' 
+      });
+    }
+
+    const quoteIds = activeQuotes.map(q => q.id);
+    if (quoteIds.length > 0) {
+      await db.delete(quoteLineItems).where(inArray(quoteLineItems.quoteId, quoteIds));
+      await db.delete(quotes).where(inArray(quotes.id, quoteIds));
+    }
+
+    await db.delete(caseMedia).where(eq(caseMedia.caseId, caseId));
+    await db.delete(caseEvents).where(eq(caseEvents.caseId, caseId));
+    await db.delete(contractorDismissedCases).where(eq(contractorDismissedCases.caseId, caseId));
+    await db.delete(smartCases).where(eq(smartCases.id, caseId));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting case:', error);
+    res.status(500).json({ error: 'Failed to delete case' });
   }
 });
 
