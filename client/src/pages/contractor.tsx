@@ -212,6 +212,7 @@ export default function Contractor() {
   }, [mayaHovered]);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [requestsFilter, setRequestsFilter] = useState<string>("new");
+  const [quotesFilter, setQuotesFilter] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [isMayaTyping, setIsMayaTyping] = useState(false);
   const [mayaChatMessages, setMayaChatMessages] = useState<ChatMessage[]>([
@@ -1654,35 +1655,70 @@ export default function Contractor() {
                       activeStage={lifecycleStage}
                       onStageClick={(stageId) => {
                         setLifecycleStage(stageId);
+                        setRequestsFilter(stageId === "new" ? "new" : "in review");
                         setSelectedCaseId(null);
                       }}
                       counts={lifecycleCounts}
                       statusMessage={lifecycleStatusMessage}
                     />
                   }
-                  title={lifecycleStage === "reviewing" ? "Reviewing Requests" : "New Job Requests"}
-                  subtitle={lifecycleStage === "reviewing" ? "Requests currently under review" : "Jobs waiting for your response"}
-                  items={jobs.filter(j => ["New", "In Review", "Submitted"].includes(j.status)).map(job => ({
-                    id: job.id,
-                    title: job.title,
-                    customerName: job.customerName,
-                    customerInitials: job.customerInitials,
-                    description: job.description,
-                    status: job.status,
-                    priority: job.priority,
-                    estimatedValue: job.estimatedValue,
-                    scheduledDate: job.scheduledDate,
-                    address: job.address,
-                    category: job.category,
-                    createdAt: job.createdAt,
-                    color: job.color,
-                    reporterUserId: (job as any).reporterUserId,
-                    orgId: (job as any).orgId,
-                    aiTriageJson: (job as any).aiTriageJson,
-                    media: (job as any).media,
-                  }))}
-                  activeFilter={lifecycleToFilter[lifecycleStage]}
-                  onFilterChange={() => {}}
+                  title={requestsFilter === "passed" ? "Passed Requests" : lifecycleStage === "reviewing" ? "Reviewing Requests" : "New Job Requests"}
+                  subtitle={requestsFilter === "passed" ? "Requests you've passed on" : lifecycleStage === "reviewing" ? "Requests currently under review" : "Jobs waiting for your response"}
+                  items={requestsFilter === "passed"
+                    ? dismissedJobs.map(job => ({
+                        id: job.id,
+                        title: job.title,
+                        customerName: job.customerName,
+                        customerInitials: job.customerInitials,
+                        description: job.description,
+                        status: "Passed",
+                        priority: job.priority,
+                        estimatedValue: job.estimatedValue,
+                        scheduledDate: job.scheduledDate,
+                        address: job.address,
+                        category: job.category,
+                        createdAt: job.createdAt,
+                        color: { bg: "bg-slate-100", text: "text-slate-600" },
+                        reporterUserId: (job as any).reporterUserId,
+                        orgId: (job as any).orgId,
+                        aiTriageJson: (job as any).aiTriageJson,
+                        media: (job as any).media,
+                      }))
+                    : jobs.filter(j => ["New", "In Review", "Submitted"].includes(j.status)).map(job => ({
+                        id: job.id,
+                        title: job.title,
+                        customerName: job.customerName,
+                        customerInitials: job.customerInitials,
+                        description: job.description,
+                        status: job.status,
+                        priority: job.priority,
+                        estimatedValue: job.estimatedValue,
+                        scheduledDate: job.scheduledDate,
+                        address: job.address,
+                        category: job.category,
+                        createdAt: job.createdAt,
+                        color: job.color,
+                        reporterUserId: (job as any).reporterUserId,
+                        orgId: (job as any).orgId,
+                        aiTriageJson: (job as any).aiTriageJson,
+                        media: (job as any).media,
+                      }))
+                  }
+                  filterTabs={[
+                    { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
+                    { id: "in review", label: "Reviewing", count: jobs.filter(j => j.status === "In Review").length },
+                    { id: "passed", label: "Passed", count: dismissedJobs.length, secondary: true },
+                  ]}
+                  activeFilter={requestsFilter === "passed" ? "passed" : lifecycleToFilter[lifecycleStage]}
+                  onFilterChange={(filterId) => {
+                    if (filterId === "passed") {
+                      setRequestsFilter("passed");
+                    } else {
+                      setRequestsFilter(filterId);
+                      setLifecycleStage(filterId === "in review" ? "reviewing" : "new");
+                    }
+                    setSelectedCaseId(null);
+                  }}
                   showSearch={true}
                   showCategoryFilter={true}
                   showPriorityFilter={true}
@@ -1690,11 +1726,16 @@ export default function Contractor() {
                   categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
                   itemType="request"
                   onItemSelect={(item) => { handleSelectCase(item.id); }}
-                  acceptLabel="Accept & Quote"
-                  onAccept={(item) => { openAcceptQuoteDialog(item); }}
-                  onDecline={(item) => { dismissCaseMutation.mutate(item.id); }}
+                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Quote"}
+                  onAccept={requestsFilter === "passed"
+                    ? (item) => { restoreCaseMutation.mutate(item.id); }
+                    : (item) => { openAcceptQuoteDialog(item); }
+                  }
+                  onDecline={requestsFilter === "passed" ? undefined : (item) => {
+                    dismissCaseMutation.mutate(item.id);
+                  }}
                   emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
-                  emptyMessage="No requests in this stage"
+                  emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No requests in this stage"}
                 />
               )}
               {lifecycleGroup === "quotes" && (
@@ -1704,14 +1745,15 @@ export default function Contractor() {
                       activeStage={lifecycleStage}
                       onStageClick={(stageId) => {
                         setLifecycleStage(stageId);
+                        setQuotesFilter(null);
                         setSelectedCaseId(null);
                       }}
                       counts={lifecycleCounts}
                       statusMessage={lifecycleStatusMessage}
                     />
                   }
-                  title="Quotes"
-                  subtitle={lifecycleStage === "sent" ? "Quotes sent to customers" : "Draft quotes to finalize"}
+                  title={quotesFilter ? `${quotesFilter.charAt(0).toUpperCase() + quotesFilter.slice(1)} Quotes` : "Quotes"}
+                  subtitle={quotesFilter ? `Quotes that were ${quotesFilter}` : lifecycleStage === "sent" ? "Quotes sent to customers" : "Draft quotes to finalize"}
                   items={quotes.map(quote => {
                     const customer = (quote as any).customer || quote.customer || customers.find(c => c.id === quote.customerId);
                     const customerName = customer?.name || customer?.company || "Unknown Customer";
@@ -1757,8 +1799,26 @@ export default function Contractor() {
                       caseScheduledStartAt: (quote as any).caseScheduledStartAt,
                     };
                   })}
-                  activeFilter={lifecycleToFilter[lifecycleStage]}
-                  onFilterChange={() => {}}
+                  filterTabs={[
+                    { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
+                    { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
+                    { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length, groupedWith: ["cancelled", "expired"] },
+                    { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
+                    { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
+                  ]}
+                  activeFilter={quotesFilter || lifecycleToFilter[lifecycleStage]}
+                  onFilterChange={(filterId) => {
+                    if (filterId === "draft") {
+                      setLifecycleStage("draft");
+                      setQuotesFilter(null);
+                    } else if (filterId === "sent") {
+                      setLifecycleStage("sent");
+                      setQuotesFilter(null);
+                    } else {
+                      setQuotesFilter(filterId);
+                    }
+                    setSelectedCaseId(null);
+                  }}
                   showSearch={true}
                   showSort={true}
                   itemType="quote"
