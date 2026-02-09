@@ -620,18 +620,20 @@ export function MayaCarouselLayout({
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Top Title Bar - Spans Full Width */}
+      {/* Top Title Bar - Spans Full Width (hidden when lifecycle bar is present) */}
       <div 
-        className="px-4 sm:px-6 py-3 border-b flex items-center justify-between shrink-0"
+        className={`px-4 sm:px-6 ${lifecycleBar ? "py-1.5" : "py-3"} border-b flex items-center justify-between shrink-0`}
         style={{
           background: "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)",
           backdropFilter: "blur(24px) saturate(180%)",
         }}
       >
-        <div>
-          <h2 className="font-semibold text-lg sm:text-xl">{title}</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
-        </div>
+        {!lifecycleBar && (
+          <div>
+            <h2 className="font-semibold text-lg sm:text-xl">{title}</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
+          </div>
+        )}
         
         <div className="flex items-center gap-2">
           {/* Mobile Maya Button */}
@@ -813,11 +815,11 @@ export function MayaCarouselLayout({
         </div>
 
         {/* Main Content Column */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Unified Toolbar - View dropdown + Search + Category + Sort + Cards/List toggle */}
-          <div className="shrink-0 px-4 py-3 border-b bg-white">
+          <div className={`shrink-0 px-4 ${lifecycleBar ? "py-2" : "py-3"} border-b bg-white`}>
             {lifecycleBar && (
-              <div className="mb-3">
+              <div className="mb-2">
                 {lifecycleBar}
               </div>
             )}
