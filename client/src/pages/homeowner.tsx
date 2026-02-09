@@ -254,10 +254,10 @@ export default function Homeowner() {
       if (selectedRequest?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
       }
-      toast({ title: "Quote accepted!", description: "The contractor has been notified and will schedule your job shortly." });
+      toast({ title: "Estimate accepted!", description: "The contractor will reach out to discuss details and provide a formal quote." });
     },
     onError: () => {
-      toast({ title: "Failed to accept quote", variant: "destructive" });
+      toast({ title: "Failed to accept estimate", variant: "destructive" });
     },
   });
 
@@ -270,10 +270,10 @@ export default function Homeowner() {
       if (selectedRequest?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
       }
-      toast({ title: "Quote declined" });
+      toast({ title: "Estimate declined" });
     },
     onError: () => {
-      toast({ title: "Failed to decline quote", variant: "destructive" });
+      toast({ title: "Failed to decline estimate", variant: "destructive" });
     },
   });
 
@@ -287,7 +287,7 @@ export default function Homeowner() {
       if (selectedRequest?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/property-owner/cases", selectedRequest.id, "quotes"] });
       }
-      toast({ title: "Acceptance cancelled", description: "Other quotes have been re-opened for consideration." });
+      toast({ title: "Acceptance cancelled", description: "Other estimates have been re-opened for consideration." });
     },
     onError: () => {
       toast({ title: "Failed to cancel acceptance", variant: "destructive" });
@@ -1379,30 +1379,35 @@ export default function Homeowner() {
                               if (hasAnyAccepted) {
                                 return (
                                   <div className="mt-4 p-2 bg-slate-50/80 border border-slate-200/60 rounded-lg text-center">
-                                    <span className="text-xs text-slate-400">Another quote accepted</span>
+                                    <span className="text-xs text-slate-400">Another estimate accepted</span>
                                   </div>
                                 );
                               }
                               return (
-                                <div className="flex gap-2 mt-4">
-                                  <Button 
-                                    size="sm" 
-                                    className="flex-1 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
-                                    disabled={acceptQuoteMutation.isPending}
-                                    onClick={() => acceptQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
-                                  >
-                                    {acceptQuoteMutation.isPending ? "Accepting..." : "Accept Quote"}
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50"
-                                    disabled={declineQuoteMutation.isPending}
-                                    onClick={() => declineQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
-                                  >
-                                    Decline
-                                  </Button>
-                                </div>
+                                <>
+                                  <div className="flex gap-2 mt-4">
+                                    <Button 
+                                      size="sm" 
+                                      className="flex-1 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                                      disabled={acceptQuoteMutation.isPending}
+                                      onClick={() => acceptQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                    >
+                                      {acceptQuoteMutation.isPending ? "Accepting..." : "Accept Estimate"}
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50"
+                                      disabled={declineQuoteMutation.isPending}
+                                      onClick={() => declineQuoteMutation.mutate({ caseId: selectedRequest.id, quoteId: quote.id })}
+                                    >
+                                      Decline
+                                    </Button>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-2 text-center leading-relaxed">
+                                    Accepting starts a conversation — the contractor will follow up with a formal quote after discussing details. You can decline at any time.
+                                  </p>
+                                </>
                               );
                             })()}
                             {quote.lineItems && quote.lineItems.length > 0 && (

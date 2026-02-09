@@ -400,7 +400,7 @@ export default function Contractor() {
   const lifecycleStatusMessage = useMemo(() => {
     const messages: Record<string, string> = {
       new: `${newJobsCount} new request${newJobsCount !== 1 ? 's' : ''} waiting for your response`,
-      reviewing: `${reviewingCount} request${reviewingCount !== 1 ? 's' : ''} under review`,
+      reviewing: `${reviewingCount} estimate${reviewingCount !== 1 ? 's' : ''} sent — awaiting homeowner response`,
       draft: `${draftQuotesCount} draft quote${draftQuotesCount !== 1 ? 's' : ''} to finalize`,
       sent: `${sentQuotesCount} quote${sentQuotesCount !== 1 ? 's' : ''} sent — awaiting customer response`,
       awaiting: `${needsConfirmationCount} job${needsConfirmationCount !== 1 ? 's' : ''} awaiting scheduling`,
@@ -1659,8 +1659,8 @@ export default function Contractor() {
                       statusMessage={lifecycleStatusMessage}
                     />
                   }
-                  title={requestsFilter === "passed" ? "Passed Requests" : lifecycleStage === "reviewing" ? "Reviewing Requests" : "New Job Requests"}
-                  subtitle={requestsFilter === "passed" ? "Requests you've passed on" : lifecycleStage === "reviewing" ? "Requests currently under review" : "Jobs waiting for your response"}
+                  title={requestsFilter === "passed" ? "Passed Requests" : lifecycleStage === "reviewing" ? "Estimates Sent" : "New Job Requests"}
+                  subtitle={requestsFilter === "passed" ? "Requests you've passed on" : lifecycleStage === "reviewing" ? "Estimates sent to homeowners — awaiting their response" : "Jobs waiting for your response"}
                   items={requestsFilter === "passed"
                     ? dismissedJobs.map(job => ({
                         id: job.id,
