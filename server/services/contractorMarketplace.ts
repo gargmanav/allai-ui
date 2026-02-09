@@ -147,7 +147,7 @@ export async function acceptCase(contractorUserId: string, caseId: string, optio
       // Build the update set
       const updateSet: any = { 
         assignedContractorId: contractorUserId,
-        status: 'In Progress'
+        status: 'In Review'
       };
       
       // Set pricing info if provided
