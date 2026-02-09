@@ -28,7 +28,6 @@ const STAGE_GROUPS: StageGroup[] = [
     label: "REQUESTS",
     stages: [
       { id: "new", label: "New", icon: FileText },
-      { id: "reviewing", label: "Estimate Sent", icon: Send },
     ],
   },
   {

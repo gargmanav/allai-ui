@@ -387,9 +387,8 @@ export default function Contractor() {
 
   const lifecycleCounts = useMemo(() => ({
     new: newJobsCount,
-    reviewing: reviewingCount,
     draft: draftQuotesCount,
-    sent: sentQuotesCount,
+    sent: sentQuotesCount + reviewingCount,
     awaiting: needsConfirmationCount,
     scheduled: scheduledCount,
     in_progress: inProgressCount,
@@ -400,9 +399,8 @@ export default function Contractor() {
   const lifecycleStatusMessage = useMemo(() => {
     const messages: Record<string, string> = {
       new: `${newJobsCount} new request${newJobsCount !== 1 ? 's' : ''} waiting for your response`,
-      reviewing: `${reviewingCount} estimate${reviewingCount !== 1 ? 's' : ''} sent — awaiting homeowner response`,
       draft: `${draftQuotesCount} draft quote${draftQuotesCount !== 1 ? 's' : ''} to finalize`,
-      sent: `${sentQuotesCount} quote${sentQuotesCount !== 1 ? 's' : ''} sent — awaiting customer response`,
+      sent: `${sentQuotesCount + reviewingCount} quote${(sentQuotesCount + reviewingCount) !== 1 ? 's' : ''} sent — awaiting response`,
       awaiting: `${needsConfirmationCount} job${needsConfirmationCount !== 1 ? 's' : ''} awaiting scheduling`,
       scheduled: `${scheduledCount} job${scheduledCount !== 1 ? 's' : ''} scheduled`,
       in_progress: `${inProgressCount} job${inProgressCount !== 1 ? 's' : ''} in progress`,
@@ -413,7 +411,7 @@ export default function Contractor() {
 
   // Determine which group/itemType the lifecycle stage belongs to
   const lifecycleGroup = useMemo(() => {
-    if (["new", "reviewing"].includes(lifecycleStage)) return "requests";
+    if (["new"].includes(lifecycleStage)) return "requests";
     if (["draft", "sent"].includes(lifecycleStage)) return "quotes";
     if (["awaiting", "scheduled", "in_progress", "completed"].includes(lifecycleStage)) return "jobs";
     return "requests";
@@ -422,7 +420,6 @@ export default function Contractor() {
   // Map lifecycle stage to existing MayaCarouselLayout filter ids
   const lifecycleToFilter = useMemo((): Record<string, string> => ({
     new: "new",
-    reviewing: "in review",
     draft: "draft",
     sent: "sent",
     awaiting: "in review",
@@ -1659,8 +1656,8 @@ export default function Contractor() {
                       statusMessage={lifecycleStatusMessage}
                     />
                   }
-                  title={requestsFilter === "passed" ? "Passed Requests" : lifecycleStage === "reviewing" ? "Estimates Sent" : "New Job Requests"}
-                  subtitle={requestsFilter === "passed" ? "Requests you've passed on" : lifecycleStage === "reviewing" ? "Estimates sent to homeowners — awaiting their response" : "Jobs waiting for your response"}
+                  title={requestsFilter === "passed" ? "Passed Requests" : "New Job Requests"}
+                  subtitle={requestsFilter === "passed" ? "Requests you've passed on" : "Jobs waiting for your response"}
                   items={requestsFilter === "passed"
                     ? dismissedJobs.map(job => ({
                         id: job.id,
