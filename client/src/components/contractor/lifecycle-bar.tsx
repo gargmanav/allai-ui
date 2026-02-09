@@ -74,31 +74,34 @@ export function LifecycleBar({ activeStage, onStageClick, counts, statusMessage 
   const activeGroupId = getActiveGroupId(activeStage);
 
   return (
-    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-slate-700/40 rounded-2xl shadow-lg p-4">
-      <div className="flex items-center gap-1.5 mb-3">
-        <CheckCircle2 className="h-4 w-4 text-violet-500" />
-        <span className="text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+    <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/40 rounded-xl px-3 py-2">
+      <div className="flex items-center gap-1 mb-1.5">
+        <CheckCircle2 className="h-3 w-3 text-violet-500" />
+        <span className="text-[9px] font-semibold tracking-widest text-slate-400 dark:text-slate-500 uppercase">
           Lifecycle
         </span>
+        {statusMessage && (
+          <span className="text-[10px] text-muted-foreground ml-auto">{statusMessage}</span>
+        )}
       </div>
 
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="flex items-start gap-0 min-w-max">
+      <div className="overflow-x-auto">
+        <div className="flex items-center gap-0 min-w-max">
           {STAGE_GROUPS.map((group, groupIndex) => {
             const isActiveGroup = activeGroupId === group.id;
 
             return (
-              <div key={group.id} className="flex items-start">
+              <div key={group.id} className="flex items-center">
                 {groupIndex > 0 && (
-                  <div className="flex items-center self-stretch px-3">
-                    <div className="w-px h-12 bg-slate-200 dark:bg-slate-700" />
+                  <div className="flex items-center px-2">
+                    <div className="w-px h-8 bg-slate-200 dark:bg-slate-700" />
                   </div>
                 )}
 
                 <div className="flex flex-col items-center">
                   <span
                     className={cn(
-                      "text-[10px] font-semibold tracking-wider mb-2",
+                      "text-[9px] font-semibold tracking-wider mb-1",
                       group.comingSoon && "italic",
                       isActiveGroup
                         ? "text-violet-600 dark:text-violet-400"
@@ -120,7 +123,7 @@ export function LifecycleBar({ activeStage, onStageClick, counts, statusMessage 
                           {stageIndex > 0 && (
                             <div
                               className={cn(
-                                "w-5 h-px",
+                                "w-4 h-px",
                                 isActive || activeStage === group.stages[stageIndex - 1]?.id
                                   ? "bg-violet-300 dark:bg-violet-600"
                                   : "bg-slate-200 dark:bg-slate-700"
@@ -132,18 +135,18 @@ export function LifecycleBar({ activeStage, onStageClick, counts, statusMessage 
                             onClick={() => !isDisabled && onStageClick(stage.id)}
                             disabled={isDisabled}
                             className={cn(
-                              "flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all group",
+                              "flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded-md transition-all group",
                               isDisabled
                                 ? "cursor-not-allowed opacity-60"
-                                : "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                : "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50"
                             )}
                           >
                             <div className="relative">
                               <div
                                 className={cn(
-                                  "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                                  "w-7 h-7 rounded-full flex items-center justify-center transition-colors",
                                   isActive
-                                    ? "bg-violet-500 shadow-md shadow-violet-200 dark:shadow-violet-900/50"
+                                    ? "bg-violet-500 shadow-sm shadow-violet-200 dark:shadow-violet-900/50"
                                     : isDisabled
                                       ? "bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600"
                                       : "bg-slate-100 dark:bg-slate-800"
@@ -151,7 +154,7 @@ export function LifecycleBar({ activeStage, onStageClick, counts, statusMessage 
                               >
                                 <Icon
                                   className={cn(
-                                    "h-3.5 w-3.5",
+                                    "h-3 w-3",
                                     isActive
                                       ? "text-white"
                                       : "text-slate-400 dark:text-slate-500"
@@ -159,14 +162,14 @@ export function LifecycleBar({ activeStage, onStageClick, counts, statusMessage 
                                 />
                               </div>
                               {count > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-violet-500 text-white text-[10px] font-bold leading-none px-1">
+                                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] flex items-center justify-center rounded-full bg-violet-500 text-white text-[9px] font-bold leading-none px-0.5">
                                   {count > 99 ? "99+" : count}
                                 </span>
                               )}
                             </div>
                             <span
                               className={cn(
-                                "text-[10px] font-medium leading-tight whitespace-nowrap",
+                                "text-[9px] font-medium leading-tight whitespace-nowrap",
                                 group.comingSoon && "italic",
                                 isActive
                                   ? "text-violet-600 dark:text-violet-400"
@@ -186,12 +189,6 @@ export function LifecycleBar({ activeStage, onStageClick, counts, statusMessage 
           })}
         </div>
       </div>
-
-      {statusMessage && (
-        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <p className="text-sm text-muted-foreground text-center">{statusMessage}</p>
-        </div>
-      )}
     </div>
   );
 }
