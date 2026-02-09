@@ -851,7 +851,7 @@ export default function Homeowner() {
               {/* Primary Action */}
               <Button 
                 size="lg" 
-                className="w-full h-14 text-lg rounded-full"
+                className="w-full h-14 text-lg rounded-full bg-blue-100/80 text-blue-600 hover:bg-blue-200/80 border border-blue-200/60 shadow-sm"
                 disabled={createCaseMutation.isPending}
                 onClick={() => {
                   createCaseMutation.mutate({
