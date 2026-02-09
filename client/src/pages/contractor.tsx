@@ -1464,13 +1464,11 @@ export default function Contractor() {
                 }))
             }
             filterTabs={[
-              { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
-              { id: "in review", label: "Reviewing", count: jobs.filter(j => j.status === "In Review").length },
               { id: "passed", label: "Passed", count: dismissedJobs.length, secondary: true },
             ]}
-            activeFilter={requestsFilter === "all" ? "new" : requestsFilter}
+            activeFilter={requestsFilter === "passed" ? "passed" : "none"}
             onFilterChange={(filterId) => {
-              setRequestsFilter(filterId);
+              setRequestsFilter(filterId === "passed" ? "passed" : "new");
               setSelectedCaseId(null);
             }}
             showSearch={true}
@@ -1628,13 +1626,12 @@ export default function Contractor() {
               };
             })}
             filterTabs={[
-              { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
-              { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
-              { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length, groupedWith: ["cancelled", "expired"] },
+              { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved" || q.status === "accepted").length, groupedWith: ["declined", "cancelled", "expired"] },
+              { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
               { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
               { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
             ]}
-            activeFilter="draft"
+            activeFilter="none"
             showSearch={true}
             showSort={true}
             itemType="quote"
@@ -1705,17 +1702,14 @@ export default function Contractor() {
                       }))
                   }
                   filterTabs={[
-                    { id: "new", label: "New", count: jobs.filter(j => j.status === "New").length },
-                    { id: "in review", label: "Reviewing", count: jobs.filter(j => j.status === "In Review").length },
                     { id: "passed", label: "Passed", count: dismissedJobs.length, secondary: true },
                   ]}
-                  activeFilter={requestsFilter === "passed" ? "passed" : lifecycleToFilter[lifecycleStage]}
+                  activeFilter={requestsFilter === "passed" ? "passed" : "none"}
                   onFilterChange={(filterId) => {
                     if (filterId === "passed") {
                       setRequestsFilter("passed");
                     } else {
-                      setRequestsFilter(filterId);
-                      setLifecycleStage(filterId === "in review" ? "reviewing" : "new");
+                      setRequestsFilter("new");
                     }
                     setSelectedCaseId(null);
                   }}
@@ -1800,23 +1794,14 @@ export default function Contractor() {
                     };
                   })}
                   filterTabs={[
-                    { id: "draft", label: "Draft", count: quotes.filter(q => q.status === "draft").length },
-                    { id: "sent", label: "Sent", count: quotes.filter(q => q.status === "sent" || q.status === "awaiting_response").length },
-                    { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length, groupedWith: ["cancelled", "expired"] },
+                    { id: "approved", label: "Approved", count: quotes.filter(q => q.status === "approved" || q.status === "accepted").length, groupedWith: ["declined", "cancelled", "expired"] },
+                    { id: "declined", label: "Declined", count: quotes.filter(q => q.status === "declined").length },
                     { id: "cancelled", label: "Cancelled", count: quotes.filter(q => q.status === "cancelled").length },
                     { id: "expired", label: "Expired", count: quotes.filter(q => q.status === "expired").length },
                   ]}
-                  activeFilter={quotesFilter || lifecycleToFilter[lifecycleStage]}
+                  activeFilter={quotesFilter || "none"}
                   onFilterChange={(filterId) => {
-                    if (filterId === "draft") {
-                      setLifecycleStage("draft");
-                      setQuotesFilter(null);
-                    } else if (filterId === "sent") {
-                      setLifecycleStage("sent");
-                      setQuotesFilter(null);
-                    } else {
-                      setQuotesFilter(filterId);
-                    }
+                    setQuotesFilter(filterId);
                     setSelectedCaseId(null);
                   }}
                   showSearch={true}

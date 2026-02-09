@@ -223,12 +223,12 @@ export function MayaCarouselLayout({
     onFilterChange?.(defaultFilter);
   };
   
-  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || (activeFilter !== "all" && activeFilter !== defaultFilter);
+  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || (activeFilter !== "all" && activeFilter !== "none" && activeFilter !== defaultFilter);
   
   const filteredItems = useMemo(() => {
     let result = [...items];
     
-    if (activeFilter !== "all") {
+    if (activeFilter !== "all" && activeFilter !== "none") {
       if (activeFilter === "sent") {
         result = result.filter(item => item.status.toLowerCase() === "sent" || item.status.toLowerCase() === "awaiting_response");
       } else if (activeFilter === "completed") {
@@ -870,11 +870,11 @@ export function MayaCarouselLayout({
                       );
                     })}
 
-                    {secondaryTabs.map((tab) => {
+                    {secondaryTabs.map((tab, idx) => {
                       const isActive = activeFilter === tab.id;
                       return (
                         <div key={tab.id} className="flex items-center">
-                          <div className="w-3 h-[1px] bg-slate-100" />
+                          {(primaryTabs.length > 0 || idx > 0) && <div className="w-3 h-[1px] bg-slate-100" />}
                           <button
                             onClick={() => handleFilterChange(tab.id)}
                             className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all whitespace-nowrap ${
@@ -898,7 +898,7 @@ export function MayaCarouselLayout({
 
                     {groupedTab && (
                       <div className="flex items-center relative">
-                        <div className="w-3 h-[1px] bg-slate-100" />
+                        {(primaryTabs.length > 0 || secondaryTabs.length > 0) && <div className="w-3 h-[1px] bg-slate-100" />}
                         <div className="relative group">
                           <button
                             className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all whitespace-nowrap ${
