@@ -1478,7 +1478,7 @@ export default function Contractor() {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Quote"}
+            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
             onAccept={requestsFilter === "passed" 
               ? (item) => { restoreCaseMutation.mutate(item.id); }
               : (item) => { openAcceptQuoteDialog(item); }
@@ -1720,7 +1720,7 @@ export default function Contractor() {
                   categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
                   itemType="request"
                   onItemSelect={(item) => { handleSelectCase(item.id); }}
-                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Quote"}
+                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
                   onAccept={requestsFilter === "passed"
                     ? (item) => { restoreCaseMutation.mutate(item.id); }
                     : (item) => { openAcceptQuoteDialog(item); }
@@ -2075,7 +2075,7 @@ export default function Contractor() {
                     disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept & Quote"}
+                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept & Estimate"}
                   </Button>
                   <Button variant="outline" className="rounded-full" onClick={() => setView("calendar")}>
                     Schedule
@@ -2218,11 +2218,11 @@ export default function Contractor() {
       <Dialog open={acceptQuoteDialogOpen} onOpenChange={setAcceptQuoteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Accept & Quote</DialogTitle>
+            <DialogTitle>Send Estimate</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Accept this job and set your pricing. The homeowner will see your price.
+              Express interest and share your initial pricing. A formal quote can be sent later.
             </p>
             {acceptQuoteCase && (
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
@@ -2237,7 +2237,7 @@ export default function Contractor() {
             >
               <div className="flex items-center space-x-3">
                 <RadioGroupItem value="price" id="price-option" />
-                <Label htmlFor="price-option" className="font-normal cursor-pointer">Set a price</Label>
+                <Label htmlFor="price-option" className="font-normal cursor-pointer">Set an estimated price</Label>
               </div>
               {!acceptQuotePriceTbd && (
                 <div className="pl-7 space-y-2">
@@ -2324,7 +2324,7 @@ export default function Contractor() {
               onClick={submitAcceptQuote}
               disabled={acceptCaseMutation.isPending || (!acceptQuotePriceTbd && !acceptQuotePrice)}
             >
-              {acceptCaseMutation.isPending ? "Accepting..." : "Accept Job"}
+              {acceptCaseMutation.isPending ? "Sending..." : "Send Estimate"}
             </Button>
           </DialogFooter>
         </DialogContent>

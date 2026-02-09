@@ -109,7 +109,7 @@ function DraggableItem({ item }: { item: UnscheduledItem }) {
       }
     : undefined;
 
-  const typeLabel = item.type === "quote" ? "Accepted Quote" : "Job";
+  const typeLabel = item.type === "quote" ? "Accepted Estimate" : "Job";
   const typeColor = item.type === "quote" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-violet-50 text-violet-600 border-violet-100";
 
   return (
@@ -537,7 +537,7 @@ export function InHubSchedule() {
     acceptedQuotes.forEach((q: any) => {
       items.push({
         id: q.id,
-        title: q.title || "Accepted Quote",
+        title: q.title || "Accepted Estimate",
         type: "quote",
         urgency: "Low",
         estimatedValue: q.total ? parseFloat(q.total) : 0,
