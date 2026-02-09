@@ -125,6 +125,7 @@ interface MayaCarouselLayoutProps {
   showSearch?: boolean;
   showSort?: boolean;
   categories?: string[];
+  lifecycleBar?: React.ReactNode;
 }
 
 export function MayaCarouselLayout({
@@ -151,6 +152,7 @@ export function MayaCarouselLayout({
   showSearch = false,
   showSort = false,
   categories = [],
+  lifecycleBar,
 }: MayaCarouselLayoutProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [internalFilter, setInternalFilter] = useState<string>(initialActiveFilter || "all");
@@ -814,6 +816,11 @@ export function MayaCarouselLayout({
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Unified Toolbar - View dropdown + Search + Category + Sort + Cards/List toggle */}
           <div className="shrink-0 px-4 py-3 border-b bg-white">
+            {lifecycleBar && (
+              <div className="mb-3">
+                {lifecycleBar}
+              </div>
+            )}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               {/* Lifecycle Pipeline Bar */}
               {filterTabs && filterTabs.length > 0 && (() => {

@@ -1646,20 +1646,20 @@ export default function Contractor() {
         {/* Unified Work View with Lifecycle Bar */}
         {view === "work" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="shrink-0 px-4 pt-3 pb-2">
-              <LifecycleBar
-                activeStage={lifecycleStage}
-                onStageClick={(stageId) => {
-                  setLifecycleStage(stageId);
-                  setSelectedCaseId(null);
-                }}
-                counts={lifecycleCounts}
-                statusMessage={lifecycleStatusMessage}
-              />
-            </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               {lifecycleGroup === "requests" && (
                 <MayaCarouselLayout
+                  lifecycleBar={
+                    <LifecycleBar
+                      activeStage={lifecycleStage}
+                      onStageClick={(stageId) => {
+                        setLifecycleStage(stageId);
+                        setSelectedCaseId(null);
+                      }}
+                      counts={lifecycleCounts}
+                      statusMessage={lifecycleStatusMessage}
+                    />
+                  }
                   title={lifecycleStage === "reviewing" ? "Reviewing Requests" : "New Job Requests"}
                   subtitle={lifecycleStage === "reviewing" ? "Requests currently under review" : "Jobs waiting for your response"}
                   items={jobs.filter(j => ["New", "In Review", "Submitted"].includes(j.status)).map(job => ({
@@ -1699,6 +1699,17 @@ export default function Contractor() {
               )}
               {lifecycleGroup === "quotes" && (
                 <MayaCarouselLayout
+                  lifecycleBar={
+                    <LifecycleBar
+                      activeStage={lifecycleStage}
+                      onStageClick={(stageId) => {
+                        setLifecycleStage(stageId);
+                        setSelectedCaseId(null);
+                      }}
+                      counts={lifecycleCounts}
+                      statusMessage={lifecycleStatusMessage}
+                    />
+                  }
                   title="Quotes"
                   subtitle={lifecycleStage === "sent" ? "Quotes sent to customers" : "Draft quotes to finalize"}
                   items={quotes.map(quote => {
@@ -1758,6 +1769,17 @@ export default function Contractor() {
               )}
               {lifecycleGroup === "jobs" && (
                 <MayaCarouselLayout
+                  lifecycleBar={
+                    <LifecycleBar
+                      activeStage={lifecycleStage}
+                      onStageClick={(stageId) => {
+                        setLifecycleStage(stageId);
+                        setSelectedCaseId(null);
+                      }}
+                      counts={lifecycleCounts}
+                      statusMessage={lifecycleStatusMessage}
+                    />
+                  }
                   title="Jobs"
                   subtitle="Track and manage your active work"
                   items={jobs.filter(j => ["In Review", "In Progress", "Scheduled", "Confirmed", "Completed", "Resolved"].includes(j.status)).map(job => ({
