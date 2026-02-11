@@ -68,7 +68,7 @@ import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 import { LifecycleBar } from "@/components/contractor/lifecycle-bar";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work" | "maya";
 
 interface ChatMessage {
   id: string;
@@ -171,7 +171,7 @@ export default function Contractor() {
   const [view, setView] = useState<ViewState>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlView = params.get("view");
-    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team", "work"].includes(urlView)) {
+    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team", "work", "maya"].includes(urlView)) {
       return urlView as ViewState;
     }
     return "landing";
@@ -935,9 +935,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" || view === "maya" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" && view !== "work" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" || view === "maya" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" && view !== "work" && view !== "maya" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -964,7 +964,7 @@ export default function Contractor() {
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
         <main className={`flex flex-col ${
-          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule" || view === "work"
+          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule" || view === "work" || view === "maya"
             ? "flex-1 min-h-0 overflow-hidden" 
             : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
         }`}>
@@ -1001,7 +1001,7 @@ export default function Contractor() {
                   <div className="absolute -bottom-1 right-6 w-2 h-2 rotate-45" style={{ background: 'rgba(139, 92, 246, 0.15)', borderRight: '1px solid rgba(139, 92, 246, 0.25)', borderBottom: '1px solid rgba(139, 92, 246, 0.25)' }} />
                 </div>
                 <button
-                  onClick={() => setView("maya" as ViewState)}
+                  onClick={() => setView("maya")}
                   className={`group flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${mayaHovered ? 'scale-105' : ''}`}
                   style={{
                     background: mayaHovered 
@@ -1973,6 +1973,110 @@ export default function Contractor() {
         {view === ("schedule" as ViewState) && (
           <div className="flex-1 min-h-0 overflow-hidden">
             <InHubSchedule />
+          </div>
+        )}
+
+        {/* Maya AI Chat View */}
+        {view === "maya" && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4">
+              <div className="flex items-center gap-3 py-4 border-b mb-4">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{
+                    background: 'radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.35), rgba(167, 139, 250, 0.2) 50%, transparent 80%), linear-gradient(180deg, rgba(245,243,255,0.95), rgba(237,233,254,0.9))',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2), inset 0 2px 4px rgba(255,255,255,0.6)',
+                  }}
+                >
+                  <Sparkles className="h-5 w-5 text-violet-500" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-base">Maya</h2>
+                  <p className="text-xs text-muted-foreground">AI Advisor</p>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-4 pb-4">
+                  {mayaChatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender === "contractor" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                        msg.sender === "contractor"
+                          ? "bg-primary text-primary-foreground rounded-br-md"
+                          : "bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200/50 dark:border-violet-800/30 rounded-bl-md"
+                      }`}>
+                        {msg.sender === "maya" && (
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Sparkles className="h-3 w-3 text-violet-500" />
+                            <span className="text-xs font-medium text-violet-600 dark:text-violet-400">Maya</span>
+                          </div>
+                        )}
+                        <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                        <p className={`text-[10px] mt-1 ${
+                          msg.sender === "contractor" ? "text-primary-foreground/70" : "text-muted-foreground"
+                        }`}>
+                          {format(new Date(msg.timestamp), "h:mm a")}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {isMayaTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200/50 dark:border-violet-800/30 rounded-2xl rounded-bl-md px-4 py-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Sparkles className="h-3 w-3 text-violet-500" />
+                          <span className="text-xs font-medium text-violet-600 dark:text-violet-400">Maya</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+              </ScrollArea>
+
+              <div className="border-t pt-4 pb-4">
+                <form onSubmit={handleMayaSubmit} className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={mayaInput}
+                      onChange={(e) => setMayaInput(e.target.value)}
+                      placeholder="Ask Maya anything..."
+                      className="pr-10 rounded-full h-11"
+                      disabled={isMayaTyping}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="h-11 w-11 rounded-full bg-violet-600 hover:bg-violet-700"
+                    disabled={!mayaInput.trim() || isMayaTyping}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {["What's on my schedule today?", "Help me create a quote", "Summarize my open jobs"].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => {
+                        setMayaInput(suggestion);
+                      }}
+                      className="text-xs px-3 py-1.5 rounded-full border border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
