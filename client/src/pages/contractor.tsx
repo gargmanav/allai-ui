@@ -972,244 +972,446 @@ export default function Contractor() {
         {/* Landing View - Action-Focused Dashboard */}
         {view === "landing" && !selectedCaseId && (
           <div className="flex-1 flex flex-col pt-4">
-            {/* Two-Column Layout: Maya Advisor Left + Lifecycle Right */}
+            {/* Top Row - Greeting + Quick Add + Maya Button */}
+            <div className="flex items-start justify-between mb-8">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {firstName}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {format(new Date(), 'EEEE, MMMM d')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+              <QuickAdd onNavigate={(v) => setView(v as ViewState)} />
+              <div 
+                className="relative"
+                onMouseEnter={() => setMayaHovered(true)}
+                onMouseLeave={() => setMayaHovered(false)}
+              >
+                <div 
+                  className={`absolute -top-12 right-0 px-3 py-1.5 rounded-lg text-xs text-violet-600 dark:text-violet-400 whitespace-nowrap transition-all duration-300 ${showMayaBubble ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
+                  }}
+                >
+                  {mayaSuggestions[mayaSuggestionIndex]}
+                  <div className="absolute -bottom-1 right-6 w-2 h-2 rotate-45" style={{ background: 'rgba(139, 92, 246, 0.15)', borderRight: '1px solid rgba(139, 92, 246, 0.25)', borderBottom: '1px solid rgba(139, 92, 246, 0.25)' }} />
+                </div>
+                <button
+                  onClick={() => setView("maya")}
+                  className={`group flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${mayaHovered ? 'scale-105' : ''}`}
+                  style={{
+                    background: mayaHovered 
+                      ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(59, 130, 246, 0.35) 100%)'
+                      : 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                    border: `1px solid ${mayaHovered ? 'rgba(139, 92, 246, 0.5)' : 'rgba(139, 92, 246, 0.3)'}`,
+                    boxShadow: mayaHovered 
+                      ? '0 6px 24px rgba(139, 92, 246, 0.4)' 
+                      : '0 4px 12px rgba(139, 92, 246, 0.15)'
+                  }}
+                >
+                  <Sparkles className={`h-4 w-4 transition-colors ${mayaHovered ? 'text-violet-400' : 'text-violet-500'}`} />
+                  <span className={`text-sm font-medium transition-colors ${mayaHovered ? 'text-violet-600 dark:text-violet-300' : 'text-violet-700 dark:text-violet-400'}`}>Ask Maya</span>
+                </button>
+              </div>
+              </div>
+            </div>
+
+            {/* Jobber-Style 4-Column Dashboard Grid - Frosted Glass */}
             {(() => {
               const requestsCount = newJobsCount;
               const requestsValue = jobs
                 .filter(j => ["New", "In Review", "Submitted", "Open"].includes(j.status))
                 .reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
+              
               const draftQuotes = quotes.filter(q => q.status === 'draft');
               const sentQuotes = quotes.filter(q => q.status === 'sent');
-              const reviewingCount = jobs.filter(j => j.status === "In Review").length;
+              const sentQuotesValue = sentQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
+              
+              const activeJobsValue = activeJobs.reduce((sum, j) => sum + (Number(j.estimatedValue) || 0), 0);
+              
               const approvedQuotes = quotes.filter(q => q.status === 'approved');
+              const totalOwed = approvedQuotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
+              
+              // Additional metrics for Jobber-like sub-rows
+              const assessmentCompleted = jobs.filter(j => j.status === 'Assessed').length;
               const overdueRequests = jobs.filter(j => {
                 const created = new Date(j.createdAt);
                 const daysSince = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
                 return ["New", "Pending"].includes(j.status) && daysSince > 7;
               }).length;
-              const unreadMessages = conversationsQuery.data
-                ? conversationsQuery.data.reduce((s: number, c: any) => s + (c.unreadCount || 0), 0)
-                : 0;
-              const waitingConversations = conversationsQuery.data
-                ? conversationsQuery.data.filter((c: any) => (c.unreadCount || 0) > 0).length
-                : 0;
-              const highestValueJob = jobs
-                .filter(j => ["New", "In Review", "Submitted"].includes(j.status))
-                .sort((a, b) => (Number(b.estimatedValue) || 0) - (Number(a.estimatedValue) || 0))[0];
-              const urgentCount = jobs.filter(j => 
-                ["New", "In Review"].includes(j.status) && (j.priority === "urgent" || j.priority === "emergency")
-              ).length + overdueRequests;
-
+              const changesRequested = quotes.filter(q => q.status === 'changes_requested').length;
+              const requiresInvoicing = jobs.filter(j => j.status === 'Completed').length;
+              const pastDueInvoices = 0; // Would come from invoices API
+              const awaitingPayment = approvedQuotes.length;
+              
+              // Sparkline data from real historical metrics API (with fallback to current values only)
+              const requestsSparkline = dashboardMetrics?.requests ?? { received: [requestsCount], converted: [assessmentCompleted] };
+              const quotesSparkline = dashboardMetrics?.quotes ?? { sent: [sentQuotes.length], approved: [approvedQuotes.length] };
+              const jobsSparkline = dashboardMetrics?.jobs ?? { started: [activeJobs.length], completed: [requiresInvoicing] };
+              const invoicesSparkline = dashboardMetrics?.invoices ?? { sent: [awaitingPayment], paid: [0] };
+              
+              // Calculate summary stats for tooltips
+              const requestsTotal7Days = requestsSparkline.received.reduce((a, b) => a + b, 0);
+              const requestsConverted7Days = requestsSparkline.converted.reduce((a, b) => a + b, 0);
+              const requestsConversionRate = requestsTotal7Days > 0 ? Math.round((requestsConverted7Days / requestsTotal7Days) * 100) : 0;
+              
+              const quotesSent7Days = quotesSparkline.sent.reduce((a, b) => a + b, 0);
+              const quotesApproved7Days = quotesSparkline.approved.reduce((a, b) => a + b, 0);
+              const quotesApprovalRate = quotesSent7Days > 0 ? Math.round((quotesApproved7Days / quotesSent7Days) * 100) : 0;
+              
+              const jobsStarted7Days = jobsSparkline.started.reduce((a, b) => a + b, 0);
+              const jobsCompleted7Days = jobsSparkline.completed.reduce((a, b) => a + b, 0);
+              const jobsCompletionRate = jobsStarted7Days > 0 ? Math.round((jobsCompleted7Days / jobsStarted7Days) * 100) : 0;
+              
+              const invoicesSent7Days = invoicesSparkline.sent.reduce((a, b) => a + b, 0);
+              const invoicesPaid7Days = invoicesSparkline.paid.reduce((a, b) => a + b, 0);
+              const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
+              
               return (
-                <div className="flex gap-6 flex-1 min-h-0">
-                  {/* LEFT COLUMN - Maya AI Advisor */}
-                  <div className="w-[320px] shrink-0 flex flex-col">
-                    {/* Maya Header */}
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)' }}>
-                        <Sparkles className="h-5 w-5 text-white" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+                  {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("requests")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "requests"}>
+                      <p className="text-gray-600">{requestsTotal7Days} requests received</p>
+                      <p className="text-gray-600">{requestsConverted7Days} converted to jobs</p>
+                      <p className="text-blue-600 font-medium">{requestsConversionRate}% conversion rate</p>
+                    </ThoughtBubble>
+                  <button
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    onClick={() => { setLifecycleStage("new"); setView("work" as ViewState); }}
+                    style={{
+                      background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      border: '2px solid rgba(255, 255, 255, 0.85)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
+                    }}
+                  >
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                    
+                    {/* Animated running light top bar - AllAI pyramid colors */}
+                    <div 
+                      className="running-light-bar h-1 transition-all duration-300" 
+                      style={{ 
+                        backdropFilter: 'blur(16px) saturate(200%)',
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
+                      }} 
+                    />
+                    
+                    <div className="relative p-4">
+                      {/* Header with icon */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Requests</span>
+                        <Briefcase className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Maya AI Advisor</h3>
-                        <p className="text-xs text-muted-foreground">Your intelligent assistant</p>
+                      
+                      {/* Primary metric */}
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">New</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{requestsCount}</span>
                       </div>
-                    </div>
-
-                    <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-3">Recommendations</p>
-
-                    <div className="space-y-3 flex-1 overflow-y-auto">
-                      {/* Messages Waiting Card */}
-                      {unreadMessages > 0 && (
-                        <button
-                          onClick={() => setView("messages" as ViewState)}
-                          className="w-full text-left rounded-xl p-4 transition-all duration-200 hover:shadow-md border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                              <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Messages Waiting</h4>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {waitingConversations} homeowner{waitingConversations !== 1 ? 's' : ''} waiting for your reply ({unreadMessages} unread message{unreadMessages !== 1 ? 's' : ''}). Quick responses improve...
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      )}
-
-                      {/* Highest Value Card */}
-                      {highestValueJob && (
-                        <button
-                          onClick={() => { handleSelectCase(highestValueJob.id); }}
-                          className="w-full text-left rounded-xl p-4 transition-all duration-200 hover:shadow-md border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                              <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Highest Value</h4>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                "{highestValueJob.title}" has the highest potential value at ${(Number(highestValueJob.estimatedValue) || 0).toLocaleString()}. Consider prioritizin...
-                              </p>
-                              <span className="text-xs text-violet-600 dark:text-violet-400 font-medium mt-2 hover:underline inline-block">
-                                View &gt;
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      )}
-
-                      {/* Urgent Attention Card */}
-                      {urgentCount > 0 && (
-                        <button
-                          onClick={() => { setLifecycleStage("new"); setView("work" as ViewState); }}
-                          className="w-full text-left rounded-xl p-4 transition-all duration-200 hover:shadow-md border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Urgent Attention</h4>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                You have {urgentCount} urgent request{urgentCount !== 1 ? 's' : ''} that need{urgentCount === 1 ? 's' : ''} immediate attention.
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      )}
-
-                      {/* No recommendations fallback */}
-                      {unreadMessages === 0 && !highestValueJob && urgentCount === 0 && (
-                        <div className="rounded-xl p-4 border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-center">
-                          <Sparkles className="h-6 w-6 text-violet-400 mx-auto mb-2" />
-                          <p className="text-xs text-muted-foreground">All caught up! No recommendations right now.</p>
+                      
+                      {/* Sub-metrics */}
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Converted</span>
+                          <span className="text-xs font-semibold text-emerald-600">{assessmentCompleted}</span>
                         </div>
-                      )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Overdue</span>
+                          <span className={`text-xs font-semibold ${overdueRequests > 0 ? 'text-red-500' : 'text-gray-700'}`}>{overdueRequests}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Value</span>
+                          <span className="text-sm font-bold text-blue-600">${requestsValue.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Last 7 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
+                        <Sparkline 
+                          data={requestsSparkline.received}
+                          color="#3b82f6"
+                          secondaryData={requestsSparkline.converted}
+                          secondaryColor="#6b7280"
+                          labels={{ primary: "Received", secondary: "Converted" }}
+                        />
+                      </div>
                     </div>
-
-                    {/* Ask Maya CTA at bottom */}
-                    <button
-                      onClick={() => setView("maya")}
-                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 hover:scale-[1.02]"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                      }}
-                    >
-                      <Sparkles className="h-4 w-4 text-violet-500" />
-                      <span className="text-sm font-medium text-violet-700 dark:text-violet-400">Ask Maya</span>
-                    </button>
+                  </button>
                   </div>
 
-                  {/* RIGHT COLUMN - Lifecycle + Cards */}
-                  <div className="flex-1 flex flex-col min-w-0">
-                    {/* Lifecycle Bar */}
-                    <div className="mb-4">
-                      <LifecycleBar
-                        activeStage={lifecycleStage}
-                        onStageClick={(stageId) => {
-                          setLifecycleStage(stageId);
-                          setView("work" as ViewState);
-                        }}
-                        counts={lifecycleCounts}
-                        statusMessage={`${newJobsCount} new request${newJobsCount !== 1 ? 's' : ''} waiting for your response`}
-                      />
-                    </div>
-
-                    {/* Filter Row */}
-                    <div className="flex items-center gap-2 mb-4 flex-wrap">
-                      <select
-                        className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300"
-                        defaultValue="all"
-                      >
-                        <option value="all">All Categories</option>
-                        <option value="plumbing">Plumbing</option>
-                        <option value="hvac">HVAC</option>
-                        <option value="electrical">Electrical</option>
-                        <option value="general">General Maintenance</option>
-                      </select>
-                      <select
-                        className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300"
-                        defaultValue="newest"
-                      >
-                        <option value="newest">Newest</option>
-                        <option value="oldest">Oldest</option>
-                        <option value="value">Highest Value</option>
-                      </select>
-                      {dismissedJobs.length > 0 && (
-                        <button
-                          onClick={() => { setRequestsFilter("passed"); setView("work" as ViewState); }}
-                          className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                        >
-                          Passed {dismissedJobs.length}
-                        </button>
-                      )}
-                      <div className="flex-1" />
-                      <div className="flex items-center gap-1.5 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                          <input
-                            type="text"
-                            placeholder="Search..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="text-xs pl-8 pr-3 py-1.5 bg-transparent outline-none w-28 focus:w-40 transition-all"
-                          />
+                  {/* Quotes Column - Heavy Frosted Glass with Amber Hue on Hover */}
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("quotes")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "quotes"}>
+                      <p className="text-gray-600">{quotesSent7Days} quotes sent</p>
+                      <p className="text-gray-600">{quotesApproved7Days} approved</p>
+                      <p className="text-amber-600 font-medium">{quotesApprovalRate}% approval rate</p>
+                    </ThoughtBubble>
+                  <button
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    onClick={() => { setLifecycleStage("draft"); setView("work" as ViewState); }}
+                    style={{
+                      background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      border: '2px solid rgba(255, 255, 255, 0.85)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
+                    }}
+                  >
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                    
+                    {/* Animated running light top bar - AllAI pyramid colors */}
+                    <div 
+                      className="running-light-bar h-1 transition-all duration-300" 
+                      style={{ 
+                        backdropFilter: 'blur(16px) saturate(200%)',
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
+                      }} 
+                    />
+                    
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Quotes</span>
+                        <Receipt className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
+                      </div>
+                      
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Draft</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{draftQuotes.length}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Approved</span>
+                          <span className="text-xs font-semibold text-emerald-600">{approvedQuotes.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Changes</span>
+                          <span className={`text-xs font-semibold ${changesRequested > 0 ? 'text-orange-500' : 'text-gray-700'}`}>{changesRequested}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Awaiting</span>
+                          <span className="text-sm font-bold text-amber-600">${sentQuotesValue.toLocaleString()}</span>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Scrollable Cards Grid */}
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-                        {jobs
-                          .filter(j => ["New", "In Review", "Submitted"].includes(j.status))
-                          .filter(j => !searchQuery || j.title.toLowerCase().includes(searchQuery.toLowerCase()) || j.customerName.toLowerCase().includes(searchQuery.toLowerCase()))
-                          .map(job => (
-                            <button
-                              key={job.id}
-                              onClick={() => handleSelectCase(job.id)}
-                              className="group text-left rounded-xl p-3 border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md hover:border-violet-200 dark:hover:border-violet-800 transition-all duration-200"
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className={`w-8 h-8 rounded-full ${job.color.bg} flex items-center justify-center text-white text-xs font-medium`}>
-                                  {job.customerInitials}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{job.title}</p>
-                                  <p className="text-[11px] text-muted-foreground truncate">{job.customerName}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                  {job.status}
-                                </Badge>
-                                {job.estimatedValue && (
-                                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                    ${Number(job.estimatedValue).toLocaleString()}
-                                  </span>
-                                )}
-                              </div>
-                              {job.status === "In Review" && (
-                                <p className="text-[10px] text-orange-500 mt-1">Awaiting Scheduling</p>
-                              )}
-                            </button>
-                          ))}
-                        {jobs.filter(j => ["New", "In Review", "Submitted"].includes(j.status)).length === 0 && (
-                          <div className="col-span-full text-center py-12 text-muted-foreground">
-                            <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                            <p className="text-sm">No requests right now</p>
-                          </div>
-                        )}
+                      
+                      {/* Last 7 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
+                        <Sparkline 
+                          data={quotesSparkline.sent}
+                          color="#f59e0b"
+                          secondaryData={quotesSparkline.approved}
+                          secondaryColor="#6b7280"
+                          labels={{ primary: "Sent", secondary: "Approved" }}
+                        />
                       </div>
                     </div>
+                  </button>
+                  </div>
+
+                  {/* Jobs Column - Heavy Frosted Glass with Teal/Green Hue on Hover */}
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("jobs")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "jobs"}>
+                      <p className="text-gray-600">{jobsStarted7Days} jobs started</p>
+                      <p className="text-gray-600">{jobsCompleted7Days} completed</p>
+                      <p className="text-green-600 font-medium">{jobsCompletionRate}% completion rate</p>
+                    </ThoughtBubble>
+                  <button
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    onClick={() => { setLifecycleStage("awaiting"); setView("work" as ViewState); }}
+                    style={{
+                      background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      border: '2px solid rgba(255, 255, 255, 0.85)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
+                    }}
+                  >
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                    
+                    {/* Animated running light top bar - AllAI pyramid colors */}
+                    <div 
+                      className="running-light-bar h-1 transition-all duration-300" 
+                      style={{ 
+                        backdropFilter: 'blur(16px) saturate(200%)',
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
+                      }} 
+                    />
+                    
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Jobs</span>
+                        <CheckCircle className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
+                      </div>
+                      
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Active</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeJobs.length}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Completed</span>
+                          <span className="text-xs font-semibold text-emerald-600">{requiresInvoicing}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Scheduled</span>
+                          <span className="text-xs font-semibold text-gray-700">{scheduledJobsCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Value</span>
+                          <span className="text-sm font-bold text-slate-700">${activeJobsValue.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Last 7 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 7 days</span>
+                        <Sparkline 
+                          data={jobsSparkline.started}
+                          color="#10b981"
+                          secondaryData={jobsSparkline.completed}
+                          secondaryColor="#6b7280"
+                          labels={{ primary: "Started", secondary: "Completed" }}
+                        />
+                      </div>
+                    </div>
+                  </button>
+                  </div>
+
+                  {/* Invoices Column - Heavy Frosted Glass with Violet Hue on Hover */}
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setHoveredCard("invoices")}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <ThoughtBubble visible={hoveredCard === "invoices"}>
+                      <p className="text-gray-600">{invoicesSent7Days} invoices sent</p>
+                      <p className="text-gray-600">{invoicesPaid7Days} paid</p>
+                      <p className="text-violet-600 font-medium">{invoicesPaymentRate}% payment rate</p>
+                    </ThoughtBubble>
+                  <button
+                    className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.10] hover:-translate-y-3 hover:shadow-[0_25px_60px_rgba(139,92,246,0.35),0_15px_35px_rgba(59,130,246,0.25),0_8px_20px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:ring-offset-2"
+                    onClick={() => toast({ title: "Invoices", description: "Invoice management coming soon" })}
+                    style={{
+                      background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      border: '2px solid rgba(255, 255, 255, 0.85)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)'
+                    }}
+                  >
+                    {/* Hover overlay - very light gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    {/* Subtle glow effect on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                    
+                    {/* Animated running light top bar - AllAI pyramid colors */}
+                    <div 
+                      className="running-light-bar h-1 transition-all duration-300" 
+                      style={{ 
+                        backdropFilter: 'blur(16px) saturate(200%)',
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)'
+                      }} 
+                    />
+                    
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Invoices</span>
+                        <DollarSign className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
+                      </div>
+                      
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Owed</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{approvedQuotes.length}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Paid</span>
+                          <span className="text-xs font-semibold text-emerald-600">0</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">Past Due</span>
+                          <span className={`text-xs font-semibold ${pastDueInvoices > 0 ? 'text-red-500' : 'text-gray-700'}`}>{pastDueInvoices}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">Total</span>
+                          <span className="text-sm font-bold text-violet-600">${totalOwed.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Last 30 days sparkline */}
+                      <div className="pt-2 border-t border-gray-100/50 mt-2">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Last 30 days</span>
+                        <Sparkline 
+                          data={invoicesSparkline.sent}
+                          color="#8b5cf6"
+                          secondaryData={invoicesSparkline.paid}
+                          secondaryColor="#6b7280"
+                          labels={{ primary: "Sent", secondary: "Paid" }}
+                        />
+                      </div>
+                    </div>
+                  </button>
                   </div>
                 </div>
               );
             })()}
+
+            {/* Today's Schedule - Team Timeline with current time indicator */}
+            <div className="mb-8">
+              <TeamTimeline 
+                teamMembers={(teamData?.allMembers || []).map(m => ({
+                  id: m.id,
+                  memberId: m.memberId,
+                  name: m.name,
+                  color: m.color
+                }))}
+                appointments={teamAppointments.map((apt: any) => ({
+                  id: apt.id,
+                  title: apt.title,
+                  scheduledStartAt: apt.scheduledStartAt,
+                  scheduledEndAt: apt.scheduledEndAt,
+                  status: apt.status,
+                  contractorId: apt.contractorId,
+                  teamId: apt.teamId,
+                  address: apt.address,
+                  customerName: apt.customerName,
+                  urgency: apt.urgency,
+                  source: apt.source
+                }))}
+                onViewCalendar={() => setView("schedule" as ViewState)}
+              />
+            </div>
           </div>
         )}
 
