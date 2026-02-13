@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { getMarketplaceCases, acceptCase } from '../services/contractorMarketplace';
 import { db } from '../db';
-import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases, reminders, messageThreads, chatMessages } from '@shared/schema';
+import { smartCases, caseMedia, contractorOrgLinks, organizationMembers, users, properties, contractorCustomers, insertContractorCustomerSchema, vendors, quotes, quoteLineItems, quoteCounterProposals, insertQuoteSchema, insertQuoteLineItemSchema, insertQuoteCounterProposalSchema, contractorTeamMembers, contactTeamMembers, appointments, scheduledJobs, teams, contractorDismissedCases, reminders, messageThreads, chatMessages, contractorSpecialties, userContractorSpecialties } from '@shared/schema';
 import { eq, and, inArray, or, sql, isNotNull } from 'drizzle-orm';
 import { storage } from '../storage';
 import { generateApprovalToken } from '../utils/tokens';
@@ -461,6 +461,136 @@ router.delete('/dismiss-case/:caseId', requireAuth, requireRole('contractor'), a
   } catch (error) {
     console.error('Error restoring case:', error);
     res.status(500).json({ error: 'Failed to restore case' });
+  }
+});
+
+// Get all available specialties
+router.get('/specialties', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const allSpecialties = await db.query.contractorSpecialties.findMany({
+      where: eq(contractorSpecialties.isActive, true),
+      orderBy: (s, { asc }) => [asc(s.tier), asc(s.displayOrder)],
+    });
+    res.json(allSpecialties);
+  } catch (error) {
+    console.error('Error fetching specialties:', error);
+    res.status(500).json({ error: 'Failed to fetch specialties' });
+  }
+});
+
+// Get this contractor's selected specialties
+router.get('/my-specialties', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const mySpecialties = await db.query.userContractorSpecialties.findMany({
+      where: eq(userContractorSpecialties.userId, contractorUserId),
+    });
+    res.json(mySpecialties.map(s => s.specialtyId));
+  } catch (error) {
+    console.error('Error fetching my specialties:', error);
+    res.status(500).json({ error: 'Failed to fetch my specialties' });
+  }
+});
+
+// Update contractor's selected specialties (replace all)
+router.put('/my-specialties', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const { specialtyIds } = req.body as { specialtyIds: string[] };
+    
+    if (!Array.isArray(specialtyIds)) {
+      return res.status(400).json({ error: 'specialtyIds must be an array' });
+    }
+
+    await db.delete(userContractorSpecialties).where(
+      eq(userContractorSpecialties.userId, contractorUserId)
+    );
+
+    if (specialtyIds.length > 0) {
+      await db.insert(userContractorSpecialties).values(
+        specialtyIds.map(sid => ({ userId: contractorUserId, specialtyId: sid }))
+      );
+    }
+
+    res.json({ success: true, specialtyIds });
+  } catch (error) {
+    console.error('Error updating specialties:', error);
+    res.status(500).json({ error: 'Failed to update specialties' });
+  }
+});
+
+// Get marketplace cases filtered by contractor's specialties
+router.get('/job-feed', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const contractorUserId = req.user!.id;
+    const cases = await getMarketplaceCases(contractorUserId);
+    
+    const mySpecialties = await db.query.userContractorSpecialties.findMany({
+      where: eq(userContractorSpecialties.userId, contractorUserId),
+    });
+    
+    let filteredCases = cases;
+    if (mySpecialties.length > 0) {
+      const specialtyRecords = await db.query.contractorSpecialties.findMany({
+        where: inArray(contractorSpecialties.id, mySpecialties.map(s => s.specialtyId)),
+      });
+      const specialtyNames = specialtyRecords.map(s => s.name.toLowerCase());
+      
+      const categoryMapping: Record<string, string[]> = {
+        'plumber': ['plumbing', 'water', 'pipe', 'leak', 'drain'],
+        'hvac technician': ['hvac', 'heating', 'cooling', 'air conditioning', 'thermostat', 'furnace'],
+        'electrician': ['electrical', 'wiring', 'lighting', 'outlet', 'panel'],
+        'general contractor / handyman': ['general maintenance', 'handyman', 'general', 'drywall', 'fixture'],
+        'appliance technician': ['appliance', 'washer', 'dryer', 'dishwasher', 'refrigerator', 'oven'],
+        'carpenter': ['carpentry', 'cabinet', 'shelving', 'trim', 'framing', 'wood'],
+        'painter / drywall specialist': ['painting', 'paint', 'drywall', 'wall repair', 'ceiling'],
+        'roofer': ['roofing', 'roof', 'gutter', 'shingle', 'skylight'],
+        'flooring specialist': ['flooring', 'tile', 'hardwood', 'carpet', 'laminate'],
+        'landscaper / groundskeeper': ['landscaping', 'lawn', 'irrigation', 'tree', 'garden', 'lawncare'],
+        'masonry / concrete contractor': ['masonry', 'concrete', 'foundation', 'patio', 'driveway'],
+        'waterproofing / drainage specialist': ['waterproofing', 'water restoration', 'restoration', 'drainage', 'sump pump', 'flood'],
+        'pest control technician': ['pest', 'termite', 'rodent', 'insect'],
+        'locksmith / door hardware technician': ['lock', 'door', 'key', 'access'],
+        'glass & window specialist': ['glass', 'window', 'seal', 'caulking'],
+        'garage door technician': ['garage', 'garage door', 'opener'],
+        'insulation contractor': ['insulation', 'attic'],
+        'structural': ['structural'],
+      };
+      
+      const specialtyDescWords = specialtyRecords.flatMap(s => 
+        (s.description || '').toLowerCase().split(/[,\s]+/).filter(w => w.length > 3)
+      );
+      
+      filteredCases = cases.filter(c => {
+        const caseCategory = (c.category || '').toLowerCase();
+        const caseTitle = (c.title || '').toLowerCase();
+        const combined = caseCategory + ' ' + caseTitle;
+        
+        const matchesMapping = specialtyNames.some(sName => {
+          const keywords = categoryMapping[sName] || [sName];
+          return keywords.some(kw => combined.includes(kw));
+        });
+        
+        if (matchesMapping) return true;
+        
+        return specialtyDescWords.some(w => combined.includes(w));
+      });
+    }
+    
+    filteredCases.sort((a, b) => {
+      if (a.isUrgent && !b.isUrgent) return -1;
+      if (!a.isUrgent && b.isUrgent) return 1;
+      if (a.priority === 'Urgent' && b.priority !== 'Urgent') return -1;
+      if (a.priority !== 'Urgent' && b.priority === 'Urgent') return 1;
+      const aDate = a.postedAt || a.createdAt;
+      const bDate = b.postedAt || b.createdAt;
+      return new Date(bDate!).getTime() - new Date(aDate!).getTime();
+    });
+    
+    res.json(filteredCases);
+  } catch (error) {
+    console.error('Error fetching job feed:', error);
+    res.status(500).json({ error: 'Failed to fetch job feed' });
   }
 });
 

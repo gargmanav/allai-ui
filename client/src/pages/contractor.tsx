@@ -42,7 +42,8 @@ import {
   Trash2,
   Phone,
   UserPlus,
-  Loader2
+  Loader2,
+  Zap
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -67,8 +68,9 @@ import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 import { LifecycleBar } from "@/components/contractor/lifecycle-bar";
+import { JobFeed } from "@/components/contractor/job-feed";
 
-type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work" | "maya";
+type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work" | "maya" | "jobFeed";
 
 interface ChatMessage {
   id: string;
@@ -171,7 +173,7 @@ export default function Contractor() {
   const [view, setView] = useState<ViewState>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlView = params.get("view");
-    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team", "work", "maya"].includes(urlView)) {
+    if (urlView && ["landing", "jobDetail", "pastJobs", "calendar", "schedule", "quotes", "customers", "newJobs", "activeJobs", "messages", "team", "work", "maya", "jobFeed"].includes(urlView)) {
       return urlView as ViewState;
     }
     return "landing";
@@ -812,6 +814,15 @@ export default function Contractor() {
             </div>
             <Button 
               variant="ghost" 
+              className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-500/25 hover:to-orange-500/25 hover:shadow-[0_0_16px_rgba(245,158,11,0.3)] active:from-amber-500/35 active:to-orange-500/35 touch-manipulation"
+              onClick={() => setView("jobFeed")}
+            >
+              <Zap className="h-4 w-4 text-amber-500 group-hover:text-amber-600 transition-colors" />
+              <span className="font-medium group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors">Job Feed</span>
+              <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100 animate-pulse">Live</Badge>
+            </Button>
+            <Button 
+              variant="ghost" 
               className="group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation"
               onClick={() => { setLifecycleStage("new"); setView("work" as ViewState); }}
             >
@@ -935,9 +946,9 @@ export default function Contractor() {
       </aside>
 
       {/* Main Content Area - uses grid for customers view */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" || view === "maya" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "ml-0"} ${view === "customers" ? "h-screen grid grid-rows-[auto_1fr] overflow-hidden" : view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" || view === "maya" || view === "jobFeed" ? "h-screen flex flex-col overflow-hidden" : ""}`}>
         {/* Header */}
-        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" || view === "maya" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" && view !== "work" && view !== "maya" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
+        <header className={`${view === "customers" || view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "team" || view === "schedule" || view === "work" || view === "maya" || view === "jobFeed" ? (view === "customers" ? "row-start-1" : "shrink-0") : "fixed top-0 left-0 right-0 lg:left-auto"} z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`} style={view !== "customers" && view !== "newJobs" && view !== "activeJobs" && view !== "quotes" && view !== "team" && view !== "schedule" && view !== "work" && view !== "maya" && view !== "jobFeed" ? { left: sidebarOpen ? "288px" : "0" } : undefined}>
           <div className="relative flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4">
             {!sidebarOpen && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="absolute left-2 sm:left-4 h-10 w-10 touch-manipulation">
@@ -964,7 +975,7 @@ export default function Contractor() {
         {/* Main Content - different layout for customers view */}
         {view !== "customers" ? (
         <main className={`flex flex-col ${
-          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule" || view === "work" || view === "maya"
+          view === "newJobs" || view === "activeJobs" || view === "quotes" || view === "schedule" || view === "work" || view === "maya" || view === "jobFeed"
             ? "flex-1 min-h-0 overflow-hidden" 
             : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
         }`}>
@@ -1072,6 +1083,24 @@ export default function Contractor() {
               const invoicesPaymentRate = invoicesSent7Days > 0 ? Math.round((invoicesPaid7Days / invoicesSent7Days) * 100) : 0;
               
               return (
+                <>
+                {/* Job Feed Banner */}
+                <button
+                  onClick={() => setView("jobFeed")}
+                  className="w-full mb-4 p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 dark:from-amber-900/20 dark:via-orange-900/20 dark:to-amber-900/20 hover:shadow-lg hover:shadow-amber-200/30 transition-all duration-200 flex items-center gap-3 group touch-manipulation"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                    <Zap className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">Job Feed</span>
+                    <p className="text-xs text-muted-foreground">Tap to browse available jobs near you</p>
+                  </div>
+                  <Badge className="bg-amber-500 text-white hover:bg-amber-500 animate-pulse text-xs">
+                    {requestsCount} new
+                  </Badge>
+                </button>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
                   {/* Requests Column - Heavy Frosted Glass with Blue Hue on Hover */}
                   <div 
@@ -1384,6 +1413,7 @@ export default function Contractor() {
                   </button>
                   </div>
                 </div>
+                </>
               );
             })()}
 
@@ -1973,6 +2003,20 @@ export default function Contractor() {
         {view === ("schedule" as ViewState) && (
           <div className="flex-1 min-h-0 overflow-hidden">
             <InHubSchedule />
+          </div>
+        )}
+
+        {/* Job Feed - Uber-style view */}
+        {view === "jobFeed" && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <JobFeed 
+              onQuoteCase={(caseId) => {
+                setSelectedCaseId(caseId);
+                setView("work");
+                setLifecycleStage("new");
+              }}
+              onBack={() => setView("landing")}
+            />
           </div>
         )}
 
