@@ -64,7 +64,7 @@ export default function Dashboard() {
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminder, setEditingReminder] = useState<any>(null);
 
-  // Redirect contractors and tenants to their dedicated dashboards
+  // Redirect users to their dedicated dashboards
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
       if (user.primaryRole === "contractor") {
@@ -73,6 +73,10 @@ export default function Dashboard() {
       }
       if (user.primaryRole === "tenant") {
         setLocation("/tenant-dashboard");
+        return;
+      }
+      if (user.primaryRole === "org_admin") {
+        setLocation("/landlord");
         return;
       }
     }
