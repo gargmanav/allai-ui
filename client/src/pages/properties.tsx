@@ -16,7 +16,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { Property, OwnershipEntity, Unit } from "@shared/schema";
 import ImpersonationBanner from "@/components/admin/impersonation-banner";
-import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 // Extended property type that includes ownership information  
 type PropertyWithOwnerships = Property & {
@@ -33,7 +32,6 @@ export default function Properties() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const isInsideHub = useIsInsideHubMaya();
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<string>("all");
   const [editingProperty, setEditingProperty] = useState<PropertyWithOwnerships | null>(null);
@@ -429,92 +427,52 @@ export default function Properties() {
     <div data-testid="page-properties">
       <ImpersonationBanner />
       
-      {!isInsideHub && (
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Properties</h1>
-            <p className="text-muted-foreground">Manage your property portfolio</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                <SelectTrigger className="w-48" data-testid="select-entity-filter">
-                  <SelectValue placeholder="Filter by ownership" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Entities</SelectItem>
-                  {entities?.map((entity) => (
-                    <SelectItem key={entity.id} value={entity.id}>
-                      <div className="flex items-center space-x-2">
-                        <Building2 className="h-3 w-3" />
-                        <span>{entity.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {entity.type}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Properties</h1>
+          <p className="text-muted-foreground">Manage your property portfolio</p>
+        </div>
+            
+            <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Switch 
-                  id="show-archived"
-                  checked={showArchived}
-                  onCheckedChange={setShowArchived}
-                  data-testid="toggle-view-archived"
-                />
-                <Label htmlFor="show-archived" className="text-sm">
-                  View Archived ({showArchived ? filteredProperties.length : 'Hidden'})
-                </Label>
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                  <SelectTrigger className="w-48" data-testid="select-entity-filter">
+                    <SelectValue placeholder="Filter by ownership" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Entities</SelectItem>
+                    {entities?.map((entity) => (
+                      <SelectItem key={entity.id} value={entity.id}>
+                        <div className="flex items-center space-x-2">
+                          <Building2 className="h-3 w-3" />
+                          <span>{entity.name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {entity.type}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="show-archived"
+                    checked={showArchived}
+                    onCheckedChange={setShowArchived}
+                    data-testid="toggle-view-archived"
+                  />
+                  <Label htmlFor="show-archived" className="text-sm">
+                    View Archived ({showArchived ? filteredProperties.length : 'Hidden'})
+                  </Label>
+                </div>
               </div>
-            </div>
-            <Button onClick={() => setShowPropertyForm(true)} data-testid="button-add-property">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Property
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {isInsideHub && (
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-              <SelectTrigger className="w-44 h-8 text-sm" data-testid="select-entity-filter">
-                <SelectValue placeholder="Filter by ownership" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Entities</SelectItem>
-                {entities?.map((entity) => (
-                  <SelectItem key={entity.id} value={entity.id}>
-                    <div className="flex items-center space-x-2">
-                      <Building2 className="h-3 w-3" />
-                      <span>{entity.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="show-archived-hub"
-                checked={showArchived}
-                onCheckedChange={setShowArchived}
-                data-testid="toggle-view-archived"
-              />
-              <Label htmlFor="show-archived-hub" className="text-xs">
-                Archived ({showArchived ? filteredProperties.length : 'Hidden'})
-              </Label>
-            </div>
-          </div>
-          <Button size="sm" onClick={() => setShowPropertyForm(true)} data-testid="button-add-property">
-            <Plus className="h-4 w-4 mr-1" />
-            Add Property
-          </Button>
-        </div>
-      )}
+              
+              <Button onClick={() => setShowPropertyForm(true)} data-testid="button-add-property">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Property
+              </Button>
               
               <Dialog open={showPropertyForm} onOpenChange={handleCloseForm}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -666,8 +624,10 @@ export default function Properties() {
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
+          </div>
 
-      {propertiesLoading ? (
+          {propertiesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
                 <Card key={i} data-testid={`skeleton-property-${i}`}>

@@ -20,11 +20,9 @@ import { DollarSign, Plus, Calendar, Building, Tag, Repeat, CheckCircle, Trash2,
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, LineChart, Line } from "recharts";
 import type { Transaction, Property, Unit } from "@shared/schema";
 import PropertyAssistant from "@/components/ai/property-assistant";
-import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 export default function Revenue() {
   const { toast } = useToast();
-  const isInsideHub = useIsInsideHubMaya();
   const { isAuthenticated, isLoading } = useAuth();
   const [showRevenueForm, setShowRevenueForm] = useState(false);
   const [editingRevenue, setEditingRevenue] = useState<Transaction | null>(null);
@@ -439,13 +437,11 @@ export default function Revenue() {
 
   return (
     <div className="space-y-6" data-testid="page-revenue">
-      <div className={`flex items-center justify-between ${isInsideHub ? 'flex-wrap gap-2' : ''}`}>
-        {!isInsideHub && (
-          <div>
-            <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Revenue</h1>
-            <p className="text-muted-foreground">Track rental income and other property revenue</p>
-          </div>
-        )}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Revenue</h1>
+          <p className="text-muted-foreground">Track rental income and other property revenue</p>
+        </div>
             
             <div className="flex items-center space-x-3">
               {/* Entity Filter - First */}

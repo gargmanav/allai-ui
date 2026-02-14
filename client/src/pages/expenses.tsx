@@ -19,12 +19,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import type { Transaction, Property, Unit, OwnershipEntity } from "@shared/schema";
 import { getExpenseDeductionForYear, getAmortizationStatus, formatAmortizationDisplay } from "@/lib/calculations";
 import PropertyAssistant from "@/components/ai/property-assistant";
-import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 export default function Expenses() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
-  const isInsideHub = useIsInsideHubMaya();
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Transaction | null>(null);
   const [pendingEditExpense, setPendingEditExpense] = useState<Transaction | null>(null);
@@ -474,13 +472,11 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6" data-testid="page-expenses">
-      <div className={`flex items-center justify-between ${isInsideHub ? 'flex-wrap gap-2' : ''}`}>
-        {!isInsideHub && (
-          <div>
-            <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Expenses</h1>
-            <p className="text-muted-foreground">Track and categorize property expenses</p>
-          </div>
-        )}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Expenses</h1>
+          <p className="text-muted-foreground">Track and categorize property expenses</p>
+        </div>
             
             <div className="flex items-center space-x-3">
               {/* Entity Filter - First */}
