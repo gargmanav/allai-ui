@@ -1077,7 +1077,7 @@ export default function Properties() {
               ))}
             </div>
           ) : (
-            <Card>
+            <Card className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:border-slate-700/40 shadow-sm">
               <CardContent className="p-12 text-center">
                 <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-properties">No Properties Yet</h3>

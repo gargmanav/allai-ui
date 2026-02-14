@@ -1657,7 +1657,7 @@ export default function LandlordHub() {
           {view === "portfolio" && (
             <Tabs value={portfolioTab} onValueChange={setPortfolioTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="shrink-0 px-4 sm:px-6 py-3 space-y-3 hub-themed-content">
-                <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/40 rounded-xl px-4 py-3 space-y-3">
+                <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:border-slate-700/40 rounded-xl px-4 py-3 space-y-3 shadow-sm">
                   <div className="flex items-center gap-1 mb-1">
                     <Building className="h-3 w-3 text-violet-500" />
                     <span className="text-[9px] font-semibold tracking-widest text-slate-400 dark:text-slate-500 uppercase">
@@ -1714,7 +1714,7 @@ export default function LandlordHub() {
           {view === "financial" && (
             <Tabs value={financialTab} onValueChange={setFinancialTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="shrink-0 px-4 sm:px-6 py-3 space-y-3 hub-themed-content">
-                <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/40 rounded-xl px-4 py-3 space-y-3">
+                <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:border-slate-700/40 rounded-xl px-4 py-3 space-y-3 shadow-sm">
                   <div className="flex items-center gap-1 mb-1">
                     <DollarSign className="h-3 w-3 text-violet-500" />
                     <span className="text-[9px] font-semibold tracking-widest text-slate-400 dark:text-slate-500 uppercase">
