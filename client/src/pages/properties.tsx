@@ -16,7 +16,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { Property, OwnershipEntity, Unit } from "@shared/schema";
 import ImpersonationBanner from "@/components/admin/impersonation-banner";
-import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 // Extended property type that includes ownership information  
 type PropertyWithOwnerships = Property & {
@@ -32,7 +31,6 @@ type PropertyWithOwnerships = Property & {
 export default function Properties() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
-  const isInsideHub = useIsInsideHubMaya();
   const [, setLocation] = useLocation();
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<string>("all");
@@ -427,9 +425,9 @@ export default function Properties() {
 
   return (
     <div data-testid="page-properties">
-      {!isInsideHub && <ImpersonationBanner />}
+      <ImpersonationBanner />
       
-      <div className={`flex items-center justify-between mb-6 ${isInsideHub ? "hidden" : ""}`}>
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Properties</h1>
           <p className="text-muted-foreground">Manage your property portfolio</p>

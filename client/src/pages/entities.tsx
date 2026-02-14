@@ -16,7 +16,6 @@ import type { OwnershipEntity, Property, Unit } from "@shared/schema";
 import EntityForm from "@/components/forms/entity-form";
 import ReminderForm from "@/components/forms/reminder-form";
 import { useEntityPropertyCount } from "@/hooks/useEntityPropertyCount";
-import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 // Extended entity type that includes status information  
 type EntityWithStatus = OwnershipEntity & {
@@ -26,7 +25,6 @@ type EntityWithStatus = OwnershipEntity & {
 export default function Entities() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
-  const isInsideHub = useIsInsideHubMaya();
   const [showEntityForm, setShowEntityForm] = useState(false);
   const [editingEntity, setEditingEntity] = useState<EntityWithStatus | null>(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState<string | null>(null);
@@ -310,7 +308,7 @@ export default function Entities() {
 
   return (
     <div data-testid="page-entities">
-      <div className={`flex items-center justify-between mb-6 ${isInsideHub ? "hidden" : ""}`}>
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Ownership Entities</h1>
           <p className="text-muted-foreground">Manage your LLCs, partnerships, and individual ownership</p>
