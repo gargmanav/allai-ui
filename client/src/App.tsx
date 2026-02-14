@@ -46,6 +46,7 @@ import QuoteApproval from "@/pages/quote-approval";
 import FavoriteContractors from "@/pages/favorite-contractors";
 import Homeowner from "@/pages/homeowner";
 import Contractor from "@/pages/contractor";
+import LandlordHub from "@/pages/landlord-hub";
 import NotFound from "@/pages/not-found";
 
 function RoleBasedHome() {
@@ -65,8 +66,8 @@ function RoleBasedHome() {
     return <Redirect to="/homeowner" />;
   }
   
-  // Landlords go to main dashboard
-  return <Redirect to="/dashboard" />;
+  // Landlords go to landlord hub
+  return <Redirect to="/landlord" />;
 }
 
 function Router() {
@@ -122,6 +123,7 @@ function Router() {
           <Route path="/favorite-contractors" component={FavoriteContractors} />
           <Route path="/homeowner" component={Homeowner} />
           <Route path="/contractor" component={Contractor} />
+          <Route path="/landlord" component={LandlordHub} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin-calendar" component={AdminCalendar} />
           <Route path="/expenses" component={Expenses} />
