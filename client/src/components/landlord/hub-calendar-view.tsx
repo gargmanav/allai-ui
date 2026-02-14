@@ -653,7 +653,7 @@ export function HubCalendarView() {
 
   return (
     <>
-    <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+    <div className="bg-gray-50 dark:bg-gray-900">
       <div className="px-4 pt-4">
         <ImpersonationBanner />
       </div>

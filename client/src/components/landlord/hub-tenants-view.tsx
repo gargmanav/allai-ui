@@ -393,7 +393,7 @@ export function HubTenantsView() {
   }) || [];
 
   return (
-    <div className="flex-1 overflow-auto p-6">
+    <>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Tenants</h1>
@@ -1108,6 +1108,6 @@ export function HubTenantsView() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </>
   );
 }
