@@ -16,6 +16,7 @@ import type { OwnershipEntity, Property, Unit } from "@shared/schema";
 import EntityForm from "@/components/forms/entity-form";
 import ReminderForm from "@/components/forms/reminder-form";
 import { useEntityPropertyCount } from "@/hooks/useEntityPropertyCount";
+import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 // Extended entity type that includes status information  
 type EntityWithStatus = OwnershipEntity & {
@@ -25,6 +26,7 @@ type EntityWithStatus = OwnershipEntity & {
 export default function Entities() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
+  const isInsideHub = useIsInsideHubMaya();
   const [showEntityForm, setShowEntityForm] = useState(false);
   const [editingEntity, setEditingEntity] = useState<EntityWithStatus | null>(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState<string | null>(null);
@@ -308,26 +310,25 @@ export default function Entities() {
 
   return (
     <div data-testid="page-entities">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Ownership Entities</h1>
-          <p className="text-muted-foreground">Manage your LLCs, partnerships, and individual ownership</p>
-        </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id="show-archived-entities"
-                  checked={showArchived}
-                  onCheckedChange={setShowArchived}
-                  data-testid="toggle-view-archived-entities"
-                />
-                <Label htmlFor="show-archived-entities" className="text-sm">
-                  View Archived ({showArchived ? filteredEntities.length : 'Hidden'})
-                </Label>
-              </div>
-              
-              <div className="flex gap-2">
+      {!isInsideHub && (
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Ownership Entities</h1>
+            <p className="text-muted-foreground">Manage your LLCs, partnerships, and individual ownership</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="show-archived-entities"
+                checked={showArchived}
+                onCheckedChange={setShowArchived}
+                data-testid="toggle-view-archived-entities"
+              />
+              <Label htmlFor="show-archived-entities" className="text-sm">
+                View Archived ({showArchived ? filteredEntities.length : 'Hidden'})
+              </Label>
+            </div>
+            <div className="flex gap-2">
               <Button 
                 variant="outline"
                 onClick={() => setShowReminderForm(true)}
@@ -336,7 +337,6 @@ export default function Entities() {
                 <Bell className="h-4 w-4 mr-2" />
                 Add Reminder
               </Button>
-              
               <Dialog open={showEntityForm} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
                   <Button data-testid="button-add-entity">
@@ -344,6 +344,56 @@ export default function Entities() {
                     Add Entity
                   </Button>
                 </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{editingEntity ? "Edit Ownership Entity" : "Add New Ownership Entity"}</DialogTitle>
+                  </DialogHeader>
+                  <EntityForm 
+                    onSubmit={handleFormSubmit}
+                    onCancel={handleCloseForm}
+                    isLoading={createEntityMutation.isPending || updateEntityMutation.isPending}
+                    initialData={editingEntity ? {
+                      type: editingEntity.type as "LLC" | "Individual",
+                      name: editingEntity.name,
+                      state: editingEntity.state || "",
+                      ein: editingEntity.ein || "",
+                      registeredAgent: editingEntity.registeredAgent || "",
+                      renewalMonth: editingEntity.renewalMonth || undefined,
+                      notes: editingEntity.notes || ""
+                    } : undefined}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isInsideHub && (
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="show-archived-entities-hub"
+              checked={showArchived}
+              onCheckedChange={setShowArchived}
+              data-testid="toggle-view-archived-entities"
+            />
+            <Label htmlFor="show-archived-entities-hub" className="text-xs">
+              Archived ({showArchived ? filteredEntities.length : 'Hidden'})
+            </Label>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowReminderForm(true)} data-testid="button-add-reminder">
+              <Bell className="h-4 w-4 mr-1" />
+              Reminder
+            </Button>
+            <Dialog open={showEntityForm} onOpenChange={handleOpenChange}>
+              <DialogTrigger asChild>
+                <Button size="sm" data-testid="button-add-entity">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Entity
+                </Button>
+              </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>{editingEntity ? "Edit Ownership Entity" : "Add New Ownership Entity"}</DialogTitle>
@@ -364,9 +414,9 @@ export default function Entities() {
                 />
               </DialogContent>
             </Dialog>
-              </div>
-            </div>
           </div>
+        </div>
+      )}
 
           {/* Archive Confirmation Dialog */}
             <Dialog open={!!showArchiveConfirm} onOpenChange={() => setShowArchiveConfirm(null)}>
