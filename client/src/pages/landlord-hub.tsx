@@ -48,14 +48,21 @@ import {
   Map as MapIcon,
   FileText,
   CheckCircle2,
+  Building2,
+  Calculator,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { cn } from "@/lib/utils";
-import { HubPortfolioView } from "@/components/landlord/hub-portfolio-view";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Properties from "@/pages/properties";
+import Entities from "@/pages/entities";
+import Expenses from "@/pages/expenses";
+import Revenue from "@/pages/revenue";
+import Tax from "@/pages/tax";
 import { HubTenantsView } from "@/components/landlord/hub-tenants-view";
-import { HubFinancialView } from "@/components/landlord/hub-financial-view";
+
 import { HubRemindersView } from "@/components/landlord/hub-reminders-view";
 import { HubInboxView } from "@/components/landlord/hub-inbox-view";
 import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
@@ -350,6 +357,8 @@ export default function LandlordHub() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [portfolioTab, setPortfolioTab] = useState("properties");
+  const [financialTab, setFinancialTab] = useState("expenses");
   const [mayaHovered, setMayaHovered] = useState(false);
   const [showMayaBubble, setShowMayaBubble] = useState(false);
   const [mayaSuggestionIndex, setMayaSuggestionIndex] = useState(0);
@@ -1646,18 +1655,37 @@ export default function LandlordHub() {
           )}
 
           {view === "portfolio" && (
-            <MayaSidebarPanel
-              context="portfolio"
-              description="Ask Maya about your properties, entities, valuations, or portfolio performance."
-              placeholder="Ask about your portfolio..."
-              suggestions={[
-                "What's my total portfolio value?",
-                "Which properties have vacancies?",
-                "Show me properties by entity",
-              ]}
-            >
-              <HubPortfolioView />
-            </MayaSidebarPanel>
+            <Tabs value={portfolioTab} onValueChange={setPortfolioTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="shrink-0 px-4 sm:px-6 py-3 hub-themed-content">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="properties">
+                    <Building className="h-4 w-4 mr-2" />
+                    Properties
+                  </TabsTrigger>
+                  <TabsTrigger value="entities">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Entities
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <MayaSidebarPanel
+                context="portfolio"
+                description="Ask Maya about your properties, entities, valuations, or portfolio performance."
+                placeholder="Ask about your portfolio..."
+                suggestions={[
+                  "What's my total portfolio value?",
+                  "Which properties have vacancies?",
+                  "Show me properties by entity",
+                ]}
+              >
+                <TabsContent value="properties" className="mt-0">
+                  <Properties />
+                </TabsContent>
+                <TabsContent value="entities" className="mt-0">
+                  <Entities />
+                </TabsContent>
+              </MayaSidebarPanel>
+            </Tabs>
           )}
 
           {view === "tenants" && (
@@ -1676,18 +1704,44 @@ export default function LandlordHub() {
           )}
 
           {view === "financial" && (
-            <MayaSidebarPanel
-              context="financial"
-              description="Ask Maya about your expenses, revenue, cash flow, or tax deductions."
-              placeholder="Ask about finances..."
-              suggestions={[
-                "What are my biggest expenses this quarter?",
-                "Which properties cost the most to maintain?",
-                "What's my net operating income?",
-              ]}
-            >
-              <HubFinancialView />
-            </MayaSidebarPanel>
+            <Tabs value={financialTab} onValueChange={setFinancialTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="shrink-0 px-4 sm:px-6 py-3 hub-themed-content">
+                <TabsList className="grid w-full max-w-lg grid-cols-3">
+                  <TabsTrigger value="expenses">
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Expenses
+                  </TabsTrigger>
+                  <TabsTrigger value="revenue">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Revenue
+                  </TabsTrigger>
+                  <TabsTrigger value="tax">
+                    <Calculator className="h-4 w-4 mr-2" />
+                    Tax
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <MayaSidebarPanel
+                context="financial"
+                description="Ask Maya about your expenses, revenue, cash flow, or tax deductions."
+                placeholder="Ask about finances..."
+                suggestions={[
+                  "What are my biggest expenses this quarter?",
+                  "Which properties cost the most to maintain?",
+                  "What's my net operating income?",
+                ]}
+              >
+                <TabsContent value="expenses" className="mt-0">
+                  <Expenses />
+                </TabsContent>
+                <TabsContent value="revenue" className="mt-0">
+                  <Revenue />
+                </TabsContent>
+                <TabsContent value="tax" className="mt-0">
+                  <Tax />
+                </TabsContent>
+              </MayaSidebarPanel>
+            </Tabs>
           )}
 
           {view === "calendar" && (
