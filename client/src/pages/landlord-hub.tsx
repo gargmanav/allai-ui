@@ -827,19 +827,19 @@ export default function LandlordHub() {
         className={`flex-1 transition-all duration-300 ${
           sidebarOpen ? "lg:ml-72" : "ml-0"
         } ${
-          view === "maintenance"
-            ? "h-screen flex flex-col overflow-hidden"
-            : ""
+          view === "landing"
+            ? ""
+            : "h-screen flex flex-col overflow-hidden"
         }`}
       >
         <header
           className={`${
-            view === "maintenance"
-              ? "shrink-0"
-              : "fixed top-0 left-0 right-0 lg:left-auto"
+            view === "landing"
+              ? "fixed top-0 left-0 right-0 lg:left-auto"
+              : "shrink-0"
           } z-20 bg-background/80 backdrop-blur-sm transition-all duration-300`}
           style={
-            view !== "maintenance"
+            view === "landing"
               ? { left: sidebarOpen ? "288px" : "0" }
               : undefined
           }
