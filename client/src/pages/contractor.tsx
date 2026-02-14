@@ -310,10 +310,15 @@ export default function Contractor() {
       ...marketplaceCases.map(c => ({ ...c, source: 'marketplace' as const }))
     ];
     
-    // Remove duplicates by ID and filter out dismissed cases
     const uniqueCases = allCases
       .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
       .filter(c => !dismissedCaseIds.has(c.id));
+
+    const customerCaseCounts = new Map<string, number>();
+    uniqueCases.forEach(c => {
+      const custId = c.customerId || c.customer?.id;
+      if (custId) customerCaseCounts.set(custId, (customerCaseCounts.get(custId) || 0) + 1);
+    });
     
     return uniqueCases.map((c, index) => {
       const color = getBubbleColor(index);
@@ -330,12 +335,22 @@ export default function Contractor() {
           if (highest > 0) estimatedValue = highest;
         }
       }
+      const media = (c as any).media || [];
+      const firstPhoto = media.find((m: any) => m.type?.startsWith('image') && m.url);
+      const photoUrl = firstPhoto?.url || null;
+      const prop = (c as any).property;
+      const city = prop?.city || (c as any).locationText?.split(',').pop()?.trim() || null;
+      const custId = c.customerId || c.customer?.id;
+      const isExistingCustomer = custId ? (customerCaseCounts.get(custId) || 0) > 1 : false;
       return {
         ...c,
         customerName,
         customerInitials: getInitials(customerName),
         color,
         estimatedValue,
+        photoUrl,
+        city,
+        isExistingCustomer,
       };
     });
   }, [cases, marketplaceCases, dismissedCaseIds]);
@@ -356,12 +371,20 @@ export default function Contractor() {
           if (highest > 0) estimatedValue = highest;
         }
       }
+      const media = c.media || [];
+      const firstPhoto = media.find((m: any) => m.type?.startsWith('image') && m.url);
+      const photoUrl = firstPhoto?.url || null;
+      const prop = c.property;
+      const city = prop?.city || c.locationText?.split(',').pop()?.trim() || null;
       return {
         ...c,
         customerName,
         customerInitials: getInitials(customerName),
         color,
         estimatedValue,
+        photoUrl,
+        city,
+        isExistingCustomer: false,
         isDismissed: true,
       };
     });
@@ -1435,6 +1458,9 @@ export default function Contractor() {
                   category: job.category,
                   createdAt: job.createdAt,
                   color: { bg: "bg-slate-100", text: "text-slate-600" },
+                  photoUrl: job.photoUrl,
+                  city: job.city,
+                  isExistingCustomer: job.isExistingCustomer,
                   reporterUserId: (job as any).reporterUserId,
                   orgId: (job as any).orgId,
                   aiTriageJson: (job as any).aiTriageJson,
@@ -1454,6 +1480,9 @@ export default function Contractor() {
                   category: job.category,
                   createdAt: job.createdAt,
                   color: job.color,
+                  photoUrl: job.photoUrl,
+                  city: job.city,
+                  isExistingCustomer: job.isExistingCustomer,
                   reporterUserId: (job as any).reporterUserId,
                   orgId: (job as any).orgId,
                   aiTriageJson: (job as any).aiTriageJson,
@@ -1507,6 +1536,9 @@ export default function Contractor() {
               category: job.category,
               createdAt: job.createdAt,
               color: job.color,
+              photoUrl: job.photoUrl,
+              city: job.city,
+              isExistingCustomer: job.isExistingCustomer,
               reporterUserId: (job as any).reporterUserId,
               orgId: (job as any).orgId,
               aiTriageJson: (job as any).aiTriageJson,
@@ -1673,6 +1705,9 @@ export default function Contractor() {
                         category: job.category,
                         createdAt: job.createdAt,
                         color: { bg: "bg-slate-100", text: "text-slate-600" },
+                        photoUrl: job.photoUrl,
+                        city: job.city,
+                        isExistingCustomer: job.isExistingCustomer,
                         reporterUserId: (job as any).reporterUserId,
                         orgId: (job as any).orgId,
                         aiTriageJson: (job as any).aiTriageJson,
@@ -1692,6 +1727,9 @@ export default function Contractor() {
                         category: job.category,
                         createdAt: job.createdAt,
                         color: job.color,
+                        photoUrl: job.photoUrl,
+                        city: job.city,
+                        isExistingCustomer: job.isExistingCustomer,
                         reporterUserId: (job as any).reporterUserId,
                         orgId: (job as any).orgId,
                         aiTriageJson: (job as any).aiTriageJson,
@@ -1838,6 +1876,9 @@ export default function Contractor() {
                     category: job.category,
                     createdAt: job.createdAt,
                     color: job.color,
+                    photoUrl: job.photoUrl,
+                    city: job.city,
+                    isExistingCustomer: job.isExistingCustomer,
                     reporterUserId: (job as any).reporterUserId,
                     orgId: (job as any).orgId,
                     aiTriageJson: (job as any).aiTriageJson,
@@ -2117,11 +2158,11 @@ export default function Contractor() {
                   <button
                     key={job.id}
                     onClick={() => handleSelectCase(job.id)}
-                    className="flex flex-col items-center gap-1 flex-shrink-0"
+                    className="flex flex-col items-center gap-0.5 flex-shrink-0 min-w-[72px]"
                   >
                     <div 
-                      className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                        isSelected ? `${job.bgColor} ring-2 ${job.ringColor}` : ""
+                      className={`relative w-14 h-14 rounded-full overflow-hidden flex items-center justify-center transition-all ${
+                        isSelected ? `ring-2 ${job.ringColor}` : ""
                       }`}
                       style={isSelected 
                         ? { boxShadow: `0 0 20px ${job.glowColor}` } 
@@ -2132,16 +2173,23 @@ export default function Contractor() {
                       }
                     >
                       {unread > 0 && (
-                        <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                        <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold z-10">
                           {unread}
                         </div>
                       )}
-                      <span className={`text-sm font-medium ${isSelected ? job.textColor : "text-gray-500"}`}>
-                        {job.customerInitials}
-                      </span>
+                      {job.photoUrl ? (
+                        <img src={job.photoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Home className={`h-5 w-5 ${isSelected ? job.textColor : "text-gray-400"}`} />
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">{job.customerName.split(" ")[0]}</span>
-                    <span className="text-[10px] text-muted-foreground">${job.estimatedValue}</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">${job.estimatedValue.toLocaleString()}</span>
+                    <span className={`text-[10px] font-medium ${job.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
+                      {job.isExistingCustomer ? 'Existing' : 'New'}
+                    </span>
+                    {job.city && (
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[72px]">{job.city}</span>
+                    )}
                   </button>
                 );
               })}
@@ -2152,12 +2200,27 @@ export default function Contractor() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full ${selectedCase.color.bg} flex items-center justify-center text-white font-medium`}>
-                      {selectedCase.customerInitials}
+                    <div className={`w-10 h-10 rounded-full overflow-hidden ${selectedCase.photoUrl ? '' : selectedCase.color.bg} flex items-center justify-center text-white font-medium`}>
+                      {selectedCase.photoUrl ? (
+                        <img src={selectedCase.photoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Home className="h-4 w-4" />
+                      )}
                     </div>
                     <div>
-                      <div className="font-medium">{selectedCase.customerName}</div>
-                      <div className="text-sm text-muted-foreground">{selectedCase.category}</div>
+                      <div className="font-bold text-lg">${selectedCase.estimatedValue.toLocaleString()}</div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${selectedCase.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
+                          {selectedCase.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{selectedCase.category}</span>
+                      </div>
+                      {selectedCase.city && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          <span>{selectedCase.city}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">

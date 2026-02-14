@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive } from "lucide-react";
+import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive, Home } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -52,6 +52,9 @@ interface Item {
   category?: string;
   createdAt?: string;
   color: { bg: string; text: string };
+  photoUrl?: string | null;
+  city?: string | null;
+  isExistingCustomer?: boolean;
   lineItems?: Array<{ description: string; quantity: number; rate: number; amount: number }>;
   subtotal?: number;
   taxAmount?: number;
@@ -1083,9 +1086,11 @@ export function MayaCarouselLayout({
                             : "0 4px 12px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <span className={`text-sm font-bold ${isSelected ? item.color.text : "text-gray-500"}`}>
-                          {item.customerInitials}
-                        </span>
+                        {item.photoUrl ? (
+                          <img src={item.photoUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          <Home className={`h-5 w-5 ${isSelected ? item.color.text : "text-gray-400"}`} />
+                        )}
                         {item.priority === "Urgent" && !unreadByCaseId[item.id] && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] text-white font-bold">!</span>
@@ -1097,8 +1102,11 @@ export function MayaCarouselLayout({
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs mt-2 font-medium truncate max-w-[65px] ${isSelected ? "text-violet-700" : "text-foreground"}`}>
-                        {item.customerName.split(" ")[0]}
+                      <span className={`text-sm mt-1 font-bold ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
+                        ${(item.estimatedValue || 0).toLocaleString()}
+                      </span>
+                      <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
+                        {item.isExistingCustomer ? 'Existing' : 'New'}
                       </span>
                       {itemType === "quote" ? (
                         <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
@@ -1107,9 +1115,9 @@ export function MayaCarouselLayout({
                           {item.status === "In Review" ? "Awaiting Scheduling" : item.status === "Resolved" ? "Completed" : item.status}
                         </span>
                       )}
-                      <span className={`text-xs font-medium ${isSelected ? "text-slate-700" : "text-slate-500"}`}>
-                        ${(item.estimatedValue || 0).toLocaleString()}
-                      </span>
+                      {item.city && (
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[65px]">{item.city}</span>
+                      )}
                     </button>
                   );
                 })}
@@ -1150,17 +1158,29 @@ export function MayaCarouselLayout({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-slate-600 font-bold"
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-slate-600 font-bold overflow-hidden"
                           style={{
                             background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
                             boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
                           }}
                         >
-                          {selectedItem.customerInitials}
+                          {selectedItem.photoUrl ? (
+                            <img src={selectedItem.photoUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Home className="h-5 w-5 text-gray-400" />
+                          )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-lg">{selectedItem.title}</h3>
-                          <p className="text-sm text-muted-foreground">{selectedItem.category || "General"}</p>
+                          <h3 className="font-bold text-lg">${(selectedItem.estimatedValue || 0).toLocaleString()}</h3>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
+                              {selectedItem.isExistingCustomer ? 'Existing' : 'New'}
+                            </span>
+                            <span className="text-sm text-muted-foreground">{selectedItem.category || "General"}</span>
+                          </div>
+                          {selectedItem.city && (
+                            <p className="text-xs text-muted-foreground">{selectedItem.city}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1505,17 +1525,24 @@ export function MayaCarouselLayout({
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
                             <div 
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold shrink-0"
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold shrink-0 overflow-hidden"
                               style={{
                                 background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
                                 boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                               }}
                             >
-                              {item.customerInitials}
+                              {item.photoUrl ? (
+                                <img src={item.photoUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <Home className="h-4 w-4 text-gray-400" />
+                              )}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <p className="font-medium truncate">{item.customerName}</p>
+                                <p className="font-bold truncate">${(item.estimatedValue || 0).toLocaleString()}</p>
+                                <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
+                                  {item.isExistingCustomer ? 'Existing' : 'New'}
+                                </span>
                                 {unreadByCaseId[item.id] > 0 && (
                                   <span className="shrink-0 inline-flex items-center justify-center min-w-[16px] h-4 px-1 bg-violet-500 text-white text-[10px] font-bold rounded-full">
                                     {unreadByCaseId[item.id]}
@@ -1657,17 +1684,26 @@ export function MayaCarouselLayout({
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-slate-600 font-bold"
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-slate-600 font-bold overflow-hidden"
                           style={{
                             background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
                             boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
                           }}
                         >
-                          {selectedItem.customerInitials}
+                          {selectedItem.photoUrl ? (
+                            <img src={selectedItem.photoUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Home className="h-4 w-4 text-gray-400" />
+                          )}
                         </div>
                         <div>
-                          <h4 className="font-semibold">{selectedItem.title}</h4>
-                          <p className="text-xs text-muted-foreground">{selectedItem.customerName}</p>
+                          <h4 className="font-bold">${(selectedItem.estimatedValue || 0).toLocaleString()}</h4>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
+                              {selectedItem.isExistingCustomer ? 'Existing' : 'New'}
+                            </span>
+                            {selectedItem.city && <span className="text-xs text-muted-foreground">{selectedItem.city}</span>}
+                          </div>
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedItemId(null)}>
