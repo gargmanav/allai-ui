@@ -54,6 +54,12 @@ import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { cn } from "@/lib/utils";
+import { HubPortfolioView } from "@/components/landlord/hub-portfolio-view";
+import { HubTenantsView } from "@/components/landlord/hub-tenants-view";
+import { HubFinancialView } from "@/components/landlord/hub-financial-view";
+import { HubRemindersView } from "@/components/landlord/hub-reminders-view";
+import { HubInboxView } from "@/components/landlord/hub-inbox-view";
+import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
 
 type ViewState =
   | "landing"
@@ -1742,113 +1748,17 @@ export default function LandlordHub() {
             </div>
           )}
 
-          {view === "portfolio" && (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="text-center py-20">
-                <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-xl font-semibold">Portfolio</h2>
-                <p className="text-muted-foreground mt-2">
-                  Property portfolio management
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/portfolio")}
-                >
-                  Open Portfolio
-                </Button>
-              </div>
-            </div>
-          )}
+          {view === "portfolio" && <HubPortfolioView />}
 
-          {view === "tenants" && (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="text-center py-20">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-xl font-semibold">Tenants</h2>
-                <p className="text-muted-foreground mt-2">
-                  Tenant management and communication
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/tenants")}
-                >
-                  Open Tenants
-                </Button>
-              </div>
-            </div>
-          )}
+          {view === "tenants" && <HubTenantsView />}
 
-          {view === "financial" && (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="text-center py-20">
-                <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-xl font-semibold">Financial</h2>
-                <p className="text-muted-foreground mt-2">
-                  Income, expenses, and financial reports
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/financial")}
-                >
-                  Open Financial
-                </Button>
-              </div>
-            </div>
-          )}
+          {view === "financial" && <HubFinancialView />}
 
-          {view === "calendar" && (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="text-center py-20">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-xl font-semibold">Calendar</h2>
-                <p className="text-muted-foreground mt-2">
-                  Appointments and scheduling
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/admin-calendar")}
-                >
-                  Open Calendar
-                </Button>
-              </div>
-            </div>
-          )}
+          {view === "calendar" && <HubCalendarView />}
 
-          {view === "reminders" && (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="text-center py-20">
-                <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-xl font-semibold">Reminders</h2>
-                <p className="text-muted-foreground mt-2">
-                  Tasks, reminders, and to-dos
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/reminders")}
-                >
-                  Open Reminders
-                </Button>
-              </div>
-            </div>
-          )}
+          {view === "reminders" && <HubRemindersView />}
 
-          {view === "inbox" && (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="text-center py-20">
-                <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-xl font-semibold">Inbox</h2>
-                <p className="text-muted-foreground mt-2">
-                  Messages and notifications
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/inbox")}
-                >
-                  Open Inbox
-                </Button>
-              </div>
-            </div>
-          )}
+          {view === "inbox" && <HubInboxView />}
         </main>
       </div>
     </div>
