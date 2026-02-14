@@ -351,6 +351,9 @@ export default function Contractor() {
         photoUrl,
         city,
         isExistingCustomer,
+        latitude: prop?.latitude || null,
+        longitude: prop?.longitude || null,
+        address: prop?.address || (c as any).locationText || null,
       };
     });
   }, [cases, marketplaceCases, dismissedCaseIds]);
@@ -386,6 +389,9 @@ export default function Contractor() {
         city,
         isExistingCustomer: false,
         isDismissed: true,
+        latitude: prop?.latitude || null,
+        longitude: prop?.longitude || null,
+        address: prop?.address || c.locationText || null,
       };
     });
   }, [dismissedCases]);
@@ -1455,6 +1461,8 @@ export default function Contractor() {
                   estimatedValue: job.estimatedValue,
                   scheduledDate: job.scheduledDate,
                   address: job.address,
+                  latitude: job.latitude,
+                  longitude: job.longitude,
                   category: job.category,
                   createdAt: job.createdAt,
                   color: { bg: "bg-slate-100", text: "text-slate-600" },
@@ -1477,6 +1485,8 @@ export default function Contractor() {
                   estimatedValue: job.estimatedValue,
                   scheduledDate: job.scheduledDate,
                   address: job.address,
+                  latitude: job.latitude,
+                  longitude: job.longitude,
                   category: job.category,
                   createdAt: job.createdAt,
                   color: job.color,
@@ -1533,6 +1543,8 @@ export default function Contractor() {
               estimatedValue: job.estimatedValue,
               scheduledDate: job.scheduledDate,
               address: job.address,
+              latitude: job.latitude,
+              longitude: job.longitude,
               category: job.category,
               createdAt: job.createdAt,
               color: job.color,
@@ -1702,6 +1714,8 @@ export default function Contractor() {
                         estimatedValue: job.estimatedValue,
                         scheduledDate: job.scheduledDate,
                         address: job.address,
+                        latitude: job.latitude,
+                        longitude: job.longitude,
                         category: job.category,
                         createdAt: job.createdAt,
                         color: { bg: "bg-slate-100", text: "text-slate-600" },
@@ -1724,6 +1738,8 @@ export default function Contractor() {
                         estimatedValue: job.estimatedValue,
                         scheduledDate: job.scheduledDate,
                         address: job.address,
+                        latitude: job.latitude,
+                        longitude: job.longitude,
                         category: job.category,
                         createdAt: job.createdAt,
                         color: job.color,
@@ -1873,6 +1889,8 @@ export default function Contractor() {
                     estimatedValue: job.estimatedValue,
                     scheduledDate: job.scheduledDate,
                     address: job.address,
+                    latitude: job.latitude,
+                    longitude: job.longitude,
                     category: job.category,
                     createdAt: job.createdAt,
                     color: job.color,

@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive, Home } from "lucide-react";
+import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive, Home, Map } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
+import { JobMapView } from "./job-map-view";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { InlineQuoteDetail } from "./inline-quote-detail";
@@ -55,6 +56,8 @@ interface Item {
   photoUrl?: string | null;
   city?: string | null;
   isExistingCustomer?: boolean;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   lineItems?: Array<{ description: string; quantity: number; rate: number; amount: number }>;
   subtotal?: number;
   taxAmount?: number;
@@ -188,7 +191,7 @@ export function MayaCarouselLayout({
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [readStatusFilter, setReadStatusFilter] = useState<string>("new");
-  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "list" | "map">("cards");
   const [mayaChatOpen, setMayaChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<MayaChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -1072,6 +1075,15 @@ export function MayaCarouselLayout({
                   >
                     <List className="h-3.5 w-3.5" />
                   </button>
+                  <button
+                    onClick={() => setViewMode("map")}
+                    className={`p-1.5 rounded transition-colors touch-manipulation ${
+                      viewMode === "map" ? "bg-white shadow-sm" : "hover:bg-white/50"
+                    }`}
+                    title="Map View"
+                  >
+                    <Map className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -1088,7 +1100,23 @@ export function MayaCarouselLayout({
 
         {/* Content Area - scrollable with sticky headers above */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          {viewMode === "cards" ? (
+          {viewMode === "map" ? (
+            /* Map View */
+            <div className="p-4">
+              <JobMapView
+                items={filteredItems}
+                itemType={itemType}
+                selectedItemId={selectedItemId}
+                onSelectItem={(id) => {
+                  setSelectedItemId(id);
+                  const item = filteredItems.find(i => i.id === id);
+                  if (item) onItemSelect(item);
+                }}
+                onAccept={onAccept ? (item) => onAccept(item as any) : undefined}
+                onSendQuote={onSendQuote ? (item) => onSendQuote(item as any) : undefined}
+              />
+            </div>
+          ) : viewMode === "cards" ? (
             /* Cards View - Horizontal Carousel */
             <div className="p-4 sm:p-6">
               <div className="flex items-start gap-4 overflow-x-auto pb-4 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
