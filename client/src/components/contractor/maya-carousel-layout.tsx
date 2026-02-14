@@ -187,6 +187,7 @@ export function MayaCarouselLayout({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [readStatusFilter, setReadStatusFilter] = useState<string>("new");
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [mayaChatOpen, setMayaChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<MayaChatMessage[]>([]);
@@ -221,12 +222,14 @@ export function MayaCarouselLayout({
     setSearchQuery("");
     setCategoryFilter("all");
     setPriorityFilter("all");
+    setReadStatusFilter("new");
     setInternalFilter(defaultFilter);
     setSelectedItemId(null);
     onFilterChange?.(defaultFilter);
   };
   
-  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || (activeFilter !== "all" && activeFilter !== "none" && activeFilter !== defaultFilter);
+  const isLifecycleActive = activeFilter !== "all" && activeFilter !== "none" && activeFilter !== defaultFilter;
+  const hasActiveFilters = searchQuery || categoryFilter !== "all" || priorityFilter !== "all" || (!isLifecycleActive && readStatusFilter !== "new") || isLifecycleActive;
   
   const filteredItems = useMemo(() => {
     let result = [...items];
@@ -247,6 +250,19 @@ export function MayaCarouselLayout({
       }
     }
     
+    const isLifecycleFiltered = activeFilter !== "all" && activeFilter !== "none";
+    if (!isLifecycleFiltered && readStatusFilter === "new") {
+      result = result.filter(item => {
+        const s = item.status.toLowerCase();
+        return s === "new" || s === "pending" || s === "open";
+      });
+    } else if (!isLifecycleFiltered && readStatusFilter === "read") {
+      result = result.filter(item => {
+        const s = item.status.toLowerCase();
+        return s !== "new" && s !== "pending" && s !== "open";
+      });
+    }
+
     if (categoryFilter !== "all") {
       result = result.filter(item => item.category?.toLowerCase() === categoryFilter.toLowerCase());
     }
@@ -291,7 +307,7 @@ export function MayaCarouselLayout({
     });
     
     return result;
-  }, [items, activeFilter, categoryFilter, priorityFilter, searchQuery, sortBy]);
+  }, [items, activeFilter, categoryFilter, priorityFilter, readStatusFilter, searchQuery, sortBy]);
   
   const derivedCategories = useMemo(() => {
     if (categories.length > 0) return categories;
@@ -892,6 +908,17 @@ export function MayaCarouselLayout({
                 </select>
               )}
 
+              {/* Read Status Filter */}
+              <select
+                value={readStatusFilter}
+                onChange={(e) => setReadStatusFilter(e.target.value)}
+                className="h-8 px-2 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-600 cursor-pointer shrink-0 font-medium"
+              >
+                <option value="new">New Only</option>
+                <option value="read">Read</option>
+                <option value="all">All</option>
+              </select>
+
               {/* Sort */}
               {showSort && (
                 <select
@@ -1106,14 +1133,16 @@ export function MayaCarouselLayout({
                         ${(item.estimatedValue || 0).toLocaleString()}
                       </span>
                       <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
-                        {item.isExistingCustomer ? 'Existing' : 'New'}
+                        {item.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                       </span>
-                      {itemType === "quote" ? (
-                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
-                      ) : (
-                        <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                          {item.status === "In Review" ? "Awaiting Scheduling" : item.status === "Resolved" ? "Completed" : item.status}
-                        </span>
+                      {item.status.toLowerCase() !== "new" && item.status.toLowerCase() !== "pending" && item.status.toLowerCase() !== "open" && (
+                        itemType === "quote" ? (
+                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
+                        ) : (
+                          <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+                            {item.status === "In Review" ? "Awaiting Scheduling" : item.status === "Resolved" ? "Completed" : item.status}
+                          </span>
+                        )
                       )}
                       {item.city && (
                         <span className="text-[10px] text-muted-foreground truncate max-w-[65px]">{item.city}</span>
@@ -1174,7 +1203,7 @@ export function MayaCarouselLayout({
                           <h3 className="font-bold text-lg">${(selectedItem.estimatedValue || 0).toLocaleString()}</h3>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
-                              {selectedItem.isExistingCustomer ? 'Existing' : 'New'}
+                              {selectedItem.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                             </span>
                             <span className="text-sm text-muted-foreground">{selectedItem.category || "General"}</span>
                           </div>
@@ -1541,7 +1570,7 @@ export function MayaCarouselLayout({
                               <div className="flex items-center gap-1.5">
                                 <p className="font-bold truncate">${(item.estimatedValue || 0).toLocaleString()}</p>
                                 <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
-                                  {item.isExistingCustomer ? 'Existing' : 'New'}
+                                  {item.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                                 </span>
                                 {unreadByCaseId[item.id] > 0 && (
                                   <span className="shrink-0 inline-flex items-center justify-center min-w-[16px] h-4 px-1 bg-violet-500 text-white text-[10px] font-bold rounded-full">
@@ -1700,7 +1729,7 @@ export function MayaCarouselLayout({
                           <h4 className="font-bold">${(selectedItem.estimatedValue || 0).toLocaleString()}</h4>
                           <div className="flex items-center gap-1.5">
                             <span className={`text-[10px] font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
-                              {selectedItem.isExistingCustomer ? 'Existing' : 'New'}
+                              {selectedItem.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                             </span>
                             {selectedItem.city && <span className="text-xs text-muted-foreground">{selectedItem.city}</span>}
                           </div>

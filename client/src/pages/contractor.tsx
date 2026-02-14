@@ -2185,7 +2185,7 @@ export default function Contractor() {
                     </div>
                     <span className="text-sm font-bold text-gray-900 dark:text-gray-100">${job.estimatedValue.toLocaleString()}</span>
                     <span className={`text-[10px] font-medium ${job.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
-                      {job.isExistingCustomer ? 'Existing' : 'New'}
+                      {job.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                     </span>
                     {job.city && (
                       <span className="text-[10px] text-muted-foreground truncate max-w-[72px]">{job.city}</span>
