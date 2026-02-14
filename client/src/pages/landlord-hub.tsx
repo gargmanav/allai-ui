@@ -887,9 +887,9 @@ export default function LandlordHub() {
 
         <main
           className={`flex flex-col ${
-            view === "maintenance"
-              ? "flex-1 min-h-0 overflow-hidden"
-              : "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
+            view === "landing"
+              ? "pt-24 sm:pt-32 pb-8 px-4 sm:px-6 max-w-4xl mx-auto min-h-screen"
+              : "flex-1 min-h-0 overflow-hidden"
           }`}
         >
           {view === "landing" && (
