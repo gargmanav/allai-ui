@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Send } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+
+const HubMayaContext = createContext(false);
+export const useIsInsideHubMaya = () => useContext(HubMayaContext);
 
 type MayaChatMessage = {
   role: "user" | "maya";
@@ -150,7 +153,11 @@ export function MayaSidebarPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">{children}</div>
+      <div className="flex-1 overflow-y-auto p-4">
+        <HubMayaContext.Provider value={true}>
+          {children}
+        </HubMayaContext.Provider>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsInsideHubMaya } from "@/components/landlord/maya-sidebar-panel";
 
 type AIAction = {
   label: string;
@@ -431,6 +432,9 @@ export default function PropertyAssistant({ context = "dashboard", exampleQuesti
     e.preventDefault();
     handleAskQuestion(question);
   };
+
+  const insideHubMaya = useIsInsideHubMaya();
+  if (insideHubMaya) return null;
 
   return (
     <Card id="maya-assistant" className="mb-8" data-testid="card-ai-assistant">
