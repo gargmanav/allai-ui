@@ -439,6 +439,8 @@ export const properties = pgTable("properties", {
   salePrice: decimal("sale_price", { precision: 12, scale: 2 }), // Sale price of the property
   // Archive status
   status: varchar("status").default("Active").notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
