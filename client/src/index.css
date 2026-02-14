@@ -271,3 +271,60 @@
 .maya-sparkle-spin {
   animation: maya-spin 8s linear infinite;
 }
+
+.hub-themed-content button[data-testid="button-add-property"],
+.hub-themed-content button[data-testid="button-add-tenant"],
+.hub-themed-content button[data-testid="button-add-entity"],
+.hub-themed-content button[data-testid="button-add-expense"],
+.hub-themed-content button[data-testid="button-add-revenue"],
+.hub-themed-content button[data-testid="button-add-reminder"],
+.hub-themed-content button[data-testid="button-add-first-property"],
+.hub-themed-content button[data-testid="button-add-first-expense"],
+.hub-themed-content button[data-testid="button-add-first-revenue"],
+.hub-themed-content button[data-testid="button-add-first-reminder"],
+.hub-themed-content button[data-testid="button-create-first-entity"] {
+  background: linear-gradient(135deg, hsl(258, 90%, 66%), hsl(217, 91%, 60%)) !important;
+  border: none !important;
+  color: white !important;
+}
+.hub-themed-content button[data-testid="button-add-property"]:hover,
+.hub-themed-content button[data-testid="button-add-tenant"]:hover,
+.hub-themed-content button[data-testid="button-add-entity"]:hover,
+.hub-themed-content button[data-testid="button-add-expense"]:hover,
+.hub-themed-content button[data-testid="button-add-revenue"]:hover,
+.hub-themed-content button[data-testid="button-add-reminder"]:hover,
+.hub-themed-content button[data-testid="button-add-first-property"]:hover,
+.hub-themed-content button[data-testid="button-add-first-expense"]:hover,
+.hub-themed-content button[data-testid="button-add-first-revenue"]:hover,
+.hub-themed-content button[data-testid="button-add-first-reminder"]:hover,
+.hub-themed-content button[data-testid="button-create-first-entity"]:hover {
+  background: linear-gradient(135deg, hsl(258, 90%, 58%), hsl(217, 91%, 52%)) !important;
+}
+
+.hub-themed-content [role="tablist"] {
+  background: hsl(220, 20%, 95%) !important;
+  border-radius: 9999px !important;
+  padding: 3px !important;
+}
+.dark .hub-themed-content [role="tablist"] {
+  background: hsl(220, 20%, 18%) !important;
+}
+.hub-themed-content [role="tab"][data-state="active"] {
+  background: linear-gradient(135deg, hsl(258, 90%, 66%), hsl(217, 91%, 60%)) !important;
+  color: white !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
+}
+.hub-themed-content [role="tab"] {
+  border-radius: 9999px !important;
+  transition: all 0.2s ease;
+}
+
+.hub-themed-content .empty-state-action {
+  background: linear-gradient(135deg, hsl(258, 90%, 66%), hsl(217, 91%, 60%));
+  border: none;
+  color: white;
+}
+.hub-themed-content .empty-state-action:hover {
+  background: linear-gradient(135deg, hsl(258, 90%, 58%), hsl(217, 91%, 52%));
+}
