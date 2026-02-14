@@ -47,7 +47,6 @@ import {
   List,
   Map as MapIcon,
   FileText,
-  Send,
   CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -60,6 +59,7 @@ import { HubFinancialView } from "@/components/landlord/hub-financial-view";
 import { HubRemindersView } from "@/components/landlord/hub-reminders-view";
 import { HubInboxView } from "@/components/landlord/hub-inbox-view";
 import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
+import { MayaSidebarPanel } from "@/components/landlord/maya-sidebar-panel";
 
 type ViewState =
   | "landing"
@@ -107,12 +107,6 @@ interface PropertyData {
   zipCode?: string;
   totalUnits?: number;
   estimatedValue?: number | string;
-}
-
-interface MayaChatMessage {
-  role: "user" | "maya";
-  content: string;
-  timestamp: Date;
 }
 
 interface LifecycleStage {
@@ -359,11 +353,6 @@ export default function LandlordHub() {
   const [mayaHovered, setMayaHovered] = useState(false);
   const [showMayaBubble, setShowMayaBubble] = useState(false);
   const [mayaSuggestionIndex, setMayaSuggestionIndex] = useState(0);
-  const [mayaChatMessages, setMayaChatMessages] = useState<MayaChatMessage[]>(
-    []
-  );
-  const [mayaChatInput, setMayaChatInput] = useState("");
-  const [isMayaTyping, setIsMayaTyping] = useState(false);
 
   const mayaSuggestions = [
     "What needs my attention today?",
@@ -586,45 +575,6 @@ export default function LandlordHub() {
     0
   );
 
-  const handleMayaChat = async () => {
-    if (!mayaChatInput.trim()) return;
-    const question = mayaChatInput.trim();
-    const userMsg: MayaChatMessage = {
-      role: "user",
-      content: question,
-      timestamp: new Date(),
-    };
-    setMayaChatMessages((prev) => [...prev, userMsg]);
-    setMayaChatInput("");
-    setIsMayaTyping(true);
-
-    try {
-      const res = await apiRequest("POST", "/api/maya/chat", {
-        message: question,
-        context: "maintenance",
-      });
-      const data = await res.json();
-      setMayaChatMessages((prev) => [
-        ...prev,
-        {
-          role: "maya",
-          content: data.response || "I can help you manage your properties. What would you like to know?",
-          timestamp: new Date(),
-        },
-      ]);
-    } catch {
-      setMayaChatMessages((prev) => [
-        ...prev,
-        {
-          role: "maya",
-          content: `You have ${openCasesCount} open maintenance cases. ${urgentCasesCount > 0 ? `${urgentCasesCount} are marked urgent.` : "None are currently urgent."} How can I help?`,
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setIsMayaTyping(false);
-    }
-  };
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -1435,68 +1385,16 @@ export default function LandlordHub() {
                 </div>
               </div>
 
-              <div className="flex-1 flex min-h-0 overflow-hidden">
-                <div className="hidden lg:flex flex-col w-64 border-r p-4 overflow-y-auto">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
-                      <Sparkles className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">Maya AI Advisor</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Your intelligent assistant
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto space-y-2 mb-3">
-                    {mayaChatMessages.length === 0 && (
-                      <div className="text-xs text-muted-foreground p-3 rounded-lg bg-muted/50">
-                        Ask Maya about your maintenance cases, priorities, or
-                        property management questions.
-                      </div>
-                    )}
-                    {mayaChatMessages.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={`text-xs p-2 rounded-lg ${
-                          msg.role === "user"
-                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 ml-4"
-                            : "bg-muted/50 mr-4"
-                        }`}
-                      >
-                        {msg.content}
-                      </div>
-                    ))}
-                    {isMayaTyping && (
-                      <div className="text-xs p-2 rounded-lg bg-muted/50 mr-4 animate-pulse">
-                        Maya is thinking...
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ask Maya about maintenance..."
-                      className="h-8 text-xs"
-                      value={mayaChatInput}
-                      onChange={(e) => setMayaChatInput(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && handleMayaChat()
-                      }
-                    />
-                    <Button
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={handleMayaChat}
-                      disabled={!mayaChatInput.trim() || isMayaTyping}
-                    >
-                      <Send className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4">
+              <MayaSidebarPanel
+                context="maintenance"
+                description="Ask Maya about your maintenance cases, priorities, or property management questions."
+                placeholder="Ask Maya about maintenance..."
+                suggestions={[
+                  "What maintenance cases need attention?",
+                  "Which cases are most urgent?",
+                  "Show me overdue maintenance items",
+                ]}
+              >
                   {filteredCases.length === 0 ? (
                     <div className="text-center py-12">
                       <Wrench className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -1636,7 +1534,6 @@ export default function LandlordHub() {
                       </div>
                     </div>
                   ))}
-                </div>
 
                 {selectedCase && (
                   <div className="hidden xl:flex flex-col w-80 border-l p-4 overflow-y-auto">
@@ -1744,21 +1641,99 @@ export default function LandlordHub() {
                     </div>
                   </div>
                 )}
-              </div>
+              </MayaSidebarPanel>
             </div>
           )}
 
-          {view === "portfolio" && <HubPortfolioView />}
+          {view === "portfolio" && (
+            <MayaSidebarPanel
+              context="portfolio"
+              description="Ask Maya about your properties, entities, valuations, or portfolio performance."
+              placeholder="Ask about your portfolio..."
+              suggestions={[
+                "What's my total portfolio value?",
+                "Which properties have vacancies?",
+                "Show me properties by entity",
+              ]}
+            >
+              <HubPortfolioView />
+            </MayaSidebarPanel>
+          )}
 
-          {view === "tenants" && <HubTenantsView />}
+          {view === "tenants" && (
+            <MayaSidebarPanel
+              context="tenants"
+              description="Ask Maya about your tenants, lease renewals, occupancy, or tenant communications."
+              placeholder="Ask about tenants..."
+              suggestions={[
+                "Which leases are expiring soon?",
+                "What's my current occupancy rate?",
+                "Any tenants with overdue rent?",
+              ]}
+            >
+              <HubTenantsView />
+            </MayaSidebarPanel>
+          )}
 
-          {view === "financial" && <HubFinancialView />}
+          {view === "financial" && (
+            <MayaSidebarPanel
+              context="financial"
+              description="Ask Maya about your expenses, revenue, cash flow, or tax deductions."
+              placeholder="Ask about finances..."
+              suggestions={[
+                "What are my biggest expenses this quarter?",
+                "Which properties cost the most to maintain?",
+                "What's my net operating income?",
+              ]}
+            >
+              <HubFinancialView />
+            </MayaSidebarPanel>
+          )}
 
-          {view === "calendar" && <HubCalendarView />}
+          {view === "calendar" && (
+            <MayaSidebarPanel
+              context="calendar"
+              description="Ask Maya about your schedule, upcoming inspections, or appointment conflicts."
+              placeholder="Ask about your schedule..."
+              suggestions={[
+                "What's scheduled for this week?",
+                "Any upcoming property inspections?",
+                "When is my next lease renewal?",
+              ]}
+            >
+              <HubCalendarView />
+            </MayaSidebarPanel>
+          )}
 
-          {view === "reminders" && <HubRemindersView />}
+          {view === "reminders" && (
+            <MayaSidebarPanel
+              context="reminders"
+              description="Ask Maya about your tasks, deadlines, overdue items, or compliance requirements."
+              placeholder="Ask about reminders..."
+              suggestions={[
+                "What reminders are due this week?",
+                "Which properties have overdue tasks?",
+                "Show me all lease renewal reminders",
+              ]}
+            >
+              <HubRemindersView />
+            </MayaSidebarPanel>
+          )}
 
-          {view === "inbox" && <HubInboxView />}
+          {view === "inbox" && (
+            <MayaSidebarPanel
+              context="inbox"
+              description="Ask Maya about your messages, tenant communications, or unread notifications."
+              placeholder="Ask about messages..."
+              suggestions={[
+                "Any urgent messages I haven't responded to?",
+                "Summarize recent tenant communications",
+                "Which messages need immediate attention?",
+              ]}
+            >
+              <HubInboxView />
+            </MayaSidebarPanel>
+          )}
         </main>
       </div>
     </div>

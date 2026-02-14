@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReminderForm from "@/components/forms/reminder-form";
-import PropertyAssistant from "@/components/ai/property-assistant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -492,17 +491,6 @@ export function HubRemindersView() {
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="mb-8">
-        <PropertyAssistant
-          context="reminders"
-          exampleQuestions={[
-            "What reminders are due this week?",
-            "Which properties have overdue tasks?", 
-            "What maintenance reminders do I have coming up?",
-            "Show me all lease renewal reminders"
-          ]}
-        />
-      </div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Reminders</h1>
