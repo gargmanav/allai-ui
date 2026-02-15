@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -12,20 +11,24 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Plus, Clock, CheckCircle, Calendar, AlertTriangle, DollarSign, FileText, Wrench, Shield, Edit, Trash2, CalendarDays, Repeat, List } from "lucide-react";
+import { Bell, Plus, Clock, CheckCircle, Calendar, AlertTriangle, DollarSign, FileText, Wrench, Shield, Edit, Trash2, CalendarDays, Repeat, List, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Reminder, Property, OwnershipEntity, Lease, Unit, TenantGroup } from "@shared/schema";
 import { REMINDER_TYPE_COLORS, STATUS_COLORS, getReminderStatus, getStatusBadgeText, type ReminderType, type ReminderStatus } from "@/lib/colorTokens";
 
 export function HubRemindersView() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [pendingEditReminder, setPendingEditReminder] = useState<Reminder | null>(null);
   const [isEditingSeries, setIsEditingSeries] = useState(false);
   const [editMode, setEditMode] = useState<"future" | "all">("all");
   const [deleteReminderId, setDeleteReminderId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("due");
   const [entityFilter, setEntityFilter] = useState<string>("all");
@@ -796,15 +799,16 @@ export function HubRemindersView() {
 
       <div className="flex items-center gap-1 mb-6 bg-muted/30 rounded-xl p-1 w-fit" data-testid="view-toggle">
         <button
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-gray-800 text-foreground shadow-sm"
+          onClick={() => setViewMode("list")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === "list" ? "bg-white dark:bg-gray-800 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-gray-800/50"}`}
           data-testid="button-list-view"
         >
           <List className="h-4 w-4" />
           List
         </button>
         <button
-          onClick={() => setLocation("/admin-calendar")}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-200"
+          onClick={() => setViewMode("calendar")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === "calendar" ? "bg-white dark:bg-gray-800 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-gray-800/50"}`}
           data-testid="button-calendar-view"
         >
           <Calendar className="h-4 w-4" />
@@ -933,7 +937,119 @@ export function HubRemindersView() {
         </button>
       </div>
 
-      {remindersLoading ? (
+      {viewMode === "calendar" ? (
+        (() => {
+          const year = calendarMonth.getFullYear();
+          const month = calendarMonth.getMonth();
+          const firstDay = new Date(year, month, 1).getDay();
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const today = new Date();
+          const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+          const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+          const remindersByDay: Record<number, typeof allReminders> = {};
+          allReminders.forEach(r => {
+            const due = new Date(r.dueAt);
+            if (due.getFullYear() === year && due.getMonth() === month) {
+              const day = due.getDate();
+              if (!remindersByDay[day]) remindersByDay[day] = [];
+              remindersByDay[day].push(r);
+            }
+          });
+
+          const cells = [];
+          for (let i = 0; i < firstDay; i++) {
+            cells.push(<div key={`empty-${i}`} className="min-h-[90px]" />);
+          }
+          for (let day = 1; day <= daysInMonth; day++) {
+            const dayReminders = remindersByDay[day] || [];
+            const isToday = isCurrentMonth && today.getDate() === day;
+            cells.push(
+              <div
+                key={day}
+                className={`min-h-[90px] p-1.5 rounded-xl border transition-all duration-200 ${
+                  isToday
+                    ? "border-violet-300 bg-violet-50/50 dark:bg-violet-900/20"
+                    : "border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700"
+                }`}
+              >
+                <div className={`text-xs font-semibold mb-1 ${isToday ? "text-violet-600 dark:text-violet-400" : "text-gray-500"}`}>
+                  {day}
+                </div>
+                <div className="space-y-0.5">
+                  {dayReminders.slice(0, 3).map((r, i) => {
+                    const eff = getEffectiveStatus(r);
+                    const dotColor = eff === "Overdue" ? "bg-red-500" : eff === "Completed" ? "bg-green-500" : "bg-blue-500";
+                    return (
+                      <div key={i} className="flex items-center gap-1 group/item cursor-default">
+                        <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                        <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate leading-tight">
+                          {r.title}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {dayReminders.length > 3 && (
+                    <span className="text-[9px] text-muted-foreground font-medium">+{dayReminders.length - 3} more</span>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="group relative rounded-2xl overflow-hidden" style={{
+              background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+              backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
+            }}>
+              <div className="running-light-bar h-1" style={{ backdropFilter: 'blur(16px) saturate(200%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)' }} />
+              <div className="relative p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <button
+                    onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                    {monthNames[month]} {year}
+                  </h3>
+                  <button
+                    onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-1 mb-1">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                    <div key={d} className="text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-1">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {cells}
+                </div>
+                <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100/50">
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-red-500" /> Overdue
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" /> Due
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-green-500" /> Completed
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : remindersLoading ? (
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="group relative rounded-2xl overflow-hidden" data-testid={`skeleton-reminder-${i}`} style={{
