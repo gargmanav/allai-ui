@@ -330,10 +330,11 @@
 }
 
 .hub-themed-content button[data-testid="button-add-first-tenant"] {
-  background: hsl(199, 89%, 86%) !important;
-  color: hsl(199, 69%, 36%) !important;
-  border: none !important;
+  background: rgba(186, 220, 245, 0.55) !important;
+  backdrop-filter: blur(12px) !important;
+  color: hsl(210, 60%, 38%) !important;
+  border: 1px solid rgba(186, 220, 245, 0.5) !important;
 }
 .hub-themed-content button[data-testid="button-add-first-tenant"]:hover {
-  background: hsl(199, 89%, 78%) !important;
+  background: rgba(176, 214, 244, 0.7) !important;
 }
