@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Mail, Phone, FileText, DollarSign, Calendar, AlertTriangle, Archive, RotateCcw, Trash2, UserRound, UsersRound, Pencil } from "lucide-react";
+import { Users, Plus, Mail, Phone, FileText, DollarSign, Calendar, AlertTriangle, Archive, RotateCcw, Trash2, UsersRound, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TenantGroup, Property, OwnershipEntity, Lease, Unit, InsertLease } from "@shared/schema";
 
@@ -818,15 +818,11 @@ export function HubTenantsView() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center cursor-default">
-                            {(group.name || "").includes("&") || (group.name || "").toLowerCase().includes(" and ") || (group.name || "").includes(",") ? (
-                              <UsersRound className="h-6 w-6 text-violet-600" />
-                            ) : (
-                              <UserRound className="h-6 w-6 text-violet-600" />
-                            )}
+                            <UsersRound className="h-6 w-6 text-violet-600" />
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{(group.name || "").includes("&") || (group.name || "").toLowerCase().includes(" and ") || (group.name || "").includes(",") ? "Tenants in Common" : "Individual Tenant"}</p>
+                          <p>Tenant Group</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
