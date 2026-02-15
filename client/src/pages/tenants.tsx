@@ -1183,7 +1183,7 @@ export default function Tenants() {
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-tenants">No Tenants Yet</h3>
                 <p className="text-muted-foreground mb-4">Start managing tenant relationships by adding your first tenant.</p>
-                <Button onClick={() => setShowTenantForm(true)} data-testid="button-add-first-tenant">
+                <Button className="bg-sky-200 hover:bg-sky-300 text-sky-800 border-0" onClick={() => setShowTenantForm(true)} data-testid="button-add-first-tenant">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Your First Tenant
                 </Button>
