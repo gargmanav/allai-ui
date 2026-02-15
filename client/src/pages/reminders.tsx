@@ -690,7 +690,7 @@ export default function Reminders() {
 
               <Dialog open={showReminderForm} onOpenChange={setShowReminderForm}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-add-reminder" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200/50">
+                  <Button data-testid="button-add-reminder" className="bg-sky-400/75 hover:bg-sky-500/85 text-white shadow-md shadow-sky-200/50 backdrop-blur-sm border border-sky-300/50">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Reminder
                   </Button>

@@ -284,10 +284,11 @@
 .hub-themed-content button[data-testid="button-add-first-reminder"],
 .hub-themed-content button[data-testid="button-create-first-entity"],
 .hub-themed-content button[data-testid="button-add-first-tenant"] {
-  background: hsl(160, 84%, 39%) !important;
-  border: none !important;
+  background: hsla(205, 80%, 65%, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1.5px solid rgba(147, 197, 253, 0.5) !important;
   color: white !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(147, 197, 253, 0.3) !important;
 }
 .hub-themed-content button[data-testid="button-add-property"]:hover,
 .hub-themed-content button[data-testid="button-add-tenant"]:hover,
@@ -301,7 +302,7 @@
 .hub-themed-content button[data-testid="button-add-first-reminder"]:hover,
 .hub-themed-content button[data-testid="button-create-first-entity"]:hover,
 .hub-themed-content button[data-testid="button-add-first-tenant"]:hover {
-  background: hsl(160, 84%, 33%) !important;
+  background: hsla(205, 80%, 58%, 0.85) !important;
 }
 
 .hub-themed-content [role="tablist"] {
@@ -324,11 +325,12 @@
 }
 
 .hub-themed-content .empty-state-action {
-  background: hsl(160, 84%, 39%);
-  border: none;
+  background: hsla(205, 80%, 65%, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(147, 197, 253, 0.5);
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px rgba(147, 197, 253, 0.3);
 }
 .hub-themed-content .empty-state-action:hover {
-  background: hsl(160, 84%, 33%);
+  background: hsla(205, 80%, 58%, 0.85);
 }
