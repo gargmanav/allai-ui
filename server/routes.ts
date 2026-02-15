@@ -3005,6 +3005,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/vendors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const existing = await storage.getVendor(req.params.id);
+      if (!existing || existing.orgId !== org.id) return res.status(404).json({ message: "Vendor not found" });
+
+      const validatedData = insertVendorSchema.partial().parse(req.body);
+      const updated = await storage.updateVendor(req.params.id, { ...validatedData, orgId: org.id });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating vendor:", error);
+      res.status(500).json({ message: "Failed to update vendor" });
+    }
+  });
+
+  app.delete('/api/vendors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const existing = await storage.getVendor(req.params.id);
+      if (!existing || existing.orgId !== org.id) return res.status(404).json({ message: "Vendor not found" });
+
+      await storage.deleteVendor(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      res.status(500).json({ message: "Failed to delete vendor" });
+    }
+  });
+
   app.get('/api/tax/1099-report', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

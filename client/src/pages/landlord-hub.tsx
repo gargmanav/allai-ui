@@ -69,6 +69,7 @@ import { HubRemindersView } from "@/components/landlord/hub-reminders-view";
 import { HubInboxView } from "@/components/landlord/hub-inbox-view";
 import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
 import { HubSettingsView } from "@/components/landlord/hub-settings-view";
+import { HubVendorsView } from "@/components/landlord/hub-vendors-view";
 import { MayaSidebarPanel } from "@/components/landlord/maya-sidebar-panel";
 
 type ViewState =
@@ -320,6 +321,10 @@ function LandlordQuickAdd({
         <DropdownMenuItem onClick={() => onRouteNavigate("/tenants")}>
           <Users className="h-4 w-4 mr-2" />
           Add Tenant
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { onNavigate("portfolio-vendors"); }}>
+          <Wrench className="h-4 w-4 mr-2" />
+          Add Vendor
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onNavigate("reminders")}>
           <Bell className="h-4 w-4 mr-2" />
@@ -957,7 +962,14 @@ export default function LandlordHub() {
                 </div>
                 <div className="flex items-center gap-2">
                   <LandlordQuickAdd
-                    onNavigate={(v) => setView(v as ViewState)}
+                    onNavigate={(v) => {
+                      if (v === "portfolio-vendors") {
+                        setView("portfolio");
+                        setPortfolioTab("vendors");
+                      } else {
+                        setView(v as ViewState);
+                      }
+                    }}
                     onRouteNavigate={navigate}
                   />
                   <div
@@ -1887,7 +1899,7 @@ export default function LandlordHub() {
                       Portfolio Management
                     </span>
                   </div>
-                  <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsList className="grid w-full max-w-lg grid-cols-3">
                     <TabsTrigger value="properties">
                       <Building className="h-4 w-4 mr-2" />
                       Properties
@@ -1895,6 +1907,10 @@ export default function LandlordHub() {
                     <TabsTrigger value="entities">
                       <Building2 className="h-4 w-4 mr-2" />
                       Entities
+                    </TabsTrigger>
+                    <TabsTrigger value="vendors">
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Vendors
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -1914,6 +1930,9 @@ export default function LandlordHub() {
                 </TabsContent>
                 <TabsContent value="entities" className="mt-0">
                   <Entities />
+                </TabsContent>
+                <TabsContent value="vendors" className="mt-0">
+                  <HubVendorsView />
                 </TabsContent>
               </MayaSidebarPanel>
             </Tabs>

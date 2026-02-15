@@ -595,12 +595,47 @@ export default function Tax() {
                             </Card>
                           </div>
 
+                          {vendorsQualifying.length > 0 && (
+                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                              <div>
+                                <h3 className="font-semibold text-blue-800 dark:text-blue-200">
+                                  {vendorsQualifying.length} vendor{vendorsQualifying.length !== 1 ? "s" : ""} ready for 1099 generation
+                                </h3>
+                                <p className="text-blue-700 dark:text-blue-300 text-sm">
+                                  {vendorsMissingW9.length > 0
+                                    ? `${vendorsQualifying.length - vendorsMissingW9.length} have W-9 on file, ${vendorsMissingW9.length} still need W-9`
+                                    : "All qualifying vendors have W-9 on file"}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const readyVendors = vendorsQualifying.filter(v => v.w9OnFile);
+                                  if (readyVendors.length === 0) {
+                                    toast({ title: "No vendors ready", description: "All qualifying vendors are missing W-9 forms.", variant: "destructive" });
+                                    return;
+                                  }
+                                  readyVendors.forEach(({ vendor, totalPayments }) => {
+                                    generate1099NEC(vendor, totalPayments);
+                                  });
+                                  toast({ title: `Generated ${readyVendors.length} 1099-NEC form${readyVendors.length !== 1 ? "s" : ""}` });
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generate All 1099s
+                              </Button>
+                            </div>
+                          )}
+
                           {vendorsWithPayments.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
                               <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                               <h3 className="font-semibold mb-2">No Vendor Payments</h3>
                               <p className="text-sm">
                                 No vendor expense transactions found for {selected1099Year}.
+                              </p>
+                              <p className="text-sm mt-2">
+                                Add vendors in Portfolio &gt; Vendors, then record payments to track 1099 obligations.
                               </p>
                             </div>
                           ) : (

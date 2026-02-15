@@ -52,6 +52,8 @@ Preferred communication style: Simple, everyday language.
 - Quote and invoice system for contractors including comparison, counter-proposals, and acceptance workflows.
 - Superadmin impersonation and detailed analytics dashboard.
 - Full job lifecycle workflow for contractors, including scheduling, progress tracking, and completion.
+- Vendor management in Portfolio section (Properties / Entities / Vendors toggle) with full CRUD, record payment, and W-9 tracking.
+- 1099-NEC tax reporting with vendor payment tracking, bulk generation, CSV export, and W-9 status management.
 
 ## External Dependencies
 

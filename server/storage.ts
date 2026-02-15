@@ -205,6 +205,7 @@ export interface IStorage {
   
   // Vendor operations
   getVendors(orgId: string): Promise<Vendor[]>;
+  getVendor(id: string): Promise<Vendor | undefined>;
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   
   // Transaction operations
@@ -265,6 +266,7 @@ export interface IStorage {
   getContractorByUserId(userId: string): Promise<Vendor | undefined>;
   getContractorVendorsByUserId(userId: string): Promise<Vendor[]>; // Get all vendor records for a contractor across orgs
   updateVendor(id: string, vendor: Partial<InsertVendor>): Promise<Vendor>;
+  deleteVendor(id: string): Promise<void>;
   
   // Contractor Availability operations
   getContractorAvailability(contractorId: string): Promise<ContractorAvailability[]>;
@@ -1711,6 +1713,11 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(eq(vendors.orgId, orgId))
       .orderBy(asc(vendors.name));
+  }
+
+  async getVendor(id: string): Promise<Vendor | undefined> {
+    const [vendor] = await db.select().from(vendors).where(eq(vendors.id, id));
+    return vendor;
   }
 
   async createVendor(vendor: InsertVendor): Promise<Vendor> {
@@ -3280,6 +3287,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(vendors.id, id))
       .returning();
     return vendor;
+  }
+
+  async deleteVendor(id: string): Promise<void> {
+    await db.delete(vendors).where(eq(vendors.id, id));
   }
 
   // Contractor Availability operations
