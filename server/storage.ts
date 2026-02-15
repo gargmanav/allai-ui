@@ -1523,14 +1523,8 @@ export class DatabaseStorage implements IStorage {
   async cancelLeaseReminders(leaseId: string): Promise<void> {
     try {
       // Find all reminders scoped to this lease
-      const leaseReminders = await db
-        .select()
-        .from(reminders)
-        .where(and(
-          eq(reminders.scope, "lease"),
-          eq(reminders.scopeId, leaseId),
-          eq(reminders.status, "Pending") // Only cancel pending reminders
-        ));
+      const leaseReminderResults = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE scope = 'lease' AND scope_id = ${leaseId} AND status = 'Pending'`);
+      const leaseReminders = (leaseReminderResults.rows || leaseReminderResults) as Reminder[];
 
       if (leaseReminders.length === 0) {
         console.log(`🔔 No pending reminders found for lease ${leaseId}`);
@@ -2154,49 +2148,34 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Reminder operations
+  // Reminder operations - using raw SQL to avoid Drizzle schema-aware mode issue with reminders table
   async getReminders(orgId: string): Promise<Reminder[]> {
-    const results = await db
-      .select({
-        id: reminders.id,
-        orgId: reminders.orgId,
-        scope: reminders.scope,
-        scopeId: reminders.scopeId,
-        entityId: reminders.entityId,
-        title: reminders.title,
-        type: reminders.type,
-        dueAt: reminders.dueAt,
-        leadDays: reminders.leadDays,
-        channels: reminders.channels,
-        payloadJson: reminders.payloadJson,
-        status: reminders.status,
-        sentAt: reminders.sentAt,
-        completedAt: reminders.completedAt,
-        isRecurring: reminders.isRecurring,
-        recurringFrequency: reminders.recurringFrequency,
-        recurringInterval: reminders.recurringInterval,
-        recurringEndDate: reminders.recurringEndDate,
-        parentRecurringId: reminders.parentRecurringId,
-        isBulkEntry: reminders.isBulkEntry,
-        createdAt: reminders.createdAt,
-      })
-      .from(reminders)
-      .where(eq(reminders.orgId, orgId))
-      .orderBy(asc(reminders.dueAt));
-    return results as Reminder[];
+    const results = await db.execute(sql`
+      SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId",
+        title, type, due_at as "dueAt", lead_days as "leadDays", channels,
+        payload_json as "payloadJson", status, sent_at as "sentAt",
+        completed_at as "completedAt", is_recurring as "isRecurring",
+        recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval",
+        recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId",
+        is_bulk_entry as "isBulkEntry", created_at as "createdAt"
+      FROM reminders WHERE org_id = ${orgId} ORDER BY due_at ASC
+    `);
+    return (results.rows || results) as Reminder[];
   }
 
   async getDueReminders(): Promise<Reminder[]> {
     const now = new Date();
-    return await db
-      .select()
-      .from(reminders)
-      .where(
-        and(
-          lte(reminders.dueAt, now),
-          eq(reminders.status, "Pending")
-        )
-      );
+    const results = await db.execute(sql`
+      SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId",
+        title, type, due_at as "dueAt", lead_days as "leadDays", channels,
+        payload_json as "payloadJson", status, sent_at as "sentAt",
+        completed_at as "completedAt", is_recurring as "isRecurring",
+        recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval",
+        recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId",
+        is_bulk_entry as "isBulkEntry", created_at as "createdAt"
+      FROM reminders WHERE due_at <= ${now} AND status = 'Pending'
+    `);
+    return (results.rows || results) as Reminder[];
   }
 
   async createReminder(reminder: InsertReminder): Promise<Reminder> {
@@ -2228,7 +2207,9 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRecurringReminder(id: string, mode: "future" | "all"): Promise<void> {
     // Get the reminder to determine its recurring relationship
-    const [reminder] = await db.select().from(reminders).where(eq(reminders.id, id));
+    const reminderResults = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE id = ${id}`);
+    const reminderRows = (reminderResults.rows || reminderResults) as Reminder[];
+    const reminder = reminderRows[0];
     if (!reminder) {
       throw new Error("Reminder not found");
     }
@@ -2290,7 +2271,9 @@ export class DatabaseStorage implements IStorage {
 
   async updateRecurringReminder(id: string, data: Partial<InsertReminder>, mode: "future" | "all"): Promise<Reminder> {
     // Get the reminder to determine its recurring relationship
-    const [reminder] = await db.select().from(reminders).where(eq(reminders.id, id));
+    const reminderResults2 = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE id = ${id}`);
+    const reminderRows2 = (reminderResults2.rows || reminderResults2) as Reminder[];
+    const reminder = reminderRows2[0];
     if (!reminder) {
       throw new Error("Reminder not found");
     }
@@ -2486,19 +2469,8 @@ export class DatabaseStorage implements IStorage {
       for (const intervalDays of reminderIntervals) {
         if (daysUntilEnd <= intervalDays && daysUntilEnd > 0) {
           // Check if reminder already exists
-          const existingReminder = await db
-            .select()
-            .from(reminders)
-            .where(
-              and(
-                eq(reminders.orgId, lease.orgId),
-                eq(reminders.scope, "lease"),
-                eq(reminders.scopeId, lease.id),
-                eq(reminders.type, "lease"),
-                eq(reminders.leadDays, intervalDays)
-              )
-            )
-            .limit(1);
+          const existingReminderResults = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE org_id = ${lease.orgId} AND scope = 'lease' AND scope_id = ${lease.id} AND type = 'lease' AND lead_days = ${intervalDays} LIMIT 1`);
+          const existingReminder = (existingReminderResults.rows || existingReminderResults) as Reminder[];
 
           if (existingReminder.length === 0) {
             // Calculate reminder due date
@@ -2749,20 +2721,8 @@ export class DatabaseStorage implements IStorage {
     reminderDate.setDate(reminderDate.getDate() - leadDays);
 
     // Check if reminder already exists for this property and month
-    const existing = await db
-      .select()
-      .from(reminders)
-      .where(
-        and(
-          eq(reminders.orgId, orgId),
-          eq(reminders.scope, 'property'),
-          eq(reminders.scopeId, propertyId),
-          eq(reminders.type, type),
-          eq(reminders.title, title),
-          eq(reminders.leadDays, leadDays)
-        )
-      )
-      .limit(1);
+    const existingResults = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE org_id = ${orgId} AND scope = 'property' AND scope_id = ${propertyId} AND type = ${type} AND title = ${title} AND lead_days = ${leadDays} LIMIT 1`);
+    const existing = (existingResults.rows || existingResults) as Reminder[];
 
     if (existing.length === 0) {
       await this.createReminder({
@@ -2806,20 +2766,8 @@ export class DatabaseStorage implements IStorage {
     reminderDate.setDate(reminderDate.getDate() - leadDays);
 
     // Check if reminder already exists
-    const existing = await db
-      .select()
-      .from(reminders)
-      .where(
-        and(
-          eq(reminders.orgId, orgId),
-          eq(reminders.scope, 'property'),
-          eq(reminders.scopeId, propertyId),
-          eq(reminders.type, type),
-          eq(reminders.title, title),
-          eq(reminders.leadDays, leadDays)
-        )
-      )
-      .limit(1);
+    const existingResults2 = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE org_id = ${orgId} AND scope = 'property' AND scope_id = ${propertyId} AND type = ${type} AND title = ${title} AND lead_days = ${leadDays} LIMIT 1`);
+    const existing = (existingResults2.rows || existingResults2) as Reminder[];
 
     if (existing.length === 0) {
       await this.createReminder({
@@ -2862,19 +2810,8 @@ export class DatabaseStorage implements IStorage {
     reminderDate.setDate(reminderDate.getDate() - leadDays);
 
     // Check if reminder already exists
-    const existing = await db
-      .select()
-      .from(reminders)
-      .where(
-        and(
-          eq(reminders.orgId, orgId),
-          eq(reminders.entityId, entityId),
-          eq(reminders.type, type),
-          eq(reminders.title, title),
-          eq(reminders.leadDays, leadDays)
-        )
-      )
-      .limit(1);
+    const existingResults3 = await db.execute(sql`SELECT id, org_id as "orgId", scope, scope_id as "scopeId", entity_id as "entityId", title, type, due_at as "dueAt", lead_days as "leadDays", channels, payload_json as "payloadJson", status, sent_at as "sentAt", completed_at as "completedAt", is_recurring as "isRecurring", recurring_frequency as "recurringFrequency", recurring_interval as "recurringInterval", recurring_end_date as "recurringEndDate", parent_recurring_id as "parentRecurringId", is_bulk_entry as "isBulkEntry", created_at as "createdAt" FROM reminders WHERE org_id = ${orgId} AND entity_id = ${entityId} AND type = ${type} AND title = ${title} AND lead_days = ${leadDays} LIMIT 1`);
+    const existing = (existingResults3.rows || existingResults3) as Reminder[];
 
     if (existing.length === 0) {
       await this.createReminder({
@@ -2989,16 +2926,9 @@ export class DatabaseStorage implements IStorage {
       );
 
     // Due reminders
-    const [dueReminders] = await db
-      .select({ count: count() })
-      .from(reminders)
-      .where(
-        and(
-          eq(reminders.orgId, orgId),
-          eq(reminders.status, "Pending"),
-          lte(reminders.dueAt, now)
-        )
-      );
+    const dueReminderResults = await db.execute(sql`SELECT COUNT(*)::int as count FROM reminders WHERE org_id = ${orgId} AND status = 'Pending' AND due_at <= ${now}`);
+    const dueReminderRows = (dueReminderResults.rows || dueReminderResults) as Array<{count: number}>;
+    const dueReminders = dueReminderRows[0] || { count: 0 };
 
     return {
       totalProperties: propertyCount.count,

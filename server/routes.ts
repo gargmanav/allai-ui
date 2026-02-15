@@ -18,7 +18,7 @@ import propertyOwnerAuthRouter from "./routes/property-owner-auth";
 import tenantRouter from "./routes/tenant";
 import tenantAuthRouter from "./routes/tenant-auth";
 import messagingRouter from "./routes/messaging";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 import { 
   insertOrganizationSchema,
   insertOwnershipEntitySchema,
@@ -3798,53 +3798,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Check if user is a contractor (vendor) - they don't use reminders
-      const contractorCheck = await db
-        .select()
-        .from(vendors)
-        .where(eq(vendors.userId, userId))
-        .limit(1);
+      const contractorCheck = await db.execute(sql`
+        SELECT id FROM vendors WHERE user_id = ${userId} LIMIT 1
+      `);
+      const contractorRows = (contractorCheck.rows || contractorCheck) as any[];
       
-      if (contractorCheck.length > 0) {
-        // Contractors don't see reminders
+      if (contractorRows.length > 0) {
         return res.json([]);
       }
       
       const org = await storage.getUserOrganization(userId);
       if (!org) {
-        // No organization found - return empty array
         return res.json([]);
       }
       
       // Get user's role in the organization
-      const userRole = await db
-        .select({ role: organizationMembers.role })
-        .from(organizationMembers)
-        .where(
-          and(
-            eq(organizationMembers.userId, userId),
-            eq(organizationMembers.orgId, org.id)
-          )
-        )
-        .limit(1);
-
-      const role = userRole[0]?.role;
+      const userRoleResult = await db.execute(sql`
+        SELECT role FROM organization_members WHERE user_id = ${userId} AND org_id = ${org.id} LIMIT 1
+      `);
+      const userRoleRows = (userRoleResult.rows || userRoleResult) as any[];
+      const role = userRoleRows[0]?.role;
       
-      // If no role found, check if user is org owner (backward compatibility)
       const effectiveRole = role || (org.ownerId === userId ? 'admin' : null);
       
       if (!effectiveRole) {
-        // User has no role in this organization
         return res.json([]);
       }
 
-      // Role-based filtering
       if (effectiveRole === 'vendor' || effectiveRole === 'tenant') {
-        // Vendors and tenants don't see reminders (they work from Smart Cases instead)
-        // Reminders are an admin/manager organization tool
         return res.json([]);
       }
       
-      // Admin and managers see all reminders
       const reminders = await storage.getReminders(org.id);
       res.json(reminders);
     } catch (error) {
