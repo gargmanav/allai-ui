@@ -584,6 +584,21 @@ export default function LandlordHub() {
     },
   });
 
+  const STATUS_CYCLE = ["New", "In Review", "Scheduled", "In Progress", "On Hold", "Resolved", "Closed"] as const;
+  const statusMutation = useMutation({
+    mutationFn: async ({ caseId, status }: { caseId: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/cases/${caseId}`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      toast({ title: "Status updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Status update failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const closeMutation = useMutation({
     mutationFn: async ({ caseId, resolution }: { caseId: number; resolution?: string }) => {
       const res = await apiRequest("POST", `/api/landlord/cases/${caseId}/close`, { resolution });
@@ -1800,8 +1815,10 @@ export default function LandlordHub() {
                         {filteredCases.map((c, idx) => {
                           const isSelected = selectedCaseId === c.id;
                           const imageMedia = c.media?.find(m => m.type === "image" || m.type?.startsWith("image"));
-                          const costDisplay = c.estimatedCost ? `$${parseFloat(String(c.estimatedCost)).toLocaleString()}` : (c.aiTriageJson?.estimatedCost || "TBD");
-                          const tenantName = c.reporter ? `${c.reporter.firstName || ''} ${c.reporter.lastName || ''}`.trim() : null;
+                          const shortTitle = (c.title || c.description || "").slice(0, 20) + ((c.title || c.description || "").length > 20 ? "..." : "");
+                          const tenantShort = c.reporter ? `${(c.reporter.firstName || '').charAt(0)}. ${c.reporter.lastName || ''}`.trim() : null;
+                          const unitShort = c.roomNumber ? `U${c.roomNumber}` : null;
+                          const CatIcon = getCategoryIcon(c.category);
                           return (
                             <button
                               key={`${c.id}-${idx}`}
@@ -1813,9 +1830,9 @@ export default function LandlordHub() {
                                   isSelected ? "ring-2 ring-violet-400 scale-105" : "hover:scale-105"
                                 }`}
                                 style={{
-                                  background: isSelected
+                                  background: imageMedia?.url ? undefined : (isSelected
                                     ? "linear-gradient(180deg, rgba(245,243,255,0.95), rgba(237,233,254,0.9))"
-                                    : "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                                    : "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))"),
                                   boxShadow: isSelected
                                     ? "0 6px 20px rgba(139, 92, 246, 0.2)"
                                     : "0 4px 12px rgba(0,0,0,0.06)",
@@ -1823,25 +1840,21 @@ export default function LandlordHub() {
                               >
                                 {imageMedia?.url ? (
                                   <img src={imageMedia.url} alt="" className="w-full h-full object-cover" />
-                                ) : (() => {
-                                  const CatIcon = getCategoryIcon(c.category);
-                                  return <CatIcon className={`h-5 w-5 ${isSelected ? "text-violet-500" : "text-gray-400"}`} />;
-                                })()}
+                                ) : (
+                                  <CatIcon className={`h-5 w-5 ${isSelected ? "text-violet-500" : "text-gray-400"}`} />
+                                )}
                                 {(c.priority === "Urgent" || c.priority === "High") && (
                                   <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                                     <span className="text-[8px] text-white font-bold">!</span>
                                   </div>
                                 )}
                               </div>
-                              <span className={`text-sm mt-1 font-bold ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
-                                {costDisplay}
+                              <span className={`text-[10px] mt-1 font-semibold leading-tight text-center max-w-[80px] truncate ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
+                                {shortTitle || "Issue"}
                               </span>
-                              <span className={`text-[10px] font-medium ${tenantName ? 'text-blue-500' : 'text-emerald-500'}`}>
-                                {tenantName || "New Request"}
+                              <span className="text-[9px] text-muted-foreground truncate max-w-[80px]">
+                                {[tenantShort, unitShort].filter(Boolean).join(" · ") || "Unassigned"}
                               </span>
-                              {(c.propertyName || c.buildingName) && (
-                                <span className="text-[10px] text-muted-foreground truncate max-w-[75px]">{c.propertyName || c.buildingName}</span>
-                              )}
                             </button>
                           );
                         })}
@@ -1903,20 +1916,19 @@ export default function LandlordHub() {
                               ) : (
                                 <>
                                   <Button
-                                    className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                                    className="flex-1 h-11 touch-manipulation bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200/60"
                                     onClick={() => setShowInlineRecs(!showInlineRecs)}
                                   >
                                     <Send className="h-4 w-4 mr-2" />
                                     Accept & Assign
                                   </Button>
                                   <Button
-                                    variant="outline"
-                                    className="flex-1 h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50"
+                                    className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
                                     onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
                                     disabled={closeMutation.isPending}
                                   >
-                                    {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-1" />}
-                                    Pass
+                                    {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                                    Resolve
                                   </Button>
                                 </>
                               )}
@@ -2051,8 +2063,14 @@ export default function LandlordHub() {
                                   <div className="space-y-2">
                                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Attached Photos</span>
                                     <div className="flex gap-2 overflow-x-auto pb-2">
-                                      {images.map((m) => (
-                                        <img key={m.id} src={m.url} alt={m.caption || "Case photo"} className="h-24 w-24 object-cover rounded-lg border border-slate-200 flex-shrink-0" />
+                                      {images.map((m, imgIdx) => (
+                                        <div key={m.id} className="relative h-24 w-24 rounded-lg overflow-hidden flex-shrink-0 group/photo border border-slate-200">
+                                          <img src={m.url} alt={m.caption || "Case photo"} className="w-full h-full object-cover" />
+                                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity" />
+                                          <span className="absolute bottom-1 left-1.5 text-[9px] text-white font-medium opacity-0 group-hover/photo:opacity-100 transition-opacity">
+                                            {m.caption || `Photo ${imgIdx + 1}`}
+                                          </span>
+                                        </div>
                                       ))}
                                     </div>
                                   </div>
@@ -2133,39 +2151,26 @@ export default function LandlordHub() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className={cn(
-                                    "h-9 text-xs flex-1 gap-1.5 font-medium",
-                                    (selectedCase.priority === "Urgent" || selectedCase.priority === "High")
-                                      ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300"
-                                      : "hover:bg-slate-50"
-                                  )}
-                                  disabled={priorityMutation.isPending}
+                                  className="h-9 text-xs flex-1 gap-1.5 font-medium hover:bg-slate-50"
+                                  disabled={statusMutation.isPending}
                                   onClick={() => {
-                                    const newPriority = (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent";
-                                    priorityMutation.mutate({ caseId: selectedCase.id, priority: newPriority });
+                                    const currentIdx = STATUS_CYCLE.indexOf(selectedCase.status as any);
+                                    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length;
+                                    statusMutation.mutate({ caseId: String(selectedCase.id), status: STATUS_CYCLE[nextIdx] });
                                   }}
                                 >
-                                  {priorityMutation.isPending ? (
+                                  {statusMutation.isPending ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                   ) : (
-                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    <LayoutGrid className="h-3.5 w-3.5" />
                                   )}
-                                  {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Urgent" : "Normal"}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-9 text-xs flex-1 gap-1.5 font-medium bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300"
-                                  onClick={() => setShowInlineRecs(!showInlineRecs)}
-                                >
-                                  <UserCheck className="h-3.5 w-3.5" />
-                                  Assign
+                                  Change Status
                                 </Button>
                                 {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-9 text-xs flex-1 gap-1.5 font-medium bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300"
+                                    className="h-9 text-xs flex-1 gap-1.5 font-medium bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/20 dark:border-violet-700 dark:text-violet-300"
                                     disabled={closeMutation.isPending}
                                     onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
                                   >
