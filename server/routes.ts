@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireAuth, AuthenticatedRequest } from "./middleware/rbac";
 import { ObjectStorageService } from "./objectStorage";
 import { db } from "./db";
-import { users, organizationMembers, vendors, counterProposals, tenants, smartCases, transactions as transactionsTable } from "@shared/schema";
+import { users, organizationMembers, vendors, counterProposals, tenants, smartCases, transactions as transactionsTable, caseMedia } from "@shared/schema";
 import { z } from "zod";
 import authRouter from "./routes/auth";
 import contractorRouter from "./routes/contractor";
@@ -2060,10 +2060,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        const caseMediaItems = await db.select().from(caseMedia).where(eq(caseMedia.caseId, smartCase.id));
+
         return {
           ...smartCase,
           scheduledJobs: jobs,
-          reporter
+          reporter,
+          media: caseMediaItems
         };
       }));
       

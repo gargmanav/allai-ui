@@ -80,6 +80,7 @@ import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
 import { HubSettingsView } from "@/components/landlord/hub-settings-view";
 import { HubVendorsView } from "@/components/landlord/hub-vendors-view";
 import { MayaSidebarPanel } from "@/components/landlord/maya-sidebar-panel";
+import { ThreadChat } from "@/components/contractor/thread-chat";
 
 type ViewState =
   | "landing"
@@ -117,6 +118,20 @@ interface MaintenanceCase {
   updatedAt: string;
   propertyId?: number;
   propertyName?: string;
+  aiTriageJson?: {
+    urgency?: string;
+    rootCause?: string;
+    estimatedCost?: string;
+    estimatedTime?: string;
+    suggestedActions?: string[];
+    safetyNotes?: string;
+    photoAnalysis?: any;
+  } | null;
+  media?: Array<{ id: string; url: string; type?: string; caption?: string }>;
+  reporter?: { id: string; firstName?: string; lastName?: string; email?: string } | null;
+  property?: { id: string; name?: string; address?: string } | null;
+  unit?: { id: string; unitNumber?: string } | null;
+  reporterUserId?: string;
 }
 
 interface ContractorRecommendation {
@@ -555,6 +570,7 @@ export default function LandlordHub() {
 
   const [noteText, setNoteText] = useState("");
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const [showInlineRecs, setShowInlineRecs] = useState(false);
 
   const noteMutation = useMutation({
     mutationFn: async ({ caseId, note }: { caseId: number; note: string }) => {
@@ -1746,72 +1762,377 @@ export default function LandlordHub() {
                       </p>
                     </div>
                   ) : viewMode === "cards" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {filteredCases.map((c) => (
-                        <button
-                          key={c.id}
-                          className={`text-left rounded-xl border p-4 transition-all hover:shadow-md hover:border-blue-300 ${
-                            selectedCaseId === c.id
-                              ? "border-blue-500 shadow-md bg-blue-50/50 dark:bg-blue-900/20"
-                              : "border-border"
-                          }`}
-                          onClick={() => setSelectedCaseId(c.id)}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="text-sm font-semibold line-clamp-1">
-                              {c.title}
-                            </h4>
-                            {(c.priority === "Urgent" || c.priority === "High") && (
-                              <Badge variant="destructive" className="text-[10px] ml-2 shrink-0 gap-1">
-                                <AlertTriangle className="h-3 w-3" />
-                                Urgent
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                            {c.description}
-                          </p>
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                            {c.category && (
-                              <span className="bg-muted px-1.5 py-0.5 rounded">
-                                {c.category}
-                              </span>
-                            )}
-                            {(c.propertyName || c.buildingName) && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {c.propertyName || c.buildingName}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                            <Badge
-                              variant="outline"
-                              className="text-[10px]"
+                    <div className="p-4 sm:p-6">
+                      <div className="flex items-start gap-4 overflow-x-auto pb-4 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
+                        {filteredCases.map((c, idx) => {
+                          const isSelected = selectedCaseId === c.id;
+                          const firstMedia = c.media?.[0];
+                          const costDisplay = c.estimatedCost ? `$${parseFloat(String(c.estimatedCost)).toLocaleString()}` : "TBD";
+                          return (
+                            <button
+                              key={`${c.id}-${idx}`}
+                              onClick={() => { setSelectedCaseId(c.id); setShowInlineRecs(false); }}
+                              className="flex flex-col items-center min-w-[70px] sm:min-w-[90px] group touch-manipulation"
                             >
-                              {c.status}
-                            </Badge>
-                            <span className="text-[10px] text-muted-foreground">
-                              {c.createdAt
-                                ? format(
-                                    new Date(c.createdAt),
-                                    "MMM d"
-                                  )
-                                : ""}
-                            </span>
-                          </div>
-                          {c.assignedContractorName && (
-                            <div className="flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground">
-                              <User className="h-3 w-3" />
-                              {c.assignedContractorName}
+                              <div
+                                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                  isSelected ? "ring-2 ring-violet-400 scale-105" : "hover:scale-105"
+                                }`}
+                                style={{
+                                  background: isSelected
+                                    ? "linear-gradient(180deg, rgba(245,243,255,0.95), rgba(237,233,254,0.9))"
+                                    : "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                                  boxShadow: isSelected
+                                    ? "0 6px 20px rgba(139, 92, 246, 0.2)"
+                                    : "0 4px 12px rgba(0,0,0,0.06)",
+                                }}
+                              >
+                                {firstMedia?.url ? (
+                                  <img src={firstMedia.url} alt="" className="w-full h-full object-cover rounded-full" />
+                                ) : (
+                                  <Home className={`h-5 w-5 ${isSelected ? "text-violet-500" : "text-gray-400"}`} />
+                                )}
+                                {(c.priority === "Urgent" || c.priority === "High") && (
+                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-[8px] text-white font-bold">!</span>
+                                  </div>
+                                )}
+                              </div>
+                              <span className={`text-sm mt-1 font-bold ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
+                                {costDisplay}
+                              </span>
+                              <span className="text-[10px] font-medium text-blue-500 truncate max-w-[80px]">
+                                {c.propertyName || c.buildingName || "Property"}
+                              </span>
+                              {c.category && (
+                                <span className="text-[10px] text-muted-foreground truncate max-w-[75px]">{c.category}</span>
+                              )}
+                              {c.assignedContractorName && (
+                                <span className="text-[9px] font-medium text-emerald-600 truncate max-w-[75px]">Assigned</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {selectedCase && (
+                        <Card className="mt-4 overflow-hidden">
+                          <div className="px-4 py-3 border-b bg-gradient-to-r from-violet-50 to-white dark:from-violet-950/30 dark:to-slate-900">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-12 h-12 rounded-full flex items-center justify-center text-slate-600 font-bold overflow-hidden"
+                                  style={{
+                                    background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                                    boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
+                                  }}
+                                >
+                                  {selectedCase.media?.[0]?.url ? (
+                                    <img src={selectedCase.media[0].url} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Home className="h-5 w-5 text-gray-400" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg">
+                                    {selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD"}
+                                  </h3>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">{selectedCase.category || "General"}</span>
+                                  </div>
+                                  {(selectedCase.propertyName || selectedCase.buildingName) && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <MapPin className="h-3 w-3" />
+                                      {selectedCase.propertyName || selectedCase.buildingName}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") && (
+                                  <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Urgent</Badge>
+                                )}
+                                <Badge variant="outline">{selectedCase.status}</Badge>
+                              </div>
                             </div>
-                          )}
-                        </button>
-                      ))}
+                          </div>
+                          <CardContent className="p-4 space-y-4">
+                            <div className="flex items-center gap-3">
+                              {selectedCase.assignedContractorName ? (
+                                <div className="flex-1 rounded-xl p-3 border-2 border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/20">
+                                  <div className="flex items-center gap-2">
+                                    <UserCheck className="h-4 w-4 text-emerald-600" />
+                                    <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                                      Assigned to {selectedCase.assignedContractorName}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <Button
+                                    className="flex-1 h-11 touch-manipulation bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-md"
+                                    onClick={() => setShowInlineRecs(!showInlineRecs)}
+                                  >
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Accept & Assign
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    className="h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50"
+                                    onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
+                                    disabled={closeMutation.isPending}
+                                  >
+                                    {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-1" />}
+                                    Pass
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+
+                            {showInlineRecs && !selectedCase.assignedContractorName && (
+                              <div className="space-y-3 rounded-xl p-3 border border-violet-200 bg-violet-50/30 dark:bg-violet-900/10">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 text-violet-500" />
+                                  <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Maya's Recommendations</span>
+                                  {recommendations?.involvementMode && (
+                                    <Badge variant="outline" className="text-[9px] ml-auto">
+                                      {recommendations.involvementMode === 'hands-on' ? 'Hands-On' :
+                                       recommendations.involvementMode === 'balanced' ? 'Balanced' : 'Hands-Off'}
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                {recsLoading ? (
+                                  <div className="flex items-center justify-center py-6">
+                                    <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+                                    <span className="text-xs text-muted-foreground ml-2">Maya is analyzing...</span>
+                                  </div>
+                                ) : recommendations?.contractors?.length ? (
+                                  <div className="space-y-2">
+                                    {recommendations.contractors.map((contractor, idx) => (
+                                      <div
+                                        key={contractor.id}
+                                        className="group/rec rounded-xl p-3 transition-all duration-200 hover:scale-[1.01] hover:shadow-md cursor-pointer"
+                                        style={{
+                                          ...FROSTED_CARD_STYLE,
+                                          borderColor: idx === 0 ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.85)',
+                                          boxShadow: idx === 0
+                                            ? '0 4px 16px rgba(139,92,246,0.12), 0 2px 8px rgba(0,0,0,0.04)'
+                                            : '0 2px 8px rgba(0,0,0,0.04)',
+                                        }}
+                                      >
+                                        <div className="flex items-start justify-between mb-1">
+                                          <div className="flex items-center gap-2">
+                                            {idx === 0 && <span className="text-xs">🥇</span>}
+                                            {idx === 1 && <span className="text-xs">🥈</span>}
+                                            {idx === 2 && <span className="text-xs">🥉</span>}
+                                            <span className="text-sm font-semibold">{contractor.name}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            {contractor.isTrusted && <Shield className="h-3 w-3 text-emerald-500" />}
+                                            {contractor.isFavorite && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
+                                          {contractor.category && (
+                                            <span className="flex items-center gap-1"><Wrench className="h-3 w-3" />{contractor.category}</span>
+                                          )}
+                                          {contractor.rating && (
+                                            <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-400" />{parseFloat(contractor.rating).toFixed(1)}</span>
+                                          )}
+                                          {contractor.responseTimeHours != null && (
+                                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{contractor.responseTimeHours}h</span>
+                                          )}
+                                          {contractor.emergencyAvailable && (
+                                            <span className="flex items-center gap-1 text-red-500"><Zap className="h-3 w-3" />24/7</span>
+                                          )}
+                                        </div>
+                                        {contractor.specialties.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 mb-2">
+                                            {contractor.specialties.slice(0, 3).map(s => (
+                                              <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">{s}</span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <p className="text-[10px] text-violet-600 dark:text-violet-400 italic mb-2">{contractor.mayaNote}</p>
+                                        <Button
+                                          size="sm"
+                                          className="w-full h-7 text-xs bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600 text-white shadow-sm"
+                                          disabled={assignMutation.isPending}
+                                          onClick={() => assignMutation.mutate({ caseId: selectedCase.id, vendorId: contractor.id })}
+                                        >
+                                          {assignMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <UserCheck className="h-3 w-3 mr-1" />}
+                                          Assign {contractor.name.split(' ')[0]}
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-xl p-4 text-center" style={FROSTED_CARD_STYLE}>
+                                    <User className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                                    <p className="text-xs text-muted-foreground">No contractors available for this category.</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Add vendors in Portfolio → Vendors</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Job Details</p>
+                              <div className="space-y-2 text-sm">
+                                {(selectedCase.propertyName || selectedCase.buildingName) && (
+                                  <div className="flex items-center gap-2 text-muted-foreground">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    <span>{selectedCase.propertyName || selectedCase.buildingName}</span>
+                                    {selectedCase.roomNumber && <span className="text-xs">• Unit {selectedCase.roomNumber}</span>}
+                                  </div>
+                                )}
+                                {selectedCase.reporter && (
+                                  <div className="flex items-center gap-2 text-muted-foreground">
+                                    <User className="h-3.5 w-3.5" />
+                                    <span>Reported by {selectedCase.reporter.firstName} {selectedCase.reporter.lastName}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span>{selectedCase.createdAt ? format(new Date(selectedCase.createdAt), "MMM d, yyyy 'at' h:mm a") : "—"}</span>
+                                </div>
+                              </div>
+                              <p className="text-sm text-slate-700 dark:text-slate-300">{selectedCase.description}</p>
+
+                              {selectedCase.media && selectedCase.media.length > 0 && (
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                  {selectedCase.media.filter(m => m.type === "image" || !m.type).map((m) => (
+                                    <img key={m.id} src={m.url} alt={m.caption || "Case photo"} className="h-24 w-24 object-cover rounded-lg border flex-shrink-0" />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {selectedCase.aiTriageJson && (
+                              <div className="space-y-3 rounded-xl p-3" style={{
+                                ...FROSTED_CARD_STYLE,
+                                boxShadow: '0 4px 16px rgba(139,92,246,0.08), 0 2px 8px rgba(0,0,0,0.04)',
+                              }}>
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 text-violet-500" />
+                                  <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Maya AI Assessment</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  {selectedCase.aiTriageJson.urgency && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Urgency</p>
+                                      <Badge variant={selectedCase.aiTriageJson.urgency.toLowerCase().includes("high") || selectedCase.aiTriageJson.urgency.toLowerCase().includes("urgent") ? "destructive" : "secondary"} className="text-xs">
+                                        {selectedCase.aiTriageJson.urgency}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  {selectedCase.aiTriageJson.rootCause && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Likely Cause</p>
+                                      <p className="text-xs font-medium">{selectedCase.aiTriageJson.rootCause}</p>
+                                    </div>
+                                  )}
+                                  {selectedCase.aiTriageJson.estimatedCost && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Est. Cost</p>
+                                      <p className="text-xs font-bold text-blue-600">{selectedCase.aiTriageJson.estimatedCost}</p>
+                                    </div>
+                                  )}
+                                  {selectedCase.aiTriageJson.estimatedTime && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Est. Time</p>
+                                      <p className="text-xs font-medium">{selectedCase.aiTriageJson.estimatedTime}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                {selectedCase.aiTriageJson.suggestedActions && selectedCase.aiTriageJson.suggestedActions.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">Suggested Steps</p>
+                                    <div className="space-y-1">
+                                      {selectedCase.aiTriageJson.suggestedActions.map((action, i) => (
+                                        <div key={i} className="flex items-start gap-2 text-xs">
+                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                                          <span>{action}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {selectedCase.aiTriageJson.safetyNotes && (
+                                  <div className="rounded-lg p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                                    <div className="flex items-start gap-2">
+                                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+                                      <p className="text-xs text-amber-800 dark:text-amber-300">{selectedCase.aiTriageJson.safetyNotes}</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</p>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs flex-1"
+                                  disabled={priorityMutation.isPending}
+                                  onClick={() => {
+                                    const newPriority = (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent";
+                                    priorityMutation.mutate({ caseId: selectedCase.id, priority: newPriority });
+                                  }}
+                                >
+                                  {priorityMutation.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                  ) : (
+                                    <AlertTriangle className={cn("h-3 w-3 mr-1", (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "text-red-500" : "text-muted-foreground")} />
+                                  )}
+                                  {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent"}
+                                </Button>
+                                {!showNoteForm ? (
+                                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1" onClick={() => setShowNoteForm(true)}>
+                                    <FileText className="h-3 w-3 mr-1" /> Note
+                                  </Button>
+                                ) : (
+                                  <div className="flex-1 space-y-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border">
+                                    <Textarea placeholder="Add a note..." className="text-xs min-h-[50px] resize-none" value={noteText} onChange={(e) => setNoteText(e.target.value)} />
+                                    <div className="flex gap-1">
+                                      <Button size="sm" className="h-6 text-[10px] flex-1" disabled={!noteText.trim() || noteMutation.isPending} onClick={() => noteMutation.mutate({ caseId: selectedCase.id, note: noteText.trim() })}>
+                                        {noteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => { setShowNoteForm(false); setNoteText(""); }}>Cancel</Button>
+                                    </div>
+                                  </div>
+                                )}
+                                {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 text-xs flex-1 text-emerald-600 hover:bg-emerald-50"
+                                    disabled={closeMutation.isPending}
+                                    onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
+                                  >
+                                    {closeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle className="h-3 w-3 mr-1" />}
+                                    Resolve
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            {selectedCase.reporterUserId && selectedCase.assignedContractorName && (
+                              <ThreadChat
+                                caseId={String(selectedCase.id)}
+                                homeownerUserId={selectedCase.reporterUserId}
+                                compact
+                              />
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
-                  ) : (
-                    viewMode === "list" ? (
-                    <div className="space-y-1">
+                  ) : viewMode === "list" ? (
+                    <div className="space-y-1 p-4">
                       {filteredCases.map((c) => (
                         <button
                           key={c.id}
@@ -1820,7 +2141,7 @@ export default function LandlordHub() {
                               ? "bg-blue-50/50 dark:bg-blue-900/20 border border-blue-300"
                               : ""
                           }`}
-                          onClick={() => setSelectedCaseId(c.id)}
+                          onClick={() => { setSelectedCaseId(c.id); setShowInlineRecs(false); }}
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -1833,22 +2154,14 @@ export default function LandlordHub() {
                                   Urgent
                                 </Badge>
                               )}
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] shrink-0"
-                              >
-                                {c.status}
-                              </Badge>
+                              <Badge variant="outline" className="text-[10px] shrink-0">{c.status}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {c.propertyName || c.buildingName} •{" "}
-                              {c.category}
+                              {c.propertyName || c.buildingName} • {c.category}
                             </p>
                           </div>
                           <span className="text-xs text-muted-foreground shrink-0">
-                            {c.createdAt
-                              ? format(new Date(c.createdAt), "MMM d")
-                              : ""}
+                            {c.createdAt ? format(new Date(c.createdAt), "MMM d") : ""}
                           </span>
                         </button>
                       ))}
@@ -1866,277 +2179,7 @@ export default function LandlordHub() {
                         </p>
                       </div>
                     </div>
-                  ))}
-
-                {selectedCase && (
-                  <>
-                  <div className="fixed inset-0 bg-black/30 z-40 xl:hidden" onClick={() => setSelectedCaseId(null)} />
-                  <div className="fixed right-0 top-0 bottom-0 z-50 xl:relative xl:z-auto flex flex-col w-[90vw] sm:w-96 border-l overflow-y-auto shadow-2xl xl:shadow-none" style={{ background: 'linear-gradient(180deg, rgba(248,249,251,0.98) 0%, rgba(244,245,248,0.95) 100%)' }}>
-                    <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b bg-white/80 backdrop-blur-sm">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-violet-500" />
-                        <h3 className="text-sm font-semibold">Case Action Panel</h3>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedCaseId(null)}>
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="p-4 space-y-4">
-                      <div className="rounded-xl p-3" style={{
-                        ...FROSTED_CARD_STYLE,
-                        boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
-                      }}>
-                        <h4 className="text-sm font-bold mb-1">{selectedCase.title}</h4>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") && (
-                            <Badge variant="destructive" className="text-[10px] gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {selectedCase.priority}
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-[10px]">{selectedCase.status}</Badge>
-                          {selectedCase.category && (
-                            <Badge variant="secondary" className="text-[10px]">{selectedCase.category}</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{selectedCase.description}</p>
-                        {(selectedCase.propertyName || selectedCase.buildingName) && (
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {selectedCase.propertyName || selectedCase.buildingName}
-                          </p>
-                        )}
-                        {selectedCase.estimatedCost && (
-                          <p className="text-xs font-semibold mt-1">
-                            Est. ${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}
-                          </p>
-                        )}
-                        <p className="text-[10px] text-muted-foreground mt-2">
-                          {selectedCase.createdAt ? format(new Date(selectedCase.createdAt), "MMM d, yyyy 'at' h:mm a") : "—"}
-                        </p>
-                      </div>
-
-                      {selectedCase.assignedContractorName ? (
-                        <div className="rounded-xl p-3 border-2 border-emerald-200 bg-emerald-50/50">
-                          <div className="flex items-center gap-2 mb-1">
-                            <UserCheck className="h-4 w-4 text-emerald-600" />
-                            <span className="text-xs font-semibold text-emerald-700">Assigned Contractor</span>
-                          </div>
-                          <p className="text-sm font-bold text-emerald-800">{selectedCase.assignedContractorName}</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-violet-500" />
-                            <span className="text-xs font-semibold text-violet-700">Maya's Recommendations</span>
-                            {recommendations?.involvementMode && (
-                              <Badge variant="outline" className="text-[9px] ml-auto">
-                                {recommendations.involvementMode === 'hands-on' ? '🎯 Hands-On' :
-                                 recommendations.involvementMode === 'balanced' ? '⚖️ Balanced' : '🤖 Hands-Off'}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {recsLoading ? (
-                            <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
-                              <span className="text-xs text-muted-foreground ml-2">Maya is analyzing...</span>
-                            </div>
-                          ) : recommendations?.contractors?.length ? (
-                            <div className="space-y-2">
-                              {recommendations.contractors.map((contractor, idx) => (
-                                <div
-                                  key={contractor.id}
-                                  className="group/rec rounded-xl p-3 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-pointer"
-                                  style={{
-                                    ...FROSTED_CARD_STYLE,
-                                    borderColor: idx === 0 ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.85)',
-                                    boxShadow: idx === 0
-                                      ? '0 4px 16px rgba(139,92,246,0.12), 0 2px 8px rgba(0,0,0,0.04)'
-                                      : '0 2px 8px rgba(0,0,0,0.04)',
-                                  }}
-                                >
-                                  <div className="flex items-start justify-between mb-1">
-                                    <div className="flex items-center gap-2">
-                                      {idx === 0 && <span className="text-xs">🥇</span>}
-                                      {idx === 1 && <span className="text-xs">🥈</span>}
-                                      {idx === 2 && <span className="text-xs">🥉</span>}
-                                      <span className="text-sm font-semibold">{contractor.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      {contractor.isTrusted && (
-                                        <Shield className="h-3 w-3 text-emerald-500" title="Trusted" />
-                                      )}
-                                      {contractor.isFavorite && (
-                                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" title="Favorite" />
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
-                                    {contractor.category && (
-                                      <span className="flex items-center gap-1">
-                                        <Wrench className="h-3 w-3" />
-                                        {contractor.category}
-                                      </span>
-                                    )}
-                                    {contractor.rating && (
-                                      <span className="flex items-center gap-1">
-                                        <Star className="h-3 w-3 text-amber-400" />
-                                        {parseFloat(contractor.rating).toFixed(1)}
-                                      </span>
-                                    )}
-                                    {contractor.responseTimeHours != null && (
-                                      <span className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {contractor.responseTimeHours}h
-                                      </span>
-                                    )}
-                                    {contractor.emergencyAvailable && (
-                                      <span className="flex items-center gap-1 text-red-500">
-                                        <Zap className="h-3 w-3" />
-                                        24/7
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {contractor.specialties.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mb-2">
-                                      {contractor.specialties.slice(0, 3).map(s => (
-                                        <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">{s}</span>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  <p className="text-[10px] text-violet-600 italic mb-2">{contractor.mayaNote}</p>
-
-                                  <Button
-                                    size="sm"
-                                    className="w-full h-7 text-xs bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600 text-white shadow-sm"
-                                    disabled={assignMutation.isPending}
-                                    onClick={() => assignMutation.mutate({ caseId: selectedCase.id, vendorId: contractor.id })}
-                                  >
-                                    {assignMutation.isPending ? (
-                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                    ) : (
-                                      <UserCheck className="h-3 w-3 mr-1" />
-                                    )}
-                                    Assign {contractor.name.split(' ')[0]}
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="rounded-xl p-4 text-center" style={FROSTED_CARD_STYLE}>
-                              <User className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                              <p className="text-xs text-muted-foreground">No contractors available for this category.</p>
-                              <p className="text-[10px] text-muted-foreground mt-1">Add vendors in Portfolio → Vendors</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="rounded-xl p-3" style={{
-                        ...FROSTED_CARD_STYLE,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                      }}>
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Actions</p>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full justify-start h-8 text-xs"
-                            disabled={priorityMutation.isPending}
-                            onClick={() => {
-                              const newPriority = (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent";
-                              priorityMutation.mutate({ caseId: selectedCase.id, priority: newPriority });
-                            }}
-                          >
-                            {priorityMutation.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-2" />
-                            ) : (
-                              <AlertTriangle className={cn("h-3 w-3 mr-2", (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "text-red-500" : "text-muted-foreground")} />
-                            )}
-                            {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Set Normal Priority" : "Mark as Urgent"}
-                          </Button>
-
-                          {!showNoteForm ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full justify-start h-8 text-xs"
-                              onClick={() => setShowNoteForm(true)}
-                            >
-                              <FileText className="h-3 w-3 mr-2" />
-                              Add Note
-                            </Button>
-                          ) : (
-                            <div className="space-y-2 p-2 rounded-lg bg-slate-50 border">
-                              <Textarea
-                                placeholder="Add a note about this case..."
-                                className="text-xs min-h-[60px] resize-none"
-                                value={noteText}
-                                onChange={(e) => setNoteText(e.target.value)}
-                              />
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  className="h-6 text-[10px] flex-1"
-                                  disabled={!noteText.trim() || noteMutation.isPending}
-                                  onClick={() => noteMutation.mutate({ caseId: selectedCase.id, note: noteText.trim() })}
-                                >
-                                  {noteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-[10px]"
-                                  onClick={() => { setShowNoteForm(false); setNoteText(""); }}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-
-                          {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full justify-start h-8 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                              disabled={closeMutation.isPending}
-                              onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
-                            >
-                              {closeMutation.isPending ? (
-                                <Loader2 className="h-3 w-3 animate-spin mr-2" />
-                              ) : (
-                                <CheckCircle className="h-3 w-3 mr-2" />
-                              )}
-                              Resolve & Close
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      {recommendations?.involvementMode && (
-                        <div className="rounded-lg p-2 bg-violet-50/50 border border-violet-100">
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="h-3 w-3 text-violet-400" />
-                            <span className="text-[10px] text-violet-600">
-                              {recommendations.involvementMode === 'hands-on'
-                                ? "You're in full control — review every assignment"
-                                : recommendations.involvementMode === 'balanced'
-                                ? "Maya suggests, you decide with one tap"
-                                : "Maya handles assignments — you get notified"}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  </>
-                )}
+                  )}
               </MayaSidebarPanel>
             </div>
           )}
