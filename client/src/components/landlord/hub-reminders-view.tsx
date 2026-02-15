@@ -334,10 +334,13 @@ export function HubRemindersView() {
   };
 
   const getEffectiveStatus = (reminder: any): string | null => {
-    if (reminder.status) {
+    if (reminder.status === "Completed" || reminder.status === "Cancelled") {
       return reminder.status;
     }
-    return isOverdue(reminder.dueAt) ? "Overdue" : null;
+    if (isOverdue(reminder.dueAt)) {
+      return "Overdue";
+    }
+    return reminder.status || "Pending";
   };
   
   const isDueWithinDays = (dueAt: Date | string, days: number) => {
@@ -357,7 +360,7 @@ export function HubRemindersView() {
     if (statusFilter === "all") {
       statusMatch = true;
     } else if (statusFilter === "due") {
-      statusMatch = !reminder.status || effectiveStatus === "Overdue";
+      statusMatch = effectiveStatus === "Pending" || effectiveStatus === "Overdue" || !reminder.status;
     } else if (statusFilter === "Overdue") {
       statusMatch = effectiveStatus === "Overdue";
     } else {
@@ -492,10 +495,11 @@ export function HubRemindersView() {
     return daysUntil >= 0 && daysUntil <= 30;
   }).length;
   const thisMonthReminders = allReminders.filter(r => {
+    if (r.status === "Completed" || r.status === "Cancelled") return false;
     const reminderDue = new Date(r.dueAt);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return !r.status && reminderDue >= startOfMonth && reminderDue <= endOfMonth;
+    return reminderDue >= startOfMonth && reminderDue <= endOfMonth;
   }).length;
 
   return (
