@@ -1,18 +1,26 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calculator, FileText, Users, Download, AlertCircle, TrendingUp, Clock } from "lucide-react";
+import { Calculator, FileText, Users, Download, AlertCircle, TrendingUp, Clock, CheckCircle, XCircle } from "lucide-react";
 import PropertyAssistant from "@/components/ai/property-assistant";
 import MortgageAdjustmentForm from "@/components/forms/mortgage-adjustment-form";
 import ScheduleEReport from "@/components/tax/schedule-e-report";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Property, Transaction, Vendor } from "@shared/schema";
+
+interface VendorReportEntry {
+  vendor: Vendor;
+  totalPayments: number;
+  qualifiesFor1099: boolean;
+  w9OnFile: boolean;
+}
 
 interface TaxData {
   properties: Property[];
@@ -26,6 +34,7 @@ export default function Tax() {
   const { isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("schedule-e");
   const [showMortgageAdjustment, setShowMortgageAdjustment] = useState(false);
+  const [selected1099Year, setSelected1099Year] = useState(new Date().getFullYear());
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -56,9 +65,32 @@ export default function Tax() {
     queryKey: ["/api/depreciation-assets"],
   });
 
+  const { data: vendorReport = [], isLoading: isReportLoading, error: reportError } = useQuery<VendorReportEntry[]>({
+    queryKey: ["/api/tax/1099-report", selected1099Year],
+    queryFn: async () => {
+      const res = await fetch(`/api/tax/1099-report?year=${selected1099Year}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch 1099 report");
+      return res.json();
+    },
+  });
+
+  const w9Mutation = useMutation({
+    mutationFn: async ({ vendorId, w9OnFile }: { vendorId: string; w9OnFile: boolean }) => {
+      await apiRequest("PATCH", `/api/vendors/${vendorId}/w9`, { w9OnFile });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tax/1099-report", selected1099Year] });
+      toast({ title: "W-9 status updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update W-9 status", variant: "destructive" });
+    },
+  });
+
   // Handle query errors
   useEffect(() => {
-    const errors = [propertiesError, transactionsError, vendorsError];
+    const errors = [propertiesError, transactionsError, vendorsError, reportError];
     for (const error of errors) {
       if (error && isUnauthorizedError(error)) {
         toast({
@@ -72,7 +104,7 @@ export default function Tax() {
         return;
       }
     }
-  }, [propertiesError, transactionsError, vendorsError, toast]);
+  }, [propertiesError, transactionsError, vendorsError, reportError, toast]);
 
   if (isLoading) {
     return (
@@ -389,38 +421,260 @@ export default function Tax() {
               </TabsContent>
 
               <TabsContent value="1099" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>1099 Vendor Reports</CardTitle>
-                    <CardDescription>
-                      Track contractors and service providers for 1099-NEC reporting
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {vendorsNeed1099.length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Users className="h-4 w-4 text-blue-600" />
-                          <h3 className="font-semibold text-blue-800">W-9 Forms Needed</h3>
-                        </div>
-                        <p className="text-blue-700 text-sm mb-3">
-                          {vendorsNeed1099.length} vendors need W-9 forms on file before you can generate 1099s.
-                        </p>
-                        <Button size="sm" variant="outline" data-testid="button-manage-w9">
-                          Manage W-9 Forms
-                        </Button>
-                      </div>
-                    )}
+                {(() => {
+                  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
 
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <h3 className="font-semibold mb-2">1099 Report</h3>
-                      <p className="text-sm">
-                        1099-NEC report for vendors with payments over $600 will be displayed here.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  const vendorsWithPayments = vendorReport.filter(r => r.totalPayments > 0);
+                  const vendorsQualifying = vendorReport.filter(r => r.qualifiesFor1099);
+                  const vendorsMissingW9 = vendorReport.filter(r => r.qualifiesFor1099 && !r.w9OnFile);
+
+                  const generate1099NEC = (vendor: Vendor, amount: number) => {
+                    const payerName = properties.length > 0
+                      ? `${properties[0].name || "Property Owner"}`
+                      : "Property Owner";
+                    const payerAddress = properties.length > 0
+                      ? `${properties[0].street}, ${properties[0].city}, ${properties[0].state} ${properties[0].zipCode}`
+                      : "Address on file";
+
+                    const html = `<!DOCTYPE html>
+<html><head><title>1099-NEC - ${vendor.name} - ${selected1099Year}</title>
+<style>
+  @media print { body { margin: 0; } .no-print { display: none; } }
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; color: #000; }
+  .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+  .header h1 { margin: 0; font-size: 24px; }
+  .header h2 { margin: 5px 0; font-size: 16px; color: #555; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid #000; }
+  .form-cell { padding: 12px; border: 1px solid #000; }
+  .form-cell label { display: block; font-size: 10px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+  .form-cell .value { font-size: 14px; font-weight: bold; }
+  .full-width { grid-column: 1 / -1; }
+  .amount-box { background: #f9f9f9; }
+  .amount-box .value { font-size: 24px; color: #000; }
+  .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+  .print-btn { display: block; margin: 20px auto; padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .print-btn:hover { background: #1d4ed8; }
+</style></head><body>
+<div class="no-print"><button class="print-btn" onclick="window.print()">Print / Save as PDF</button></div>
+<div class="header">
+  <h2>CORRECTED (if checked) ▢</h2>
+  <h1>1099-NEC</h1>
+  <h2>Nonemployee Compensation</h2>
+  <p style="font-size:12px;">Tax Year ${selected1099Year} | Department of the Treasury - Internal Revenue Service</p>
+</div>
+<div class="form-grid">
+  <div class="form-cell">
+    <label>Payer's Name, Street Address, City, State, ZIP</label>
+    <div class="value">${payerName}</div>
+    <div style="font-size:12px;">${payerAddress}</div>
+  </div>
+  <div class="form-cell">
+    <label>Payer's TIN</label>
+    <div class="value">XX-XXXXXXX</div>
+  </div>
+  <div class="form-cell">
+    <label>Recipient's Name</label>
+    <div class="value">${vendor.name}</div>
+  </div>
+  <div class="form-cell">
+    <label>Recipient's TIN</label>
+    <div class="value">XXX-XX-XXXX</div>
+  </div>
+  <div class="form-cell">
+    <label>Street Address (including apt. no.)</label>
+    <div class="value">${vendor.address || "On file"}</div>
+  </div>
+  <div class="form-cell">
+    <label>Account Number (see instructions)</label>
+    <div class="value">&nbsp;</div>
+  </div>
+  <div class="form-cell amount-box">
+    <label>1. Nonemployee Compensation</label>
+    <div class="value">$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+  </div>
+  <div class="form-cell">
+    <label>2. Payer made direct sales totaling $5,000 or more ▢</label>
+    <div class="value">&nbsp;</div>
+  </div>
+  <div class="form-cell">
+    <label>3. &nbsp;</label>
+    <div class="value">&nbsp;</div>
+  </div>
+  <div class="form-cell">
+    <label>4. Federal income tax withheld</label>
+    <div class="value">$0.00</div>
+  </div>
+  <div class="form-cell">
+    <label>5. State tax withheld</label>
+    <div class="value">$0.00</div>
+  </div>
+  <div class="form-cell">
+    <label>6. State/Payer's state no.</label>
+    <div class="value">&nbsp;</div>
+  </div>
+  <div class="form-cell full-width">
+    <label>7. State income</label>
+    <div class="value">$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+  </div>
+</div>
+<div class="footer">
+  <p>This is Copy B - For Recipient's Records. This is important tax information and is being furnished to the IRS.</p>
+  <p>Generated by AllAI Property Management | For informational purposes - verify with your tax professional</p>
+</div>
+</body></html>`;
+                    const blob = new Blob([html], { type: "text/html" });
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, "_blank");
+                  };
+
+                  return (
+                    <>
+                      <Card>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle>1099-NEC Vendor Reports</CardTitle>
+                              <CardDescription>
+                                Track contractors and service providers for 1099-NEC reporting
+                              </CardDescription>
+                            </div>
+                            <select
+                              value={selected1099Year}
+                              onChange={(e) => setSelected1099Year(parseInt(e.target.value))}
+                              className="border rounded-md px-3 py-2 text-sm bg-background"
+                            >
+                              {yearOptions.map(y => (
+                                <option key={y} value={y}>{y} Tax Year</option>
+                              ))}
+                            </select>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {isReportLoading ? (
+                            <div className="text-center py-8">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                              <p className="text-muted-foreground text-sm">Loading 1099 report...</p>
+                            </div>
+                          ) : reportError ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <AlertCircle className="h-12 w-12 mx-auto mb-3 text-red-400 opacity-50" />
+                              <h3 className="font-semibold mb-2">Failed to Load Report</h3>
+                              <p className="text-sm">Unable to load the 1099 report. Please try again.</p>
+                            </div>
+                          ) : <>
+                          {vendorsMissingW9.length > 0 && (
+                            <div className="bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <AlertCircle className="h-4 w-4 text-amber-600" />
+                                <h3 className="font-semibold text-amber-800 dark:text-amber-200">W-9 Forms Needed</h3>
+                              </div>
+                              <p className="text-amber-700 dark:text-amber-300 text-sm">
+                                {vendorsMissingW9.length} vendor{vendorsMissingW9.length !== 1 ? "s" : ""} qualifying for 1099 need W-9 forms on file.
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Card>
+                              <CardContent className="pt-4">
+                                <div className="text-2xl font-bold">{vendorsWithPayments.length}</div>
+                                <p className="text-xs text-muted-foreground">Vendors Paid in {selected1099Year}</p>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardContent className="pt-4">
+                                <div className="text-2xl font-bold">{vendorsQualifying.length}</div>
+                                <p className="text-xs text-muted-foreground">Qualify for 1099 (≥$600)</p>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardContent className="pt-4">
+                                <div className="text-2xl font-bold text-amber-600">{vendorsMissingW9.length}</div>
+                                <p className="text-xs text-muted-foreground">Missing W-9 Forms</p>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {vendorsWithPayments.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                              <h3 className="font-semibold mb-2">No Vendor Payments</h3>
+                              <p className="text-sm">
+                                No vendor expense transactions found for {selected1099Year}.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="border rounded-lg overflow-hidden">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b bg-muted/50">
+                                      <th className="text-left p-3 font-medium">Vendor</th>
+                                      <th className="text-right p-3 font-medium">Total Payments</th>
+                                      <th className="text-center p-3 font-medium">W-9 Status</th>
+                                      <th className="text-center p-3 font-medium">1099 Required</th>
+                                      <th className="text-right p-3 font-medium">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {vendorsWithPayments
+                                      .sort((a, b) => b.totalPayments - a.totalPayments)
+                                      .map(({ vendor, totalPayments, qualifiesFor1099, w9OnFile }) => (
+                                        <tr key={vendor.id} className="border-b last:border-0 hover:bg-muted/30">
+                                          <td className="p-3">
+                                            <div className="font-medium">{vendor.name}</div>
+                                            <div className="text-xs text-muted-foreground">{vendor.vendorType}</div>
+                                          </td>
+                                          <td className="p-3 text-right font-medium">
+                                            ${totalPayments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </td>
+                                          <td className="p-3 text-center">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => w9Mutation.mutate({ vendorId: vendor.id, w9OnFile: !w9OnFile })}
+                                              disabled={w9Mutation.isPending}
+                                              className={w9OnFile ? "text-green-600 hover:text-green-700" : "text-red-500 hover:text-red-600"}
+                                            >
+                                              {w9OnFile ? (
+                                                <><CheckCircle className="h-4 w-4 mr-1" /> On File</>
+                                              ) : (
+                                                <><XCircle className="h-4 w-4 mr-1" /> Missing</>
+                                              )}
+                                            </Button>
+                                          </td>
+                                          <td className="p-3 text-center">
+                                            {qualifiesFor1099 ? (
+                                              <Badge variant="destructive">Required</Badge>
+                                            ) : (
+                                              <Badge variant="secondary">Under $600</Badge>
+                                            )}
+                                          </td>
+                                          <td className="p-3 text-right">
+                                            {qualifiesFor1099 && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => generate1099NEC(vendor, totalPayments)}
+                                              >
+                                                <FileText className="h-4 w-4 mr-1" />
+                                                Generate 1099
+                                              </Button>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                          </>}
+                        </CardContent>
+                      </Card>
+                    </>
+                  );
+                })()}
               </TabsContent>
 
               <TabsContent value="exports" className="space-y-4">
@@ -452,7 +706,27 @@ export default function Tax() {
                           <CardDescription>Vendor payment summaries for 1099 preparation</CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <Button className="w-full" data-testid="button-export-1099">
+                          <Button className="w-full" data-testid="button-export-1099" onClick={() => {
+                            const rows = vendorReport
+                              .filter(r => r.totalPayments > 0)
+                              .map(({ vendor, totalPayments, qualifiesFor1099, w9OnFile }) => [
+                                `"${(vendor.name || "").replace(/"/g, '""')}"`,
+                                `"${(vendor.address || "").replace(/"/g, '""')}"`,
+                                `"${vendor.vendorType || ""}"`,
+                                w9OnFile ? "Yes" : "No",
+                                totalPayments.toFixed(2),
+                                qualifiesFor1099 ? "Yes" : "No",
+                              ].join(","));
+                            const csv = ["Vendor Name,Vendor Address,Vendor Type,W-9 On File,Total Payments,Qualifies for 1099", ...rows].join("\n");
+                            const blob = new Blob([csv], { type: "text/csv" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `1099-data-${selected1099Year}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast({ title: "1099 data exported" });
+                          }}>
                             <Download className="h-4 w-4 mr-2" />
                             Export 1099 Data
                           </Button>

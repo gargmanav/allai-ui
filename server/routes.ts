@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireAuth, AuthenticatedRequest } from "./middleware/rbac";
 import { ObjectStorageService } from "./objectStorage";
 import { db } from "./db";
-import { users, organizationMembers, vendors, counterProposals, tenants, smartCases } from "@shared/schema";
+import { users, organizationMembers, vendors, counterProposals, tenants, smartCases, transactions as transactionsTable } from "@shared/schema";
 import { z } from "zod";
 import authRouter from "./routes/auth";
 import contractorRouter from "./routes/contractor";
@@ -2983,6 +2983,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating vendor:", error);
       res.status(500).json({ message: "Failed to create vendor" });
+    }
+  });
+
+  app.patch('/api/vendors/:id/w9', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const [updated] = await db.update(vendors)
+        .set({ w9OnFile: req.body.w9OnFile })
+        .where(and(eq(vendors.id, req.params.id), eq(vendors.orgId, org.id)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ message: "Vendor not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating vendor W-9 status:", error);
+      res.status(500).json({ message: "Failed to update vendor W-9 status" });
+    }
+  });
+
+  app.get('/api/tax/1099-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const allVendors = await storage.getVendors(org.id);
+      const allTransactions = await storage.getTransactions(org.id, "Expense");
+
+      const yearTransactions = allTransactions.filter((t: any) => {
+        const txYear = t.taxYear || new Date(t.date).getFullYear();
+        return txYear === year;
+      });
+
+      const paymentsByVendor: Record<string, number> = {};
+      for (const t of yearTransactions) {
+        if (t.vendorId) {
+          paymentsByVendor[t.vendorId] = (paymentsByVendor[t.vendorId] || 0) + parseFloat(t.amount);
+        }
+      }
+
+      const report = allVendors
+        .filter((v: any) => !v.taxExempt)
+        .map((v: any) => ({
+          vendor: v,
+          totalPayments: paymentsByVendor[v.id] || 0,
+          qualifiesFor1099: v.vendorType === "individual" && (paymentsByVendor[v.id] || 0) >= 600,
+          w9OnFile: v.w9OnFile || false,
+        }));
+
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating 1099 report:", error);
+      res.status(500).json({ message: "Failed to generate 1099 report" });
     }
   });
 
