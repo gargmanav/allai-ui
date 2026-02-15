@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, MapPin, Home, Calendar, Building2, Filter, ChevronDown, ChevronRight, Bed, Bath, DollarSign, Settings, Bell, Archive, Trash2, RotateCcw, Warehouse, Castle, Store, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Building, Plus, MapPin, Home, Calendar, Building2, Filter, ChevronDown, ChevronRight, Bed, Bath, DollarSign, Settings, Bell, Archive, Trash2, RotateCcw, Warehouse, House, Store, LayoutGrid, List as ListIcon, TrendingUp, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -42,12 +42,28 @@ export default function Properties() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [performancePropertyId, setPerformancePropertyId] = useState<string | null>(null);
+
+  const { data: performanceData, isLoading: performanceLoading } = useQuery<any>({
+    queryKey: ["/api/properties", performancePropertyId, "performance"],
+    retry: false,
+    enabled: !!performancePropertyId,
+  });
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   const getPropertyTypeIcon = (type: string) => {
     switch (type) {
       case "Single Family": return <Home className="h-6 w-6 text-violet-600" />;
       case "Condo": return <Building className="h-6 w-6 text-violet-600" />;
-      case "Townhome": return <Castle className="h-6 w-6 text-violet-600" />;
+      case "Townhome": return <House className="h-6 w-6 text-violet-600" />;
       case "Residential Building": return <Building2 className="h-6 w-6 text-violet-600" />;
       case "Commercial Unit": return <Store className="h-6 w-6 text-violet-600" />;
       case "Commercial Building": return <Warehouse className="h-6 w-6 text-violet-600" />;
@@ -1071,71 +1087,112 @@ export default function Properties() {
                       </div>
                     )}
                     
-                    <div className="flex flex-wrap gap-1 mt-4 pt-2 border-t">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 text-xs min-w-0" 
-                        onClick={() => togglePropertyUnits(property.id)}
-                        data-testid={`button-view-units-${index}`}
-                      >
-                        {expandedProperties.has(property.id) ? (
-                          <ChevronDown className="h-4 w-4 mr-1" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 mr-1" />
-                        )}
-                        <span className="truncate">Units ({Math.max(getPropertyUnits(property.id).length, 1)})</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 text-xs min-w-0" 
-                        onClick={() => setLocation(`/properties/${property.id}/performance`)}
-                        data-testid={`button-view-performance-${index}`}
-                      >
-                        <span className="truncate">View Performance</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 text-xs min-w-0" 
-                        onClick={() => handleEditProperty(property)}
-                        data-testid={`button-edit-property-${index}`}
-                      >
-                        <span className="truncate">Edit</span>
-                      </Button>
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => togglePropertyUnits(property.id)}
+                              data-testid={`button-view-units-${index}`}
+                            >
+                              {expandedProperties.has(property.id) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Units ({Math.max(getPropertyUnits(property.id).length, 1)})</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => setPerformancePropertyId(property.id)}
+                              data-testid={`button-view-performance-${index}`}
+                            >
+                              <TrendingUp className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>View Performance</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => handleEditProperty(property)}
+                              data-testid={`button-edit-property-${index}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Edit Property</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       {property.status === "Archived" ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="px-1" 
-                          onClick={() => setShowUnarchiveConfirm(property.id)}
-                          data-testid={`button-unarchive-property-${index}`}
-                          disabled={unarchivePropertyMutation.isPending}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 rounded-full"
+                                onClick={() => setShowUnarchiveConfirm(property.id)}
+                                data-testid={`button-unarchive-property-${index}`}
+                                disabled={unarchivePropertyMutation.isPending}
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Unarchive</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="px-1" 
-                          onClick={() => setShowArchiveConfirm(property.id)}
-                          data-testid={`button-archive-property-${index}`}
-                          disabled={archivePropertyMutation.isPending}
-                        >
-                          <Archive className="h-3 w-3" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 rounded-full"
+                                onClick={() => setShowArchiveConfirm(property.id)}
+                                data-testid={`button-archive-property-${index}`}
+                                disabled={archivePropertyMutation.isPending}
+                              >
+                                <Archive className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Archive</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="px-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" 
-                        onClick={() => setShowDeleteConfirm(property.id)}
-                        data-testid={`button-delete-property-${index}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              onClick={() => setShowDeleteConfirm(property.id)}
+                              data-testid={`button-delete-property-${index}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Delete</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </CardContent>
                   </div>
@@ -1197,7 +1254,7 @@ export default function Properties() {
                       <Button variant="outline" size="sm" className="text-xs" onClick={() => togglePropertyUnits(property.id)} data-testid={`button-list-view-units-${index}`}>
                         {expandedProperties.has(property.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                       </Button>
-                      <Button variant="outline" size="sm" className="text-xs" onClick={() => setLocation(`/properties/${property.id}/performance`)} data-testid={`button-list-view-performance-${index}`}>
+                      <Button variant="outline" size="sm" className="text-xs" onClick={() => setPerformancePropertyId(property.id)} data-testid={`button-list-view-performance-${index}`}>
                         Performance
                       </Button>
                       <Button variant="outline" size="sm" className="text-xs" onClick={() => handleEditProperty(property)} data-testid={`button-list-edit-property-${index}`}>
@@ -1248,6 +1305,143 @@ export default function Properties() {
               </div>
             </div>
           )}
+
+      <Dialog open={!!performancePropertyId} onOpenChange={(open) => !open && setPerformancePropertyId(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-violet-100/60 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <span>Property Performance</span>
+                {performanceData?.property && (
+                  <p className="text-sm font-normal text-muted-foreground mt-0.5">
+                    {performanceData.property.name} — {performanceData.property.street}, {performanceData.property.city}
+                  </p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {performanceLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="p-4 rounded-lg border">
+                  <div className="h-4 bg-muted animate-pulse rounded mb-2" />
+                  <div className="h-6 bg-muted animate-pulse rounded w-3/4" />
+                </div>
+              ))}
+            </div>
+          ) : performanceData?.metrics ? (
+            <div className="space-y-6 py-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl border bg-gradient-to-br from-violet-50 to-white">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Current Value</p>
+                  <p className="text-xl font-bold">{formatCurrency(performanceData.metrics.currentValue)}</p>
+                  {performanceData.metrics.appreciationGain !== 0 && (
+                    <p className={`text-xs mt-1 ${performanceData.metrics.appreciationGain > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {performanceData.metrics.appreciationGain > 0 ? '+' : ''}{formatCurrency(performanceData.metrics.appreciationGain)}
+                    </p>
+                  )}
+                </div>
+                <div className="p-4 rounded-xl border bg-gradient-to-br from-blue-50 to-white">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Total Units</p>
+                  <p className="text-xl font-bold">{performanceData.metrics.totalUnits}</p>
+                </div>
+                <div className="p-4 rounded-xl border bg-gradient-to-br from-green-50 to-white">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Monthly Revenue</p>
+                  <p className="text-xl font-bold">{formatCurrency(performanceData.metrics.monthlyRevenue)}</p>
+                </div>
+                <div className="p-4 rounded-xl border bg-gradient-to-br from-emerald-50 to-white">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Net Cash Flow</p>
+                  <p className={`text-xl font-bold ${performanceData.metrics.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(performanceData.metrics.netCashFlow)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Revenue Collection
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-3 rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Expected</p>
+                    <p className="text-lg font-bold text-orange-600">{formatCurrency(performanceData.metrics.expectedMonthlyRevenue)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Collected</p>
+                    <p className="text-lg font-bold text-green-600">{formatCurrency(performanceData.metrics.actualMonthlyRevenue)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Collection Rate</p>
+                    <p className={`text-lg font-bold ${performanceData.metrics.collectionRate >= 95 ? 'text-green-600' : performanceData.metrics.collectionRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {performanceData.metrics.collectionRate}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {performanceData.entities?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Ownership Structure
+                  </h3>
+                  <div className="space-y-2">
+                    {performanceData.entities.map((entity: any, idx: number) => (
+                      <div key={entity.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div>
+                          <p className="font-medium text-sm">{entity.name}</p>
+                          <Badge variant="outline" className="text-xs">{entity.type}</Badge>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{entity.ownershipPercent}%</p>
+                          <p className="text-xs text-muted-foreground">{formatCurrency(performanceData.metrics.currentValue * (entity.ownershipPercent / 100))}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {performanceData.units?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Units
+                  </h3>
+                  <div className="space-y-2">
+                    {performanceData.units.map((unit: any, idx: number) => (
+                      <div key={unit.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div>
+                          <p className="font-medium text-sm">{unit.label}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {unit.bedrooms && <span>{unit.bedrooms} bed</span>}
+                            {unit.bathrooms && <span>{unit.bathrooms} bath</span>}
+                            {unit.sqft && <span>{unit.sqft} sqft</span>}
+                          </div>
+                        </div>
+                        {unit.rentAmount && (
+                          <p className="font-semibold">{formatCurrency(Number(unit.rentAmount))}/mo</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Property not found</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
