@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ThoughtBubble } from "@/components/contractor/thought-bubble";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -986,6 +987,11 @@ export default function LandlordHub() {
                   onMouseEnter={() => setHoveredCard("maintenance")}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
+                  <ThoughtBubble visible={hoveredCard === "maintenance"}>
+                    <p className="text-gray-600">{newCases.length} new cases awaiting review</p>
+                    <p className="text-gray-600">{inProgressCases.length} currently in progress</p>
+                    <p className="text-emerald-600 font-medium">{completedCases.length} resolved this period</p>
+                  </ThoughtBubble>
                   <button
                     className={FROSTED_CARD_CLASS}
                     onClick={() => {
@@ -1065,6 +1071,11 @@ export default function LandlordHub() {
                   onMouseEnter={() => setHoveredCard("financial")}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
+                  <ThoughtBubble visible={hoveredCard === "financial"}>
+                    <p className="text-gray-600">${(stats?.monthlyRevenue || 0).toLocaleString()} monthly revenue</p>
+                    <p className="text-gray-600">${totalEstimatedCost.toLocaleString()} in expenses</p>
+                    <p className="text-emerald-600 font-medium">${((stats?.monthlyRevenue || 0) - totalEstimatedCost).toLocaleString()} net income</p>
+                  </ThoughtBubble>
                   <button
                     className={FROSTED_CARD_CLASS}
                     onClick={() => setView("financial")}
@@ -1138,6 +1149,11 @@ export default function LandlordHub() {
                   onMouseEnter={() => setHoveredCard("tenants")}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
+                  <ThoughtBubble visible={hoveredCard === "tenants"}>
+                    <p className="text-gray-600">{totalUnits} total units managed</p>
+                    <p className="text-gray-600">{properties.length} properties with tenants</p>
+                    <p className="text-blue-600 font-medium">{totalUnits > 0 ? "100%" : "0%"} occupancy rate</p>
+                  </ThoughtBubble>
                   <button
                     className={FROSTED_CARD_CLASS}
                     onClick={() => setView("tenants")}
@@ -1208,6 +1224,11 @@ export default function LandlordHub() {
                   onMouseEnter={() => setHoveredCard("portfolio")}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
+                  <ThoughtBubble visible={hoveredCard === "portfolio"}>
+                    <p className="text-gray-600">{properties.length} properties in portfolio</p>
+                    <p className="text-gray-600">{totalUnits} total units across all</p>
+                    <p className="text-violet-600 font-medium">${totalPropertyValue > 0 ? totalPropertyValue.toLocaleString() : "0"} total value</p>
+                  </ThoughtBubble>
                   <button
                     className={FROSTED_CARD_CLASS}
                     onClick={() => setView("portfolio")}
