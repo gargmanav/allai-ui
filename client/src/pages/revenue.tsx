@@ -683,15 +683,27 @@ export default function Revenue() {
               {revenuesLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Card key={i} data-testid={`skeleton-revenue-${i}`}>
-                      <CardContent className="p-6">
-                        <div className="space-y-3">
-                          <div className="h-5 bg-muted animate-pulse rounded" />
-                          <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-                          <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div key={i} className="group relative rounded-2xl overflow-hidden" data-testid={`skeleton-revenue-${i}`} style={{
+                      background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      border: '2px solid rgba(255, 255, 255, 0.85)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                    }}>
+                      <div className="running-light-bar h-1 transition-all duration-300" style={{
+                        backdropFilter: 'blur(16px) saturate(200%)',
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+                      }} />
+                      <div className="relative">
+                        <CardContent className="p-6">
+                          <div className="space-y-3">
+                            <div className="h-5 bg-muted animate-pulse rounded" />
+                            <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                            <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
+                          </div>
+                        </CardContent>
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : filteredRevenuesByTime.length > 0 ? (
@@ -699,12 +711,22 @@ export default function Revenue() {
                   {filteredRevenuesByTime.map((revenue, index) => {
                     // Check if this is a future payment for visual differentiation
                     const isFuture = new Date(revenue.date) > now;
-                    const cardClassName = isFuture 
-                      ? "hover:shadow-md transition-shadow opacity-60 border-dashed border-2" 
-                      : "hover:shadow-md transition-shadow";
                     
                     return (
-                      <Card key={revenue.id} className={cardClassName} data-testid={`card-revenue-${index}`}>
+                      <div key={revenue.id} className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] ${isFuture ? "opacity-60" : ""}`} data-testid={`card-revenue-${index}`} style={{
+                        background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                        backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                        WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                        border: isFuture ? '2px dashed rgba(200, 200, 220, 0.6)' : '2px solid rgba(255, 255, 255, 0.85)',
+                        boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                      }}>
+                        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                        <div className="running-light-bar h-1 transition-all duration-300" style={{
+                          backdropFilter: 'blur(16px) saturate(200%)',
+                          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+                        }} />
+                        <div className="relative">
                         <CardContent className="p-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
@@ -870,22 +892,35 @@ export default function Revenue() {
                       </p>
                     )}
                         </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
           ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-revenue">No Revenue Logged</h3>
-                <p className="text-muted-foreground mb-4">Start tracking your rental income and property revenue for better financial management.</p>
-                <Button onClick={() => setShowRevenueForm(true)} data-testid="button-add-first-revenue">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Log Your First Revenue
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="group relative rounded-2xl overflow-hidden" style={{
+              background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+              backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+            }}>
+              <div className="running-light-bar h-1 transition-all duration-300" style={{
+                backdropFilter: 'blur(16px) saturate(200%)',
+                boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+              }} />
+              <div className="relative">
+                <CardContent className="p-12 text-center">
+                  <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-revenue">No Revenue Logged</h3>
+                  <p className="text-muted-foreground mb-4">Start tracking your rental income and property revenue for better financial management.</p>
+                  <Button onClick={() => setShowRevenueForm(true)} data-testid="button-add-first-revenue">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Log Your First Revenue
+                  </Button>
+                </CardContent>
+              </div>
+            </div>
           )}
             </TabsContent>
 

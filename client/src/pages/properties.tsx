@@ -630,27 +630,46 @@ export default function Properties() {
           {propertiesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <Card key={i} data-testid={`skeleton-property-${i}`}>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div className="h-6 bg-muted animate-pulse rounded" />
-                      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-                      <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <div key={i} className="group relative rounded-2xl overflow-hidden transition-all duration-300" data-testid={`skeleton-property-${i}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                }}>
+                  <div className="running-light-bar h-1 transition-all duration-300" style={{
+                    backdropFilter: 'blur(16px) saturate(200%)',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+                  }} />
+                  <div className="relative">
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="h-6 bg-muted animate-pulse rounded" />
+                        <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                        <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
+                      </div>
+                    </CardContent>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (filteredProperties && filteredProperties.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map((property, index) => (
-                <Card key={property.id} className={`hover:shadow-md transition-shadow rounded-2xl overflow-hidden ${property.status === "Archived" ? "border-orange-300 bg-orange-50/30 opacity-80" : ""}`} data-testid={`card-property-${index}`} style={{
+                <div key={property.id} className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] ${property.status === "Archived" ? "opacity-80" : ""}`} data-testid={`card-property-${index}`} style={{
                   background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                   backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                   WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                   border: '2px solid rgba(255, 255, 255, 0.85)',
-                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                  boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
                 }}>
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                  <div className="running-light-bar h-1 transition-all duration-300" style={{
+                    backdropFilter: 'blur(16px) saturate(200%)',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+                  }} />
+                  <div className="relative">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
@@ -1079,27 +1098,36 @@ export default function Properties() {
                       </Button>
                     </div>
                   </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <Card className="rounded-2xl overflow-hidden" style={{
+            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)]" style={{
               background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
               backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
               WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
               border: '2px solid rgba(255, 255, 255, 0.85)',
-              boxShadow: '0 8px 32px rgba(139,92,246,0.08), 0 4px 16px rgba(0,0,0,0.06)',
+              boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
             }}>
-              <CardContent className="p-12 text-center">
-                <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-properties">No Properties Yet</h3>
-                <p className="text-muted-foreground mb-4">Start building your property portfolio by adding your first property.</p>
-                <Button onClick={() => setShowPropertyForm(true)} data-testid="button-add-first-property" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Property
-                </Button>
-              </CardContent>
-            </Card>
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+              <div className="running-light-bar h-1 transition-all duration-300" style={{
+                backdropFilter: 'blur(16px) saturate(200%)',
+                boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+              }} />
+              <div className="relative">
+                <CardContent className="p-12 text-center">
+                  <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-properties">No Properties Yet</h3>
+                  <p className="text-muted-foreground mb-4">Start building your property portfolio by adding your first property.</p>
+                  <Button onClick={() => setShowPropertyForm(true)} data-testid="button-add-first-property" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Property
+                  </Button>
+                </CardContent>
+              </div>
+            </div>
           )}
     </div>
   );
