@@ -328,13 +328,3 @@
 .hub-themed-content .empty-state-action:hover {
   background: linear-gradient(135deg, hsl(258, 90%, 58%), hsl(217, 91%, 52%));
 }
-
-.hub-themed-content button[data-testid="button-add-first-tenant"] {
-  background: rgba(135, 206, 250, 0.45) !important;
-  backdrop-filter: blur(12px) !important;
-  color: hsl(200, 80%, 32%) !important;
-  border: 1px solid rgba(135, 206, 250, 0.4) !important;
-}
-.hub-themed-content button[data-testid="button-add-first-tenant"]:hover {
-  background: rgba(135, 206, 250, 0.65) !important;
-}
