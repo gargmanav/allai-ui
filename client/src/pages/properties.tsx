@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, MapPin, Home, Calendar, Building2, Filter, ChevronDown, ChevronRight, Bed, Bath, DollarSign, Settings, Bell, Archive, Trash2, RotateCcw } from "lucide-react";
+import { Building, Plus, MapPin, Home, Calendar, Building2, Filter, ChevronDown, ChevronRight, Bed, Bath, DollarSign, Settings, Bell, Archive, Trash2, RotateCcw, Warehouse, Castle, Store, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,19 @@ export default function Properties() {
   const [showUnarchiveConfirm, setShowUnarchiveConfirm] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+
+  const getPropertyTypeIcon = (type: string) => {
+    switch (type) {
+      case "Single Family": return <Home className="h-6 w-6 text-violet-600" />;
+      case "Condo": return <Building className="h-6 w-6 text-violet-600" />;
+      case "Townhome": return <Castle className="h-6 w-6 text-violet-600" />;
+      case "Residential Building": return <Building2 className="h-6 w-6 text-violet-600" />;
+      case "Commercial Unit": return <Store className="h-6 w-6 text-violet-600" />;
+      case "Commercial Building": return <Warehouse className="h-6 w-6 text-violet-600" />;
+      default: return <Building className="h-6 w-6 text-violet-600" />;
+    }
+  };
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -469,6 +483,25 @@ export default function Properties() {
                 </div>
               </div>
               
+              <div className="flex items-center border rounded-lg overflow-hidden">
+                <Button 
+                  variant={viewMode === "cards" ? "default" : "ghost"} 
+                  size="sm" 
+                  className="rounded-none px-3"
+                  onClick={() => setViewMode("cards")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant={viewMode === "list" ? "default" : "ghost"} 
+                  size="sm" 
+                  className="rounded-none px-3"
+                  onClick={() => setViewMode("list")}
+                >
+                  <ListIcon className="h-4 w-4" />
+                </Button>
+              </div>
+
               <Button onClick={() => setShowPropertyForm(true)} data-testid="button-add-property" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Property
@@ -654,6 +687,7 @@ export default function Properties() {
               ))}
             </div>
           ) : (filteredProperties && filteredProperties.length > 0) ? (
+            viewMode === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map((property, index) => (
                 <div key={property.id} className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] ${property.status === "Archived" ? "opacity-80" : ""}`} data-testid={`card-property-${index}`} style={{
@@ -673,19 +707,25 @@ export default function Properties() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
-                          <Building className="h-6 w-6 text-violet-600" />
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center cursor-pointer">
+                                {getPropertyTypeIcon(property.type)}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{property.type}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <div>
                           <CardTitle className="text-lg" data-testid={`text-property-name-${index}`}>{property.name}</CardTitle>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Badge variant="secondary" data-testid={`badge-property-type-${index}`}>{property.type}</Badge>
-                            {property.status === "Archived" && (
-                              <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-50" data-testid={`badge-archived-${index}`}>
-                                Archived
-                              </Badge>
-                            )}
-                          </div>
+                          {property.status === "Archived" && (
+                            <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-50 mt-1" data-testid={`badge-archived-${index}`}>
+                              Archived
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1031,38 +1071,38 @@ export default function Properties() {
                       </div>
                     )}
                     
-                    <div className="flex gap-1 mt-4 px-2 pb-6">
+                    <div className="flex flex-wrap gap-1 mt-4 pt-2 border-t">
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1" 
+                        className="flex-1 text-xs min-w-0" 
                         onClick={() => togglePropertyUnits(property.id)}
                         data-testid={`button-view-units-${index}`}
                       >
                         {expandedProperties.has(property.id) ? (
-                          <ChevronDown className="h-4 w-4 mr-2" />
+                          <ChevronDown className="h-4 w-4 mr-1" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 mr-2" />
+                          <ChevronRight className="h-4 w-4 mr-1" />
                         )}
-                        Units ({Math.max(getPropertyUnits(property.id).length, 1)})
+                        <span className="truncate">Units ({Math.max(getPropertyUnits(property.id).length, 1)})</span>
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1" 
+                        className="flex-1 text-xs min-w-0" 
                         onClick={() => setLocation(`/properties/${property.id}/performance`)}
                         data-testid={`button-view-performance-${index}`}
                       >
-                        View Performance
+                        <span className="truncate">View Performance</span>
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1" 
+                        className="flex-1 text-xs min-w-0" 
                         onClick={() => handleEditProperty(property)}
                         data-testid={`button-edit-property-${index}`}
                       >
-                        Edit
+                        <span className="truncate">Edit</span>
                       </Button>
                       {property.status === "Archived" ? (
                         <Button 
@@ -1102,6 +1142,85 @@ export default function Properties() {
                 </div>
               ))}
             </div>
+            ) : (
+            <div className="space-y-2">
+              {filteredProperties.map((property, index) => (
+                <div key={property.id} className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:-translate-y-0.5 hover:shadow-[0_15px_40px_rgba(139,92,246,0.10),0_8px_20px_rgba(59,130,246,0.06),0_4px_12px_rgba(0,0,0,0.05)] ${property.status === "Archived" ? "opacity-80" : ""}`} data-testid={`list-property-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
+                }}>
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/8 group-hover:to-blue-500/8 transition-all duration-300 rounded-xl" />
+                  <div className="running-light-bar h-1 transition-all duration-300" style={{
+                    backdropFilter: 'blur(16px) saturate(200%)',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
+                  }} />
+                  <div className="relative flex items-center p-4 gap-4">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="w-10 h-10 bg-violet-100/60 rounded-lg flex items-center justify-center shrink-0 cursor-pointer">
+                            {getPropertyTypeIcon(property.type)}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{property.type}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground truncate">{property.name}</h3>
+                        {property.status === "Archived" && (
+                          <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-50 shrink-0">
+                            Archived
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-0.5">
+                        <span className="flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {property.street}, {property.city}
+                        </span>
+                        {property.sqft && (
+                          <span className="flex items-center gap-1 shrink-0">
+                            <Home className="h-3 w-3" />
+                            {property.sqft.toLocaleString()} sqft
+                          </span>
+                        )}
+                        <span className="shrink-0">Units: {Math.max(getPropertyUnits(property.id).length, 1)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="outline" size="sm" className="text-xs" onClick={() => togglePropertyUnits(property.id)} data-testid={`button-list-view-units-${index}`}>
+                        {expandedProperties.has(property.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs" onClick={() => setLocation(`/properties/${property.id}/performance`)} data-testid={`button-list-view-performance-${index}`}>
+                        Performance
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs" onClick={() => handleEditProperty(property)} data-testid={`button-list-edit-property-${index}`}>
+                        Edit
+                      </Button>
+                      {property.status === "Archived" ? (
+                        <Button variant="outline" size="sm" className="px-2" onClick={() => setShowUnarchiveConfirm(property.id)} disabled={unarchivePropertyMutation.isPending} data-testid={`button-list-unarchive-property-${index}`}>
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="px-2" onClick={() => setShowArchiveConfirm(property.id)} disabled={archivePropertyMutation.isPending} data-testid={`button-list-archive-property-${index}`}>
+                          <Archive className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => setShowDeleteConfirm(property.id)} data-testid={`button-list-delete-property-${index}`}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            )
           ) : (
             <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)]" style={{
               background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
