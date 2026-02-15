@@ -60,6 +60,9 @@ import {
   Loader2,
   ThumbsUp,
   UserCheck,
+  Send,
+  X,
+  MessageCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -1763,11 +1766,13 @@ export default function LandlordHub() {
                     </div>
                   ) : viewMode === "cards" ? (
                     <div className="p-4 sm:p-6">
+                      <p className="text-xs text-muted-foreground mb-3">Showing {filteredCases.length} of {cases.length} cases</p>
                       <div className="flex items-start gap-4 overflow-x-auto pb-4 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
                         {filteredCases.map((c, idx) => {
                           const isSelected = selectedCaseId === c.id;
-                          const firstMedia = c.media?.[0];
-                          const costDisplay = c.estimatedCost ? `$${parseFloat(String(c.estimatedCost)).toLocaleString()}` : "TBD";
+                          const imageMedia = c.media?.find(m => m.type === "image" || m.type?.startsWith("image"));
+                          const costDisplay = c.estimatedCost ? `$${parseFloat(String(c.estimatedCost)).toLocaleString()}` : (c.aiTriageJson?.estimatedCost || "TBD");
+                          const tenantName = c.reporter ? `${c.reporter.firstName || ''} ${c.reporter.lastName || ''}`.trim() : null;
                           return (
                             <button
                               key={`${c.id}-${idx}`}
@@ -1775,7 +1780,7 @@ export default function LandlordHub() {
                               className="flex flex-col items-center min-w-[70px] sm:min-w-[90px] group touch-manipulation"
                             >
                               <div
-                                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
                                   isSelected ? "ring-2 ring-violet-400 scale-105" : "hover:scale-105"
                                 }`}
                                 style={{
@@ -1787,8 +1792,8 @@ export default function LandlordHub() {
                                     : "0 4px 12px rgba(0,0,0,0.06)",
                                 }}
                               >
-                                {firstMedia?.url ? (
-                                  <img src={firstMedia.url} alt="" className="w-full h-full object-cover rounded-full" />
+                                {imageMedia?.url ? (
+                                  <img src={imageMedia.url} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <Home className={`h-5 w-5 ${isSelected ? "text-violet-500" : "text-gray-400"}`} />
                                 )}
@@ -1801,14 +1806,11 @@ export default function LandlordHub() {
                               <span className={`text-sm mt-1 font-bold ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
                                 {costDisplay}
                               </span>
-                              <span className="text-[10px] font-medium text-blue-500 truncate max-w-[80px]">
-                                {c.propertyName || c.buildingName || "Property"}
+                              <span className={`text-[10px] font-medium ${tenantName ? 'text-blue-500' : 'text-emerald-500'}`}>
+                                {tenantName || "New Request"}
                               </span>
-                              {c.category && (
-                                <span className="text-[10px] text-muted-foreground truncate max-w-[75px]">{c.category}</span>
-                              )}
-                              {c.assignedContractorName && (
-                                <span className="text-[9px] font-medium text-emerald-600 truncate max-w-[75px]">Assigned</span>
+                              {(c.propertyName || c.buildingName) && (
+                                <span className="text-[10px] text-muted-foreground truncate max-w-[75px]">{c.propertyName || c.buildingName}</span>
                               )}
                             </button>
                           );
@@ -1870,23 +1872,34 @@ export default function LandlordHub() {
                               ) : (
                                 <>
                                   <Button
-                                    className="flex-1 h-11 touch-manipulation bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-md"
+                                    className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
                                     onClick={() => setShowInlineRecs(!showInlineRecs)}
                                   >
-                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    <Send className="h-4 w-4 mr-2" />
                                     Accept & Assign
                                   </Button>
                                   <Button
                                     variant="outline"
-                                    className="h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50"
+                                    className="flex-1 h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50"
                                     onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
                                     disabled={closeMutation.isPending}
                                   >
-                                    {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-1" />}
+                                    {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-1" />}
                                     Pass
                                   </Button>
                                 </>
                               )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <span className="text-xs text-muted-foreground">Tenant:</span>
+                                <p className="text-sm font-medium">{selectedCase.reporter ? `${selectedCase.reporter.firstName || ''} ${selectedCase.reporter.lastName || ''}`.trim() || "Unknown" : "Walk-in Request"}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs text-muted-foreground">Value:</span>
+                                <p className="text-sm font-medium text-blue-600">{selectedCase.aiTriageJson?.estimatedCost || (selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD")}</p>
+                              </div>
                             </div>
 
                             {showInlineRecs && !selectedCase.assignedContractorName && (
@@ -2000,74 +2013,87 @@ export default function LandlordHub() {
                               </div>
                               <p className="text-sm text-slate-700 dark:text-slate-300">{selectedCase.description}</p>
 
-                              {selectedCase.media && selectedCase.media.length > 0 && (
-                                <div className="flex gap-2 overflow-x-auto pb-2">
-                                  {selectedCase.media.filter(m => m.type === "image" || !m.type).map((m) => (
-                                    <img key={m.id} src={m.url} alt={m.caption || "Case photo"} className="h-24 w-24 object-cover rounded-lg border flex-shrink-0" />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {selectedCase.aiTriageJson && (
-                              <div className="space-y-3 rounded-xl p-3" style={{
-                                ...FROSTED_CARD_STYLE,
-                                boxShadow: '0 4px 16px rgba(139,92,246,0.08), 0 2px 8px rgba(0,0,0,0.04)',
-                              }}>
-                                <div className="flex items-center gap-2">
-                                  <Sparkles className="h-4 w-4 text-violet-500" />
-                                  <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Maya AI Assessment</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  {selectedCase.aiTriageJson.urgency && (
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Urgency</p>
-                                      <Badge variant={selectedCase.aiTriageJson.urgency.toLowerCase().includes("high") || selectedCase.aiTriageJson.urgency.toLowerCase().includes("urgent") ? "destructive" : "secondary"} className="text-xs">
-                                        {selectedCase.aiTriageJson.urgency}
-                                      </Badge>
-                                    </div>
-                                  )}
-                                  {selectedCase.aiTriageJson.rootCause && (
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Likely Cause</p>
-                                      <p className="text-xs font-medium">{selectedCase.aiTriageJson.rootCause}</p>
-                                    </div>
-                                  )}
-                                  {selectedCase.aiTriageJson.estimatedCost && (
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Est. Cost</p>
-                                      <p className="text-xs font-bold text-blue-600">{selectedCase.aiTriageJson.estimatedCost}</p>
-                                    </div>
-                                  )}
-                                  {selectedCase.aiTriageJson.estimatedTime && (
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Est. Time</p>
-                                      <p className="text-xs font-medium">{selectedCase.aiTriageJson.estimatedTime}</p>
-                                    </div>
-                                  )}
-                                </div>
-                                {selectedCase.aiTriageJson.suggestedActions && selectedCase.aiTriageJson.suggestedActions.length > 0 && (
-                                  <div>
-                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">Suggested Steps</p>
-                                    <div className="space-y-1">
-                                      {selectedCase.aiTriageJson.suggestedActions.map((action, i) => (
-                                        <div key={i} className="flex items-start gap-2 text-xs">
-                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                                          <span>{action}</span>
-                                        </div>
+                              {(() => {
+                                const images = (selectedCase.media || []).filter(m => m.type === "image" || m.type?.startsWith("image") || (!m.type && m.url));
+                                if (images.length === 0) return null;
+                                return (
+                                  <div className="space-y-2">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Attached Photos</span>
+                                    <div className="flex gap-2 overflow-x-auto pb-2">
+                                      {images.map((m) => (
+                                        <img key={m.id} src={m.url} alt={m.caption || "Case photo"} className="h-24 w-24 object-cover rounded-lg border border-slate-200 flex-shrink-0" />
                                       ))}
                                     </div>
                                   </div>
-                                )}
-                                {selectedCase.aiTriageJson.safetyNotes && (
-                                  <div className="rounded-lg p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
-                                    <div className="flex items-start gap-2">
-                                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                                      <p className="text-xs text-amber-800 dark:text-amber-300">{selectedCase.aiTriageJson.safetyNotes}</p>
+                                );
+                              })()}
+                            </div>
+
+                            {selectedCase.aiTriageJson && (
+                              <Card className="border-violet-100">
+                                <CardContent className="p-4">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                                      <Sparkles className="h-3 w-3 text-white" />
                                     </div>
+                                    <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
                                   </div>
-                                )}
-                              </div>
+                                  <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white dark:from-violet-950/20 dark:to-slate-900 p-3 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-slate-500">Urgency</span>
+                                      {selectedCase.aiTriageJson.urgency && (
+                                        <Badge className={
+                                          selectedCase.aiTriageJson.urgency.toLowerCase().includes("critical") ? "bg-red-100 text-red-700 border-red-200" :
+                                          selectedCase.aiTriageJson.urgency.toLowerCase().includes("high") || selectedCase.aiTriageJson.urgency.toLowerCase().includes("urgent") ? "bg-orange-100 text-orange-700 border-orange-200" :
+                                          selectedCase.aiTriageJson.urgency.toLowerCase().includes("moderate") ? "bg-amber-100 text-amber-700 border-amber-200" :
+                                          "bg-green-100 text-green-700 border-green-200"
+                                        }>
+                                          {selectedCase.aiTriageJson.urgency}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {selectedCase.aiTriageJson.rootCause && (
+                                      <div>
+                                        <span className="text-xs text-slate-500 block mb-0.5">Likely Cause</span>
+                                        <p className="text-sm text-slate-700 dark:text-slate-300">{selectedCase.aiTriageJson.rootCause}</p>
+                                      </div>
+                                    )}
+                                    <div className="flex gap-4">
+                                      {selectedCase.aiTriageJson.estimatedCost && (
+                                        <div>
+                                          <span className="text-xs text-slate-500 block">Est. Cost</span>
+                                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{selectedCase.aiTriageJson.estimatedCost}</p>
+                                        </div>
+                                      )}
+                                      {selectedCase.aiTriageJson.estimatedTime && (
+                                        <div>
+                                          <span className="text-xs text-slate-500 block">Est. Time</span>
+                                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{selectedCase.aiTriageJson.estimatedTime}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {selectedCase.aiTriageJson.suggestedActions && selectedCase.aiTriageJson.suggestedActions.length > 0 && (
+                                      <div>
+                                        <span className="text-xs text-slate-500 block mb-1">Suggested Steps</span>
+                                        <ul className="space-y-1">
+                                          {selectedCase.aiTriageJson.suggestedActions.map((action, i) => (
+                                            <li key={i} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                              <CheckCircle className="h-3.5 w-3.5 text-violet-400 mt-0.5 shrink-0" />
+                                              <span>{action}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {selectedCase.aiTriageJson.safetyNotes && (
+                                      <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                                        <p className="text-xs text-amber-700 dark:text-amber-300">{selectedCase.aiTriageJson.safetyNotes}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
                             )}
 
                             <div className="space-y-2">
@@ -2120,13 +2146,23 @@ export default function LandlordHub() {
                               </div>
                             </div>
 
-                            {selectedCase.reporterUserId && selectedCase.assignedContractorName && (
-                              <ThreadChat
-                                caseId={String(selectedCase.id)}
-                                homeownerUserId={selectedCase.reporterUserId}
-                                compact
-                              />
-                            )}
+                            <Card>
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Messages</span>
+                                </div>
+                                {selectedCase.reporterUserId ? (
+                                  <ThreadChat
+                                    caseId={String(selectedCase.id)}
+                                    homeownerUserId={selectedCase.reporterUserId}
+                                    compact
+                                  />
+                                ) : (
+                                  <p className="text-xs text-muted-foreground text-center py-4">No messages yet. Start the conversation!</p>
+                                )}
+                              </CardContent>
+                            </Card>
                           </CardContent>
                         </Card>
                       )}
