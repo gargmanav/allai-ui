@@ -339,7 +339,7 @@ export default function Entities() {
               
               <Dialog open={showEntityForm} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-add-entity" className="bg-sky-400/75 hover:bg-sky-500/85 text-white shadow-md shadow-sky-200/50 backdrop-blur-sm border border-sky-300/50">
+                  <Button data-testid="button-add-entity" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Entity
                   </Button>
@@ -645,7 +645,7 @@ export default function Entities() {
                 <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-entities">No Entities Yet</h3>
                 <p className="text-muted-foreground mb-4">Create your first ownership entity to organize your property portfolio.</p>
-                <Button onClick={() => setShowEntityForm(true)} data-testid="button-create-first-entity" className="bg-sky-400/75 hover:bg-sky-500/85 text-white shadow-md shadow-sky-200/50 backdrop-blur-sm border border-sky-300/50">
+                <Button onClick={() => setShowEntityForm(true)} data-testid="button-create-first-entity" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
                   <Plus className="h-4 w-4 mr-2" />
                   Create First Entity
                 </Button>

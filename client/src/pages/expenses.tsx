@@ -580,7 +580,7 @@ export default function Expenses() {
 
               <Dialog open={showExpenseForm} onOpenChange={setShowExpenseForm}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-add-expense" className="bg-sky-400/75 hover:bg-sky-500/85 text-white shadow-md shadow-sky-200/50 backdrop-blur-sm border border-sky-300/50">
+                  <Button data-testid="button-add-expense" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
                     <Plus className="h-4 w-4 mr-2" />
                     Log Expense
                   </Button>

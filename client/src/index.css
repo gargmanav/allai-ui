@@ -284,11 +284,11 @@
 .hub-themed-content button[data-testid="button-add-first-reminder"],
 .hub-themed-content button[data-testid="button-create-first-entity"],
 .hub-themed-content button[data-testid="button-add-first-tenant"] {
-  background: hsla(205, 80%, 65%, 0.75) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1.5px solid rgba(147, 197, 253, 0.5) !important;
+  background: hsla(210, 75%, 52%, 0.88) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1.5px solid rgba(96, 165, 250, 0.45) !important;
   color: white !important;
-  box-shadow: 0 4px 12px rgba(147, 197, 253, 0.3) !important;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35) !important;
 }
 .hub-themed-content button[data-testid="button-add-property"]:hover,
 .hub-themed-content button[data-testid="button-add-tenant"]:hover,
@@ -302,7 +302,7 @@
 .hub-themed-content button[data-testid="button-add-first-reminder"]:hover,
 .hub-themed-content button[data-testid="button-create-first-entity"]:hover,
 .hub-themed-content button[data-testid="button-add-first-tenant"]:hover {
-  background: hsla(205, 80%, 58%, 0.85) !important;
+  background: hsla(210, 75%, 46%, 0.92) !important;
 }
 
 .hub-themed-content [role="tablist"] {
@@ -325,12 +325,12 @@
 }
 
 .hub-themed-content .empty-state-action {
-  background: hsla(205, 80%, 65%, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1.5px solid rgba(147, 197, 253, 0.5);
+  background: hsla(210, 75%, 52%, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(96, 165, 250, 0.45);
   color: white;
-  box-shadow: 0 4px 12px rgba(147, 197, 253, 0.3);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
 }
 .hub-themed-content .empty-state-action:hover {
-  background: hsla(205, 80%, 58%, 0.85);
+  background: hsla(210, 75%, 46%, 0.92);
 }
