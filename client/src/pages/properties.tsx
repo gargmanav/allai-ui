@@ -1077,7 +1077,13 @@ export default function Properties() {
               ))}
             </div>
           ) : (
-            <Card className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:border-slate-700/40 shadow-sm">
+            <Card className="rounded-2xl overflow-hidden" style={{
+              background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+              backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: '0 8px 32px rgba(139,92,246,0.08), 0 4px 16px rgba(0,0,0,0.06)',
+            }}>
               <CardContent className="p-12 text-center">
                 <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-properties">No Properties Yet</h3>
