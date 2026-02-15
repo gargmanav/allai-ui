@@ -16,9 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DollarSign, Plus, Calendar, Building, Tag, Repeat, CheckCircle, Trash2, Grid3x3, List, ChevronDown, BarChart3, PieChart, TrendingUp, Users } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, LineChart, Line } from "recharts";
-import type { Transaction, Property, Unit } from "@shared/schema";
+import { DollarSign, Plus, Calendar, Building, Tag, Repeat, CheckCircle, Trash2, Grid3x3, List, ChevronDown, BarChart3, PieChart, TrendingUp, Users, Pencil, Bot, MapPin } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, LineChart, Line } from "recharts";
+import type { Transaction, Property, Unit, OwnershipEntity } from "@shared/schema";
 import PropertyAssistant from "@/components/ai/property-assistant";
 
 export default function Revenue() {
@@ -67,7 +68,7 @@ export default function Revenue() {
     retry: false,
   });
 
-  const { data: entities = [] } = useQuery<{id: string; name: string}[]>({
+  const { data: entities = [] } = useQuery<OwnershipEntity[]>({
     queryKey: ["/api/entities"],
     retry: false,
   });
@@ -681,217 +682,173 @@ export default function Revenue() {
             {/* List View */}
             <TabsContent value="list" className="space-y-0">
               {revenuesLoading ? (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="group relative rounded-2xl overflow-hidden" data-testid={`skeleton-revenue-${i}`} style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                       WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                       border: '2px solid rgba(255, 255, 255, 0.85)',
-                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
                     }}>
-                      <div className="running-light-bar h-1 transition-all duration-300" style={{
-                        backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
-                      }} />
-                      <div className="relative">
-                        <CardContent className="p-6">
-                          <div className="space-y-3">
-                            <div className="h-5 bg-muted animate-pulse rounded" />
-                            <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-                            <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-                          </div>
-                        </CardContent>
+                      <div className="running-light-bar h-1" style={{ backdropFilter: 'blur(16px) saturate(200%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)' }} />
+                      <div className="relative flex items-center p-4 gap-4">
+                        <div className="w-10 h-10 bg-muted animate-pulse rounded-lg shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted animate-pulse rounded w-2/3" />
+                          <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
+                        </div>
+                        <div className="h-5 w-16 bg-muted animate-pulse rounded" />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : filteredRevenuesByTime.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {filteredRevenuesByTime.map((revenue, index) => {
-                    // Check if this is a future payment for visual differentiation
                     const isFuture = new Date(revenue.date) > now;
                     
                     return (
-                      <div key={revenue.id} className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] ${isFuture ? "opacity-60" : ""}`} data-testid={`card-revenue-${index}`} style={{
+                      <div key={revenue.id} className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:-translate-y-0.5 hover:shadow-[0_15px_40px_rgba(139,92,246,0.10),0_8px_20px_rgba(59,130,246,0.06),0_4px_12px_rgba(0,0,0,0.05)] ${isFuture ? "opacity-60" : ""}`} data-testid={`card-revenue-${index}`} style={{
                         background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                         backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                         WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                         border: isFuture ? '2px dashed rgba(200, 200, 220, 0.6)' : '2px solid rgba(255, 255, 255, 0.85)',
-                        boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                        boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
                       }}>
-                        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/8 group-hover:to-blue-500/8 transition-all duration-300 rounded-xl" />
                         <div className="running-light-bar h-1 transition-all duration-300" style={{
                           backdropFilter: 'blur(16px) saturate(200%)',
                           boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
                         }} />
-                        <div className="relative">
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                          <DollarSign className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground" data-testid={`text-revenue-description-${index}`}>
-                            {revenue.description}
-                          </h3>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                            <span data-testid={`text-revenue-date-${index}`}>
-                              {new Date(revenue.date).toLocaleDateString()}
-                            </span>
-                            {revenue.category && (
-                              <Badge className={getCategoryColor(revenue.category)} data-testid={`badge-revenue-category-${index}`}>
-                                {revenue.category}
-                              </Badge>
-                            )}
-                            {revenue.isRecurring && (
-                              <Badge variant="outline" className="text-blue-600 border-blue-600" data-testid={`badge-recurring-${index}`}>
-                                <Repeat className="h-3 w-3 mr-1" />
-                                {revenue.recurringFrequency}
-                              </Badge>
-                            )}
-                            {revenue.parentRecurringId && (
-                              <Badge variant="outline" className="text-purple-600 border-purple-600" data-testid={`badge-recurring-instance-${index}`}>
-                                Auto-generated
-                              </Badge>
-                            )}
-                            {revenue.taxDeductible === false && (
-                              <Badge variant="outline" className="text-green-600 border-green-600" data-testid={`badge-taxable-${index}`}>
-                                Taxable
-                              </Badge>
-                            )}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="outline" 
-                                    size="sm"
-                                    className={`h-6 px-2 text-xs font-medium rounded-full cursor-pointer hover:opacity-80 ${
-                                      getPaymentStatusDisplay(revenue) === 'Paid' ? "text-green-600 border-green-600" :
-                                      getPaymentStatusDisplay(revenue) === 'Partial' ? "text-yellow-600 border-yellow-600" :
-                                      getPaymentStatusDisplay(revenue) === 'Skipped' ? "text-gray-600 border-gray-600" :
-                                      getPaymentStatusDisplay(revenue) === 'Not due yet' ? "text-blue-600 border-blue-600" :
-                                      "text-orange-600 border-orange-600"
-                                    }`}
-                                    data-testid={`badge-payment-status-${index}`}
-                                  >
-                                    {getPaymentStatusDisplay(revenue)}
-                                    <ChevronDown className="h-3 w-3 ml-1" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => updatePaymentStatusMutation.mutate({
-                                      transactionId: revenue.id,
-                                      paymentStatus: 'Paid'
-                                    })}
-                                    className="text-green-600"
-                                    data-testid={`menu-item-paid-${index}`}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Mark as Paid
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => setPartialPaymentDialog({
-                                      open: true,
-                                      transactionId: revenue.id,
-                                      expectedAmount: Number(revenue.amount)
-                                    })}
-                                    className="text-yellow-600"
-                                    data-testid={`menu-item-partial-${index}`}
-                                  >
-                                    Partial Payment
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => updatePaymentStatusMutation.mutate({
-                                      transactionId: revenue.id,
-                                      paymentStatus: 'Unpaid'
-                                    })}
-                                    className="text-orange-600"
-                                    data-testid={`menu-item-unpaid-${index}`}
-                                  >
-                                    Mark as Unpaid
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => updatePaymentStatusMutation.mutate({
-                                      transactionId: revenue.id,
-                                      paymentStatus: 'Skipped'
-                                    })}
-                                    className="text-gray-600"
-                                    data-testid={`menu-item-skipped-${index}`}
-                                  >
-                                    Skip Payment
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                        <div className="relative flex items-center p-4 gap-4">
+                          <div className="w-10 h-10 bg-green-100/60 rounded-lg flex items-center justify-center shrink-0">
+                            <DollarSign className="h-5 w-5 text-green-600" />
                           </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <p className="text-xl font-bold text-foreground" data-testid={`text-revenue-amount-${index}`}>
-                            ${Number(revenue.amount).toLocaleString()}
-                          </p>
-                          <div className="text-sm text-muted-foreground">
-                            {revenue.scope === 'property' && revenue.propertyId && (
-                              <>
-                                <p data-testid={`text-revenue-scope-${index}`}>Property</p>
-                                <p data-testid={`text-revenue-property-${index}`}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-foreground truncate" data-testid={`text-revenue-description-${index}`}>
+                                {revenue.description}
+                              </h3>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {revenue.parentRecurringId && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center cursor-help">
+                                          <Bot className="h-3 w-3 text-purple-500" />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent><p>Auto-generated from recurring schedule</p></TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                {revenue.isRecurring && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center cursor-help">
+                                          <Repeat className="h-3 w-3 text-blue-500" />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent><p>Recurring {revenue.recurringFrequency}</p></TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
+                              <span className="shrink-0" data-testid={`text-revenue-date-${index}`}>
+                                {new Date(revenue.date).toLocaleDateString()}
+                              </span>
+                              {revenue.category && (
+                                <span className="text-xs font-medium text-muted-foreground/80" data-testid={`badge-revenue-category-${index}`}>
+                                  {revenue.category}
+                                </span>
+                              )}
+                              {revenue.scope === 'property' && revenue.propertyId && (
+                                <span className="flex items-center gap-1 truncate">
+                                  <MapPin className="h-3 w-3 shrink-0" />
                                   {(() => {
                                     const property = properties.find(p => p.id === revenue.propertyId);
-                                    return property ? (property.name || `${property.street}, ${property.city}`) : 'Property';
+                                    const unit = revenue.unitId ? units?.find(u => u.id === revenue.unitId) : null;
+                                    const propName = property ? (property.name || `${property.street}, ${property.city}`) : '';
+                                    return unit ? `${propName} (${unit.label})` : propName;
                                   })()}
-                                </p>
-                              </>
-                            )}
-                            {revenue.scope === 'operational' && (
-                              <>
-                                <p data-testid={`text-revenue-scope-${index}`}>Operational</p>
-                                <p data-testid={`text-revenue-entity-${index}`}>
+                                </span>
+                              )}
+                              {revenue.scope === 'operational' && revenue.entityId && (
+                                <span className="flex items-center gap-1 truncate">
+                                  <Building className="h-3 w-3 shrink-0" />
                                   {entities.find(e => e.id === revenue.entityId)?.name || 'Entity'}
-                                </p>
-                              </>
-                            )}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const isRecurring = revenue.isRecurring || revenue.parentRecurringId;
-                              if (isRecurring) {
-                                setPendingEditRevenue(revenue);
-                              } else {
-                                setEditingRevenue(revenue);
-                                setShowRevenueForm(true);
-                              }
-                            }}
-                            data-testid={`button-edit-revenue-${index}`}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteRevenueId(revenue.id)}
-                            data-testid={`button-delete-revenue-${index}`}
-                            className="text-red-600 hover:text-red-700 hover:border-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {revenue.notes && (
-                      <p className="text-sm text-muted-foreground mt-3 pl-16" data-testid={`text-revenue-notes-${index}`}>
-                        {revenue.notes}
-                      </p>
-                    )}
-                        </CardContent>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <p className="text-lg font-bold text-foreground tabular-nums" data-testid={`text-revenue-amount-${index}`}>
+                              ${Number(revenue.amount).toLocaleString()}
+                            </p>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline" 
+                                  size="sm"
+                                  className={`h-7 px-2 text-[11px] font-medium rounded-full cursor-pointer hover:opacity-80 ${
+                                    getPaymentStatusDisplay(revenue) === 'Paid' ? "text-green-600 border-green-600" :
+                                    getPaymentStatusDisplay(revenue) === 'Partial' ? "text-yellow-600 border-yellow-600" :
+                                    getPaymentStatusDisplay(revenue) === 'Skipped' ? "text-gray-600 border-gray-600" :
+                                    getPaymentStatusDisplay(revenue) === 'Not due yet' ? "text-blue-600 border-blue-600" :
+                                    "text-orange-600 border-orange-600"
+                                  }`}
+                                  data-testid={`badge-payment-status-${index}`}
+                                >
+                                  {getPaymentStatusDisplay(revenue)}
+                                  <ChevronDown className="h-3 w-3 ml-1" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => updatePaymentStatusMutation.mutate({ transactionId: revenue.id, paymentStatus: 'Paid' })} className="text-green-600" data-testid={`menu-item-paid-${index}`}>
+                                  <CheckCircle className="h-4 w-4 mr-2" /> Mark as Paid
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setPartialPaymentDialog({ open: true, transactionId: revenue.id, expectedAmount: Number(revenue.amount) })} className="text-yellow-600" data-testid={`menu-item-partial-${index}`}>
+                                  Partial Payment
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updatePaymentStatusMutation.mutate({ transactionId: revenue.id, paymentStatus: 'Unpaid' })} className="text-orange-600" data-testid={`menu-item-unpaid-${index}`}>
+                                  Mark as Unpaid
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updatePaymentStatusMutation.mutate({ transactionId: revenue.id, paymentStatus: 'Skipped' })} className="text-gray-600" data-testid={`menu-item-skipped-${index}`}>
+                                  Skip Payment
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                const isRecurring = revenue.isRecurring || revenue.parentRecurringId;
+                                if (isRecurring) {
+                                  setPendingEditRevenue(revenue);
+                                } else {
+                                  setEditingRevenue(revenue);
+                                  setShowRevenueForm(true);
+                                }
+                              }}
+                              data-testid={`button-edit-revenue-${index}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteRevenueId(revenue.id)}
+                              data-testid={`button-delete-revenue-${index}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1157,7 +1114,7 @@ export default function Revenue() {
                           tick={{ fontSize: 12 }}
                         />
                         <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                        <Tooltip 
+                        <RechartsTooltip 
                           formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Total Revenue']}
                           labelFormatter={(label) => `Property: ${label}`}
                         />
@@ -1187,7 +1144,7 @@ export default function Revenue() {
                           tick={{ fontSize: 12 }}
                         />
                         <YAxis tickFormatter={(value) => `${value}%`} />
-                        <Tooltip 
+                        <RechartsTooltip 
                           formatter={(value) => [`${Number(value)}%`, 'Collection Rate']}
                           labelFormatter={(label) => `Property: ${label}`}
                         />
@@ -1310,7 +1267,7 @@ export default function Revenue() {
                             } />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Amount']} />
+                        <RechartsTooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Amount']} />
                       </RechartsPieChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -1372,7 +1329,7 @@ export default function Revenue() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                      <Tooltip 
+                      <RechartsTooltip 
                         formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name === 'total' ? 'Total Revenue' : name === 'paid' ? 'Paid Amount' : 'Unpaid Amount']}
                         labelFormatter={(label) => `Month: ${label}`}
                       />
@@ -1513,7 +1470,7 @@ export default function Revenue() {
                           tick={{ fontSize: 12 }}
                         />
                         <YAxis tickFormatter={(value) => `${value}%`} />
-                        <Tooltip 
+                        <RechartsTooltip 
                           formatter={(value) => [`${Number(value)}%`, 'Reliability Score']}
                           labelFormatter={(label) => `Tenant: ${label}`}
                         />

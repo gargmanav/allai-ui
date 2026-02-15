@@ -14,9 +14,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, Plus, DollarSign, Calendar, Building, Tag, Repeat, CheckCircle, Trash2, List, BarChart3, GitCompare, Grid3x3, Clock, PieChart } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from "recharts";
-import type { Transaction, Property, Unit, OwnershipEntity } from "@shared/schema";
+import { Tooltip as RechartsTooltip } from "recharts";
+import { Receipt, Plus, DollarSign, Calendar, Building, Tag, Repeat, CheckCircle, Trash2, List, BarChart3, GitCompare, Grid3x3, Clock, PieChart, Pencil, Sparkles, Shield, MapPin, Wrench, Bot } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from "recharts";
+import type { Transaction, Property, Unit, OwnershipEntity, Vendor } from "@shared/schema";
 import { getExpenseDeductionForYear, getAmortizationStatus, formatAmortizationDisplay } from "@/lib/calculations";
 import PropertyAssistant from "@/components/ai/property-assistant";
 
@@ -77,6 +79,11 @@ export default function Expenses() {
 
   const { data: entities = [] } = useQuery<OwnershipEntity[]>({
     queryKey: ["/api/entities"],
+    retry: false,
+  });
+
+  const { data: vendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
     retry: false,
   });
 
@@ -802,212 +809,178 @@ export default function Expenses() {
             {/* List View */}
             <TabsContent value="list" className="space-y-0">
               {expensesLoading ? (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="group relative rounded-2xl overflow-hidden transition-all duration-300" data-testid={`skeleton-expense-${i}`} style={{
+                    <div key={i} className="group relative rounded-2xl overflow-hidden" data-testid={`skeleton-expense-${i}`} style={{
                       background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                       backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                       WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                       border: '2px solid rgba(255, 255, 255, 0.85)',
-                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                      boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
                     }}>
-                      <div className="running-light-bar h-1 transition-all duration-300" style={{
-                        backdropFilter: 'blur(16px) saturate(200%)',
-                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
-                      }} />
-                      <div className="relative">
-                        <CardContent className="p-6">
-                          <div className="space-y-3">
-                            <div className="h-5 bg-muted animate-pulse rounded" />
-                            <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-                            <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-                          </div>
-                        </CardContent>
+                      <div className="running-light-bar h-1" style={{ backdropFilter: 'blur(16px) saturate(200%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)' }} />
+                      <div className="relative flex items-center p-4 gap-4">
+                        <div className="w-10 h-10 bg-muted animate-pulse rounded-lg shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted animate-pulse rounded w-2/3" />
+                          <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
+                        </div>
+                        <div className="h-5 w-16 bg-muted animate-pulse rounded" />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : filteredExpenses.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {filteredExpenses.map((expense, index) => (
-                <div key={expense.id} className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)]" data-testid={`card-expense-${index}`} style={{
+                <div key={expense.id} className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:-translate-y-0.5 hover:shadow-[0_15px_40px_rgba(139,92,246,0.10),0_8px_20px_rgba(59,130,246,0.06),0_4px_12px_rgba(0,0,0,0.05)]" data-testid={`card-expense-${index}`} style={{
                   background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                   backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                   WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                   border: '2px solid rgba(255, 255, 255, 0.85)',
-                  boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                  boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
                 }}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/8 group-hover:to-blue-500/8 transition-all duration-300 rounded-xl" />
                   <div className="running-light-bar h-1 transition-all duration-300" style={{
                     backdropFilter: 'blur(16px) saturate(200%)',
                     boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
                   }} />
-                  <div className="relative">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
-                          <Receipt className="h-6 w-6 text-violet-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground" data-testid={`text-expense-description-${index}`}>
-                            {expense.description}
-                          </h3>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                            <span data-testid={`text-expense-date-${index}`}>
-                              {new Date(expense.date).toLocaleDateString()}
-                            </span>
-                            {expense.category && (
-                              <Badge className={getCategoryColor(expense.category)} data-testid={`badge-expense-category-${index}`}>
-                                {expense.category}
-                              </Badge>
-                            )}
-                            {expense.isRecurring && (
-                              <Badge variant="outline" className="text-blue-600 border-blue-600" data-testid={`badge-recurring-${index}`}>
-                                <Repeat className="h-3 w-3 mr-1" />
-                                {expense.recurringFrequency}
-                              </Badge>
-                            )}
-                            {expense.parentRecurringId && (
-                              <Badge variant="outline" className="text-purple-600 border-purple-600" data-testid={`badge-recurring-instance-${index}`}>
-                                Auto-generated
-                              </Badge>
-                            )}
-                            {(() => {
-                              const currentYear = new Date().getFullYear();
-                              const amortizationStatus = getAmortizationStatus(expense, currentYear);
-                              const displayInfo = formatAmortizationDisplay(amortizationStatus);
-                              
-                              return (
-                                <>
-                                  <Badge 
-                                    variant="outline" 
-                                    className={expense.taxDeductible === false 
-                                      ? "text-orange-600 border-orange-600" 
-                                      : "text-green-600 border-green-600"
-                                    } 
-                                    data-testid={`badge-tax-deductible-${index}`}
-                                  >
-                                    {displayInfo.badge}
-                                  </Badge>
-                                  {expense.taxDeductible && amortizationStatus.isAmortized && (
-                                    <Badge 
-                                      variant="outline" 
-                                      className="text-blue-600 border-blue-600" 
-                                      data-testid={`badge-amortization-${index}`}
-                                    >
-                                      {amortizationStatus.yearsRemaining > 0 
-                                        ? `${amortizationStatus.yearsRemaining} Years Left`
-                                        : amortizationStatus.isCompleted 
-                                          ? "Complete" 
-                                          : "Final Year"}
-                                    </Badge>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
+                  <div className="relative flex items-center p-4 gap-4">
+                    <div className="w-10 h-10 bg-violet-100/60 rounded-lg flex items-center justify-center shrink-0">
+                      <Receipt className="h-5 w-5 text-violet-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground truncate" data-testid={`text-expense-description-${index}`}>
+                          {expense.description}
+                        </h3>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {expense.parentRecurringId && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center cursor-help">
+                                    <Bot className="h-3 w-3 text-purple-500" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Auto-generated from recurring schedule</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {expense.isRecurring && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center cursor-help">
+                                    <Repeat className="h-3 w-3 text-blue-500" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Recurring {expense.recurringFrequency}</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           {(() => {
                             const currentYear = new Date().getFullYear();
-                            const currentYearDeduction = getExpenseDeductionForYear(expense, currentYear);
                             const amortizationStatus = getAmortizationStatus(expense, currentYear);
-                            const totalAmount = Number(expense.amount);
-                            
-                            if (expense.taxDeductible && amortizationStatus.isAmortized) {
-                              return (
-                                <>
-                                  <p className="text-xl font-bold text-foreground" data-testid={`text-expense-amount-${index}`}>
-                                    ${totalAmount.toLocaleString()}
-                                  </p>
-                                  <p className="text-sm font-medium text-blue-600" data-testid={`text-current-year-deduction-${index}`}>
-                                    ${currentYearDeduction.toLocaleString()} this year
-                                  </p>
-                                  {amortizationStatus.remainingToDeduct > 0 && (
-                                    <p className="text-xs text-muted-foreground" data-testid={`text-remaining-amount-${index}`}>
-                                      ${amortizationStatus.remainingToDeduct.toLocaleString()} remaining
-                                    </p>
-                                  )}
-                                </>
-                              );
-                            } else {
-                              return (
-                                <>
-                                  <p className="text-xl font-bold text-foreground" data-testid={`text-expense-amount-${index}`}>
-                                    ${totalAmount.toLocaleString()}
-                                  </p>
-                                  {expense.taxDeductible && currentYearDeduction > 0 && (
-                                    <p className="text-sm text-green-600" data-testid={`text-current-year-deduction-${index}`}>
-                                      Deductible {currentYear}
-                                    </p>
-                                  )}
-                                </>
-                              );
-                            }
+                            const displayInfo = formatAmortizationDisplay(amortizationStatus);
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center cursor-help ${expense.taxDeductible === false ? 'bg-orange-100' : 'bg-green-100'}`}>
+                                      <Shield className={`h-3 w-3 ${expense.taxDeductible === false ? 'text-orange-500' : 'text-green-500'}`} />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{displayInfo.badge}{amortizationStatus.isAmortized && amortizationStatus.yearsRemaining > 0 ? ` (${amortizationStatus.yearsRemaining} years left)` : ''}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
                           })()}
-                          <div className="text-sm text-muted-foreground">
-                            {expense.scope === 'property' && expense.propertyId && (
-                              <>
-                                <p data-testid={`text-expense-scope-${index}`}>Property</p>
-                                <p data-testid={`text-expense-property-${index}`}>
-                                  {(() => {
-                                    const property = properties.find(p => p.id === expense.propertyId);
-                                    return property ? (property.name || `${property.street}, ${property.city}`) : 'Property';
-                                  })()}
-                                </p>
-                              </>
-                            )}
-                            {expense.scope === 'operational' && (
-                              <>
-                                <p data-testid={`text-expense-scope-${index}`}>Operational</p>
-                                <p data-testid={`text-expense-entity-${index}`}>
-                                  {entities.find(e => e.id === expense.entityId)?.name || 'Entity'}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const isRecurring = expense.isRecurring || expense.parentRecurringId;
-                              if (isRecurring) {
-                                setPendingEditExpense(expense);
-                              } else {
-                                setEditingExpense(expense);
-                                setShowExpenseForm(true);
-                              }
-                            }}
-                            data-testid={`button-edit-expense-${index}`}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteExpenseId(expense.id)}
-                            data-testid={`button-delete-expense-${index}`}
-                            className="text-red-600 hover:text-red-700 hover:border-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
+                        <span className="shrink-0" data-testid={`text-expense-date-${index}`}>
+                          {new Date(expense.date).toLocaleDateString()}
+                        </span>
+                        {expense.category && (
+                          <span className="text-xs font-medium text-muted-foreground/80" data-testid={`badge-expense-category-${index}`}>
+                            {expense.category}
+                          </span>
+                        )}
+                        {expense.scope === 'property' && expense.propertyId && (
+                          <span className="flex items-center gap-1 truncate">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            {(() => {
+                              const property = properties.find(p => p.id === expense.propertyId);
+                              const unit = expense.unitId ? units?.find(u => u.id === expense.unitId) : null;
+                              const propName = property ? (property.name || `${property.street}, ${property.city}`) : '';
+                              return unit ? `${propName} (${unit.label})` : propName;
+                            })()}
+                          </span>
+                        )}
+                        {expense.scope === 'operational' && expense.entityId && (
+                          <span className="flex items-center gap-1 truncate">
+                            <Building className="h-3 w-3 shrink-0" />
+                            {entities.find(e => e.id === expense.entityId)?.name || 'Entity'}
+                          </span>
+                        )}
+                        {expense.vendorId && (() => {
+                          const vendor = vendors.find(v => v.id === expense.vendorId);
+                          return vendor ? (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground/70 truncate">
+                              <Wrench className="h-3 w-3 shrink-0" />
+                              {vendor.name}
+                            </span>
+                          ) : null;
+                        })()}
+                      </div>
                     </div>
-                    
-                    {expense.notes && (
-                      <p className="text-sm text-muted-foreground mt-3 pl-16" data-testid={`text-expense-notes-${index}`}>
-                        {expense.notes}
-                      </p>
-                    )}
-                  </CardContent>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {(() => {
+                        const currentYear = new Date().getFullYear();
+                        const currentYearDeduction = getExpenseDeductionForYear(expense, currentYear);
+                        const amortizationStatus = getAmortizationStatus(expense, currentYear);
+                        const totalAmount = Number(expense.amount);
+                        return (
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-foreground tabular-nums" data-testid={`text-expense-amount-${index}`}>
+                              ${totalAmount.toLocaleString()}
+                            </p>
+                            {expense.taxDeductible && amortizationStatus.isAmortized && (
+                              <p className="text-xs font-medium text-blue-600">${currentYearDeduction.toLocaleString()}/yr</p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => {
+                          const isRecurring = expense.isRecurring || expense.parentRecurringId;
+                          if (isRecurring) {
+                            setPendingEditExpense(expense);
+                          } else {
+                            setEditingExpense(expense);
+                            setShowExpenseForm(true);
+                          }
+                        }}
+                        data-testid={`button-edit-expense-${index}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteExpenseId(expense.id)}
+                        data-testid={`button-delete-expense-${index}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1090,7 +1063,7 @@ export default function Expenses() {
                               <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Amount']} />
+                          <RechartsTooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Amount']} />
                         </RechartsPieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -1116,7 +1089,7 @@ export default function Expenses() {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                          <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Total']} />
+                          <RechartsTooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Total']} />
                           <Bar dataKey="total" fill="#8884d8" />
                         </BarChart>
                       </ResponsiveContainer>
@@ -1221,7 +1194,7 @@ export default function Expenses() {
                           tick={{ fontSize: 12 }}
                         />
                         <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                        <Tooltip 
+                        <RechartsTooltip 
                           formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Total Expenses']}
                           labelFormatter={(label) => `Property: ${label}`}
                         />
@@ -1251,7 +1224,7 @@ export default function Expenses() {
                           tick={{ fontSize: 12 }}
                         />
                         <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                        <Tooltip 
+                        <RechartsTooltip 
                           formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Per Unit Average']}
                           labelFormatter={(label) => `Property: ${label}`}
                         />
@@ -1415,7 +1388,7 @@ export default function Expenses() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="monthShort" />
                         <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                        <Tooltip 
+                        <RechartsTooltip 
                           formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Total Expenses']}
                           labelFormatter={(label) => `Month: ${label}`}
                         />
