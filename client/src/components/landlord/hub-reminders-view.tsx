@@ -481,9 +481,15 @@ export function HubRemindersView() {
   const overdueReminders = allReminders.filter(r => 
     getEffectiveStatus(r) === "Overdue"
   ).length;
+  const now = new Date();
+  const dueSoonReminders = allReminders.filter(r => {
+    if (r.status === "Completed" || r.status === "Cancelled") return false;
+    const due = new Date(r.dueAt);
+    const daysUntil = (due.getTime() - now.getTime()) / (1000 * 3600 * 24);
+    return daysUntil >= 0 && daysUntil <= 30;
+  }).length;
   const thisMonthReminders = allReminders.filter(r => {
     const reminderDue = new Date(r.dueAt);
-    const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return !r.status && reminderDue >= startOfMonth && reminderDue <= endOfMonth;
@@ -788,100 +794,143 @@ export function HubRemindersView() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex items-center gap-2 mb-6" data-testid="view-toggle">
-        <Button
-          variant="default"
-          className="gap-2"
+      <div className="flex items-center gap-1 mb-6 bg-muted/30 rounded-xl p-1 w-fit" data-testid="view-toggle">
+        <button
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-gray-800 text-foreground shadow-sm"
           data-testid="button-list-view"
         >
           <List className="h-4 w-4" />
           List
-        </Button>
-        <Button
-          variant="outline"
+        </button>
+        <button
           onClick={() => setLocation("/admin-calendar")}
-          className="gap-2"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-200"
           data-testid="button-calendar-view"
         >
           <Calendar className="h-4 w-4" />
           Calendar
-        </Button>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <button
           data-testid="card-overdue-reminders"
-          className="hover:shadow-lg transition-shadow"
+          className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(239,68,68,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] focus:outline-none focus:ring-2 focus:ring-red-400/50 focus:ring-offset-2"
+          onClick={() => {
+            setStatusFilter("Overdue");
+            setDateFilter("all");
+          }}
+          style={{
+            background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+            backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+            WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+            border: '2px solid rgba(255, 255, 255, 0.85)',
+            boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+          }}
         >
-          <CardContent className="p-6">
-            <div 
-              className="flex items-center cursor-pointer"
-              onClick={() => {
-                setStatusFilter("Overdue");
-                setDateFilter("all");
-              }}
-            >
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Overdue</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-overdue-count">
-                  {overdueReminders}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="text-red-600" />
-              </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 to-orange-500/0 group-hover:from-red-500/8 group-hover:to-orange-500/8 transition-all duration-300 rounded-xl" />
+          <div className="running-light-bar h-1 transition-all duration-300" style={{ backdropFilter: 'blur(16px) saturate(200%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)' }} />
+          <div className="relative p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Overdue</span>
+              <AlertTriangle className="h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors duration-300" />
+            </div>
+            <div className="flex justify-between items-baseline mb-1">
+              <span className="text-xs text-gray-500 font-medium">Past Due</span>
+              <span className={`text-3xl font-bold tabular-nums ${overdueReminders > 0 ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`} data-testid="text-overdue-count">
+                {overdueReminders}
+              </span>
             </div>
             {overdueReminders > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-4 text-green-600 hover:text-green-700 hover:bg-green-50"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const overdueIds = allReminders
-                    .filter(r => getEffectiveStatus(r) === "Overdue")
-                    .map(r => r.id);
-                  Promise.all(overdueIds.map(id => 
-                    completeReminderMutation.mutateAsync(id)
-                  )).then(() => {
-                    toast({
-                      title: "Success",
-                      description: `Cleared ${overdueIds.length} overdue reminder${overdueIds.length > 1 ? 's' : ''}`,
+              <div className="pt-2 border-t border-gray-100/50">
+                <button
+                  className="text-[11px] text-green-600 hover:text-green-700 font-semibold flex items-center gap-1 disabled:opacity-50"
+                  disabled={completeReminderMutation.isPending}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const overdueIds = allReminders
+                      .filter(r => getEffectiveStatus(r) === "Overdue")
+                      .map(r => r.id);
+                    Promise.all(overdueIds.map(id => 
+                      completeReminderMutation.mutateAsync(id)
+                    )).then(() => {
+                      toast({
+                        title: "Success",
+                        description: `Cleared ${overdueIds.length} overdue reminder${overdueIds.length > 1 ? 's' : ''}`,
+                      });
                     });
-                  });
-                }}
-                disabled={completeReminderMutation.isPending}
-                data-testid="button-clear-all-overdue"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Clear All Overdue
-              </Button>
+                  }}
+                  data-testid="button-clear-all-overdue"
+                >
+                  <CheckCircle className="h-3 w-3" />
+                  Clear All
+                </button>
+              </div>
             )}
-          </CardContent>
-        </Card>
-        
-        <Card 
+          </div>
+        </button>
+
+        <button
+          data-testid="card-due-soon-reminders"
+          className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(245,158,11,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2"
+          onClick={() => {
+            setStatusFilter("due");
+            setDateFilter("next-30-days");
+          }}
+          style={{
+            background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+            backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+            WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+            border: '2px solid rgba(255, 255, 255, 0.85)',
+            boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 to-yellow-500/0 group-hover:from-amber-500/8 group-hover:to-yellow-500/8 transition-all duration-300 rounded-xl" />
+          <div className="running-light-bar h-1 transition-all duration-300" style={{ backdropFilter: 'blur(16px) saturate(200%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)' }} />
+          <div className="relative p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">Due Soon</span>
+              <Clock className="h-4 w-4 text-amber-400 group-hover:text-amber-500 transition-colors duration-300" />
+            </div>
+            <div className="flex justify-between items-baseline mb-1">
+              <span className="text-xs text-gray-500 font-medium">Next 30 Days</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                {dueSoonReminders}
+              </span>
+            </div>
+          </div>
+        </button>
+
+        <button
           data-testid="card-total-reminders"
-          className="cursor-pointer hover:shadow-lg transition-shadow"
+          className="group relative w-full rounded-2xl overflow-hidden text-left transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)] focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:ring-offset-2"
           onClick={() => {
             setStatusFilter("due");
             setDateFilter("this-month");
           }}
+          style={{
+            background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+            backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+            WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+            border: '2px solid rgba(255, 255, 255, 0.85)',
+            boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+          }}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-total-count">
-                  {thisMonthReminders}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Bell className="text-blue-600" />
-              </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/8 group-hover:to-blue-500/8 transition-all duration-300 rounded-xl" />
+          <div className="running-light-bar h-1 transition-all duration-300" style={{ backdropFilter: 'blur(16px) saturate(200%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)' }} />
+          <div className="relative p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">This Month</span>
+              <Bell className="h-4 w-4 text-blue-400 group-hover:text-blue-500 transition-colors duration-300" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex justify-between items-baseline mb-1">
+              <span className="text-xs text-gray-500 font-medium">Due This Month</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums" data-testid="text-total-count">
+                {thisMonthReminders}
+              </span>
+            </div>
+          </div>
+        </button>
       </div>
 
       {remindersLoading ? (
