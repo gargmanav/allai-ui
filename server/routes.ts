@@ -2101,7 +2101,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter to only cases where this user is the reporter
       const tenantCases = allCases.filter(c => c.reporterUserId === userId);
       
-      res.json(tenantCases);
+      // Include media for each case
+      const casesWithMedia = await Promise.all(tenantCases.map(async (c) => {
+        const mediaItems = await db.select().from(caseMedia).where(eq(caseMedia.caseId, c.id));
+        return { ...c, media: mediaItems };
+      }));
+      
+      res.json(casesWithMedia);
     } catch (error) {
       console.error("Error fetching tenant cases:", error);
       res.status(500).json({ message: "Failed to fetch tenant cases" });

@@ -1,10 +1,21 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { db } from '../db';
 import { tenants, smartCases, caseMedia, properties, users, contractorProfiles, contractorOrgLinks, favoriteContractors, userContractorSpecialties, contractorSpecialties, approvalPolicies } from '@shared/schema';
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { notificationService } from '../notificationService.js';
+import { aiTriageService } from '../aiTriage';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only images are allowed'));
+  },
+});
 
 const router = Router();
 
@@ -279,6 +290,77 @@ router.post('/cases', requireAuth, requireRole('tenant'), async (req: Authentica
   } catch (error) {
     console.error('Error creating tenant case:', error);
     res.status(500).json({ error: 'Failed to create case' });
+  }
+});
+
+// Upload photos for a case
+router.post('/cases/:caseId/photos', requireAuth, requireRole('tenant'), upload.array('photos', 5), async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const { caseId } = req.params;
+    const files = req.files as Express.Multer.File[];
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No photos provided' });
+    }
+
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.userId, userId),
+    });
+
+    if (!tenant) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const caseRecord = await db.query.smartCases.findFirst({
+      where: and(
+        eq(smartCases.id, caseId),
+        eq(smartCases.reporterUserId, userId),
+        eq(smartCases.orgId, tenant.orgId!)
+      ),
+    });
+
+    if (!caseRecord) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const mediaRecords = await Promise.all(files.map(async (file) => {
+      const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      const [record] = await db.insert(caseMedia).values({
+        caseId,
+        url: base64,
+        type: 'image',
+      }).returning();
+      return record;
+    }));
+
+    res.json({ success: true, photos: mediaRecords });
+
+    const photoUrls = mediaRecords.map(r => r.url);
+    aiTriageService.generatePhotoAnalysis(
+      photoUrls,
+      caseRecord.title,
+      caseRecord.description || ''
+    ).then(async (photoAnalysis) => {
+      if (photoAnalysis) {
+        try {
+          const existingTriage = (caseRecord as any).aiTriageJson || {};
+          await db.update(smartCases)
+            .set({
+              aiTriageJson: { ...existingTriage, photoAnalysis },
+            })
+            .where(eq(smartCases.id, caseId));
+          console.log(`🤖 Photo analysis saved for tenant case ${caseId}`);
+        } catch (err) {
+          console.error('Failed to save photo analysis:', err);
+        }
+      }
+    }).catch(err => {
+      console.error('Photo analysis background task failed:', err);
+    });
+  } catch (error) {
+    console.error('Error uploading tenant photos:', error);
+    res.status(500).json({ error: 'Failed to upload photos' });
   }
 });
 
