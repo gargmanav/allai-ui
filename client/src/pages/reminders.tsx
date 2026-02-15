@@ -886,7 +886,14 @@ export default function Reminders() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <Card 
               data-testid="card-overdue-reminders"
-              className="hover:shadow-lg transition-shadow"
+              className="hover:shadow-lg transition-shadow rounded-2xl overflow-hidden"
+              style={{
+                background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                border: '2px solid rgba(255, 255, 255, 0.85)',
+                boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+              }}
             >
               <CardContent className="p-6">
                 <div 
@@ -902,8 +909,8 @@ export default function Reminders() {
                       {overdueReminders}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                    <AlertTriangle className="text-red-600" />
+                  <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
+                    <AlertTriangle className="text-violet-600" />
                   </div>
                 </div>
                 {overdueReminders > 0 && (
@@ -937,10 +944,17 @@ export default function Reminders() {
             
             <Card 
               data-testid="card-total-reminders"
-              className="cursor-pointer hover:shadow-lg transition-shadow"
+              className="cursor-pointer hover:shadow-lg transition-shadow rounded-2xl overflow-hidden"
               onClick={() => {
                 setStatusFilter("due");
                 setDateFilter("this-month");
+              }}
+              style={{
+                background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                border: '2px solid rgba(255, 255, 255, 0.85)',
+                boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
               }}
             >
               <CardContent className="p-6">
@@ -951,7 +965,7 @@ export default function Reminders() {
                       {thisMonthReminders}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-blue-100/60 rounded-lg flex items-center justify-center">
                     <Bell className="text-blue-600" />
                   </div>
                 </div>
@@ -979,11 +993,17 @@ export default function Reminders() {
               {filteredReminders.map((reminder, index) => {
                 const effectiveStatus = getEffectiveStatus(reminder);
                 return (
-                <Card key={reminder.id} className="group hover:shadow-md transition-shadow bg-yellow-50 dark:bg-yellow-950/20" data-testid={`card-reminder-${index}`}>
+                <Card key={reminder.id} className="group hover:shadow-md transition-shadow rounded-2xl overflow-hidden" data-testid={`card-reminder-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                        <div className="w-12 h-12 bg-amber-100/60 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
                           {getTypeIcon(reminder.type)}
                         </div>
                         <div>

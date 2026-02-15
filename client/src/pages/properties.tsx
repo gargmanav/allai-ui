@@ -644,12 +644,18 @@ export default function Properties() {
           ) : (filteredProperties && filteredProperties.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map((property, index) => (
-                <Card key={property.id} className={`hover:shadow-md transition-shadow ${property.status === "Archived" ? "border-orange-300 bg-orange-50/30 opacity-80" : ""}`} data-testid={`card-property-${index}`}>
+                <Card key={property.id} className={`hover:shadow-md transition-shadow rounded-2xl overflow-hidden ${property.status === "Archived" ? "border-orange-300 bg-orange-50/30 opacity-80" : ""}`} data-testid={`card-property-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Building className="h-6 w-6 text-primary" />
+                        <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
+                          <Building className="h-6 w-6 text-violet-600" />
                         </div>
                         <div>
                           <CardTitle className="text-lg" data-testid={`text-property-name-${index}`}>{property.name}</CardTitle>

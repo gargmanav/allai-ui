@@ -696,7 +696,13 @@ export default function Expenses() {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card data-testid="card-total-expenses">
+            <Card data-testid="card-total-expenses" className="rounded-2xl overflow-hidden" style={{
+              background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+              backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+            }}>
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="flex-1">
@@ -705,14 +711,20 @@ export default function Expenses() {
                       ${totalExpenses.toLocaleString()}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                    <Receipt className="text-red-600" />
+                  <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
+                    <Receipt className="text-violet-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
             
-            <Card data-testid="card-month-expenses">
+            <Card data-testid="card-month-expenses" className="rounded-2xl overflow-hidden" style={{
+              background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+              backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+            }}>
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="flex-1">
@@ -721,14 +733,20 @@ export default function Expenses() {
                       ${thisMonthExpenses.toLocaleString()}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="text-yellow-600" />
+                  <div className="w-12 h-12 bg-amber-100/60 rounded-lg flex items-center justify-center">
+                    <Calendar className="text-amber-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
             
-            <Card data-testid="card-expense-count">
+            <Card data-testid="card-expense-count" className="rounded-2xl overflow-hidden" style={{
+              background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+              backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+            }}>
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="flex-1">
@@ -737,7 +755,7 @@ export default function Expenses() {
                       {filteredExpenses.length}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-blue-100/60 rounded-lg flex items-center justify-center">
                     <DollarSign className="text-blue-600" />
                   </div>
                 </div>
@@ -800,12 +818,18 @@ export default function Expenses() {
               ) : filteredExpenses.length > 0 ? (
             <div className="space-y-4">
               {filteredExpenses.map((expense, index) => (
-                <Card key={expense.id} className="hover:shadow-md transition-shadow" data-testid={`card-expense-${index}`}>
+                <Card key={expense.id} className="hover:shadow-md transition-shadow rounded-2xl overflow-hidden" data-testid={`card-expense-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                          <Receipt className="h-6 w-6 text-orange-600" />
+                        <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
+                          <Receipt className="h-6 w-6 text-violet-600" />
                         </div>
                         <div>
                           <h3 className="font-semibold text-foreground" data-testid={`text-expense-description-${index}`}>

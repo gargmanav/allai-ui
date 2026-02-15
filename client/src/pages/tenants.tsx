@@ -843,12 +843,18 @@ export default function Tenants() {
               };
               
               return (
-                <Card key={group.id} className="hover:shadow-md transition-shadow" data-testid={`card-tenant-${index}`}>
+                <Card key={group.id} className="hover:shadow-md transition-shadow rounded-2xl overflow-hidden" data-testid={`card-tenant-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                          <Users className="h-6 w-6 text-green-600" />
+                        <div className="w-12 h-12 bg-emerald-100/60 rounded-lg flex items-center justify-center">
+                          <Users className="h-6 w-6 text-emerald-600" />
                         </div>
                         <div>
                           <CardTitle className="text-lg" data-testid={`text-tenant-name-${index}`}>{group.name}</CardTitle>
