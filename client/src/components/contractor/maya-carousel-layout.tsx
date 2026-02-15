@@ -613,14 +613,13 @@ export function MayaCarouselLayout({
     return `Based on your ${items.length} current ${type}s, I recommend prioritizing high-value opportunities and urgent requests. Would you like specific recommendations for scheduling or pricing?`;
   };
 
+  const isUrgentPriority = (priority?: string) => {
+    const p = priority?.toLowerCase();
+    return p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+  };
+
   const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case "Urgent": return "bg-red-50 text-red-600 border-red-100";
-      case "High": return "bg-amber-50 text-amber-600 border-amber-100";
-      case "Normal": return "bg-slate-100 text-slate-600 border-slate-200";
-      case "Low": return "bg-slate-50 text-slate-500 border-slate-100";
-      default: return "bg-slate-50 text-slate-500 border-slate-100";
-    }
+    return isUrgentPriority(priority) ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-50 text-slate-500 border-slate-100";
   };
 
   const getStatusBadge = (status: string) => {
@@ -1146,7 +1145,7 @@ export function MayaCarouselLayout({
                         ) : (
                           <Home className={`h-5 w-5 ${isSelected ? item.color.text : "text-gray-400"}`} />
                         )}
-                        {item.priority === "Urgent" && !unreadByCaseId[item.id] && (
+                        {isUrgentPriority(item.priority) && !unreadByCaseId[item.id] && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] text-white font-bold">!</span>
                           </div>
@@ -1241,7 +1240,9 @@ export function MayaCarouselLayout({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={getPriorityColor(selectedItem.priority)}>{selectedItem.priority || "Normal"}</Badge>
+                        {isUrgentPriority(selectedItem.priority) ? (
+                          <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Urgent</Badge>
+                        ) : null}
                         <Badge className={`${getStatusBadge(selectedItem.status)} border-0`}>{selectedItem.status}</Badge>
                       </div>
                     </div>
@@ -1474,14 +1475,9 @@ export function MayaCarouselLayout({
                         <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-3 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-slate-500">Urgency</span>
-                            <Badge className={
-                              selectedItem.aiTriageJson.urgency === "critical" ? "bg-red-100 text-red-700 border-red-200" :
-                              selectedItem.aiTriageJson.urgency === "high" ? "bg-orange-100 text-orange-700 border-orange-200" :
-                              selectedItem.aiTriageJson.urgency === "moderate" ? "bg-amber-100 text-amber-700 border-amber-200" :
-                              "bg-green-100 text-green-700 border-green-200"
-                            }>
-                              {selectedItem.aiTriageJson.urgency || "Unknown"}
-                            </Badge>
+                            {isUrgentPriority(selectedItem.aiTriageJson.urgency) ? (
+                              <Badge variant="destructive">Urgent</Badge>
+                            ) : null}
                           </div>
                           {selectedItem.aiTriageJson.rootCause && (
                             <div>
@@ -1642,9 +1638,9 @@ export function MayaCarouselLayout({
                           </td>
                         ) : (
                           <td className="px-3 py-3 text-center">
-                            <Badge className={`${getPriorityColor(item.priority)} text-[10px] px-1.5 py-0.5`}>
-                              {item.priority || "Normal"}
-                            </Badge>
+                            {isUrgentPriority(item.priority) ? (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5">Urgent</Badge>
+                            ) : null}
                           </td>
                         )}
                         <td className="px-3 py-3 text-right">

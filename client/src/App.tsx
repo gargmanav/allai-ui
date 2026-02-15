@@ -47,6 +47,7 @@ import FavoriteContractors from "@/pages/favorite-contractors";
 import Homeowner from "@/pages/homeowner";
 import Contractor from "@/pages/contractor";
 import LandlordHub from "@/pages/landlord-hub";
+import TenantHub from "@/pages/tenant-hub";
 import NotFound from "@/pages/not-found";
 
 function RoleBasedHome() {
@@ -54,7 +55,7 @@ function RoleBasedHome() {
   
   // Redirect based on authenticated user's actual role
   if (user?.primaryRole === 'tenant') {
-    return <Redirect to="/tenant-dashboard" />;
+    return <Redirect to="/tenant-hub" />;
   } else if (user?.primaryRole === 'contractor') {
     return <Redirect to="/contractor" />;
   } else if (user?.primaryRole === 'platform_super_admin') {
@@ -122,6 +123,7 @@ function Router() {
           <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
           <Route path="/favorite-contractors" component={FavoriteContractors} />
           <Route path="/homeowner" component={Homeowner} />
+          <Route path="/tenant-hub" component={TenantHub} />
           <Route path="/contractor" component={Contractor} />
           <Route path="/landlord" component={LandlordHub} />
           <Route path="/admin-dashboard" component={AdminDashboard} />

@@ -390,7 +390,7 @@ export default function LandlordHub() {
       if (user.primaryRole === "contractor") {
         navigate("/contractor");
       } else if (user.primaryRole === "tenant") {
-        navigate("/tenant-dashboard");
+        navigate("/tenant-hub");
       } else if (user.primaryRole === "platform_super_admin") {
         navigate("/admin-dashboard");
       } else if (user.primaryRole === "property_owner") {

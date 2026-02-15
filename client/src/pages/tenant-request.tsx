@@ -139,7 +139,7 @@ export default function TenantRequestPage() {
             queryClient.invalidateQueries({ queryKey: ['/api/tenant/cases'] });
 
             setTimeout(() => {
-              navigate("/tenant-dashboard");
+              navigate("/tenant-hub");
             }, 3000);
           }
         } else {

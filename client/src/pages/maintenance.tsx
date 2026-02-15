@@ -909,12 +909,9 @@ export default function Maintenance() {
   };
 
   const getPriorityCircleColor = (priority: string | null) => {
-    switch (priority) {
-      case "Urgent": return "bg-red-100";
-      case "High": return "bg-orange-100";
-      case "Normal": return "bg-blue-100";
-      default: return "bg-gray-50";
-    }
+    const p = priority?.toLowerCase();
+    if (p === "urgent" || p === "critical" || p === "emergency" || p === "emergent") return "bg-red-100";
+    return "bg-gray-50";
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -941,30 +938,23 @@ export default function Maintenance() {
   };
 
   const getPriorityBadge = (priority: string | null) => {
-    switch (priority) {
-      case "Urgent": return <Badge className="bg-red-100 text-red-800">Urgent</Badge>;
-      case "High": return <Badge className="bg-orange-100 text-orange-800">High</Badge>;
-      case "Normal": return <Badge className="bg-blue-100 text-blue-800">Normal</Badge>;
-      default: return <Badge variant="secondary">{priority}</Badge>;
+    const p = priority?.toLowerCase();
+    if (p === "urgent" || p === "critical" || p === "emergency" || p === "emergent") {
+      return <Badge variant="destructive">Urgent</Badge>;
     }
+    return null;
   };
 
   const getPriorityVariant = (priority: string | null): "default" | "destructive" | "outline" | "secondary" => {
-    switch (priority) {
-      case "Urgent": return "destructive";
-      case "High": return "destructive";
-      case "Normal": return "default";
-      default: return "secondary";
-    }
+    const p = priority?.toLowerCase();
+    if (p === "urgent" || p === "critical" || p === "emergency" || p === "emergent") return "destructive";
+    return "secondary";
   };
 
   const getPriorityBorderClass = (priority: string | null) => {
-    switch (priority) {
-      case "Urgent": return "[border-left-color:#ef4444] hover:[border-left-color:#dc2626]";
-      case "High": return "[border-left-color:#f97316] hover:[border-left-color:#ea580c]";
-      case "Normal": return "[border-left-color:#3b82f6] hover:[border-left-color:#2563eb]";
-      default: return "[border-left-color:#d1d5db] hover:[border-left-color:#3b82f6]";
-    }
+    const p = priority?.toLowerCase();
+    if (p === "urgent" || p === "critical" || p === "emergency" || p === "emergent") return "[border-left-color:#ef4444] hover:[border-left-color:#dc2626]";
+    return "[border-left-color:#d1d5db] hover:[border-left-color:#3b82f6]";
   };
 
   const filteredProperties = properties || [];
@@ -1042,7 +1032,7 @@ export default function Maintenance() {
       description: smartCase.description || "",
       propertyId: smartCase.propertyId || "",
       unitId: smartCase.unitId || "",
-      priority: smartCase.priority || "Medium",
+      priority: smartCase.priority || "Normal",
       category: smartCase.category || "",
       createReminder: false,
     });
@@ -1138,9 +1128,12 @@ export default function Maintenance() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline" data-testid={`badge-priority-${case_.id}`}>
-                                  {case_.priority}
-                                </Badge>
+                                {(() => {
+                                  const p = case_.priority?.toLowerCase();
+                                  return (p === "urgent" || p === "critical" || p === "emergency" || p === "emergent") ? (
+                                    <Badge variant="destructive" data-testid={`badge-priority-${case_.id}`}>Urgent</Badge>
+                                  ) : null;
+                                })()}
                                 <Badge variant="outline" data-testid={`badge-status-${case_.id}`}>
                                   {case_.status}
                                 </Badge>
@@ -2553,10 +2546,10 @@ export default function Maintenance() {
                                 </div>
                                 <div className="text-right text-sm">
                                   <span className="text-red-600 font-medium">
-                                    {propertyCases.filter(c => c.priority === "Urgent").length} Urgent
-                                  </span>
-                                  <span className="text-orange-600 font-medium ml-3">
-                                    {propertyCases.filter(c => c.priority === "High").length} High
+                                    {propertyCases.filter(c => {
+                                      const p = c.priority?.toLowerCase();
+                                      return p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+                                    }).length} Urgent
                                   </span>
                                 </div>
                               </div>
@@ -2565,20 +2558,21 @@ export default function Maintenance() {
                                 <div className="grid grid-cols-8 md:grid-cols-12 lg:grid-cols-16 xl:grid-cols-20 gap-2">
                                   {propertyUnits.map((unit) => {
                                     const unitCases = propertyCases.filter(case_ => case_.unitId === unit.id);
-                                    const hasUrgent = unitCases.some(c => c.priority === "Urgent");
-                                    const hasHigh = unitCases.some(c => c.priority === "High");
-                                    const hasNormal = unitCases.some(c => c.priority === "Normal");
+                                    const hasUrgent = unitCases.some(c => {
+                                      const p = c.priority?.toLowerCase();
+                                      return p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+                                    });
                                     const hasResolved = unitCases.some(c => c.status === "Resolved");
                                     const hasClosed = unitCases.some(c => c.status === "Closed");
                                     const hasInProgress = unitCases.some(c => c.status === "In Progress");
                                     const hasOnHold = unitCases.some(c => c.status === "On Hold");
+                                    const hasActive = unitCases.length > 0;
                                     
                                     const getUnitColor = () => {
                                       if (hasUrgent) return "bg-red-500 hover:bg-red-600";
-                                      if (hasHigh) return "bg-orange-500 hover:bg-orange-600";
-                                      if (hasNormal) return "bg-blue-500 hover:bg-blue-600";
                                       if (hasInProgress) return "bg-indigo-500 hover:bg-indigo-600";
                                       if (hasOnHold) return "bg-purple-500 hover:bg-purple-600";
+                                      if (hasActive) return "bg-blue-500 hover:bg-blue-600";
                                       if (hasResolved) return "bg-green-500 hover:bg-green-600";
                                       if (hasClosed) return "bg-gray-600 hover:bg-gray-700";
                                       return "bg-gray-300 hover:bg-gray-400";
@@ -2952,7 +2946,7 @@ export default function Maintenance() {
                           description: caseData.description || "",
                           propertyId: property.id,
                           unitId: unit.id,
-                          priority: (caseData.priority as "Low" | "Medium" | "High" | "Urgent") || "Medium",
+                          priority: (caseData.priority?.toLowerCase() === "urgent" || caseData.priority?.toLowerCase() === "critical" || caseData.priority?.toLowerCase() === "emergency" || caseData.priority?.toLowerCase() === "emergent") ? "Urgent" as const : "Normal" as const,
                           category: caseData.category || "",
                           createReminder: false
                         };
@@ -3150,12 +3144,16 @@ export default function Maintenance() {
                     {selectedCase.status || "New"}
                   </Badge>
                 </div>
-                <div>
-                  <span className="text-sm font-medium">Priority:</span>
-                  <Badge variant={getPriorityVariant(selectedCase.priority)} className="ml-2">
-                    {selectedCase.priority || "Medium"}
-                  </Badge>
-                </div>
+                {(() => {
+                  const p = selectedCase.priority?.toLowerCase();
+                  const isUrgent = p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+                  return isUrgent ? (
+                    <div>
+                      <span className="text-sm font-medium">Priority:</span>
+                      <Badge variant="destructive" className="ml-2">Urgent</Badge>
+                    </div>
+                  ) : null;
+                })()}
                 <div>
                   <span className="text-sm font-medium">Category:</span>
                   <span className="ml-2 text-sm">{selectedCase.category || "N/A"}</span>

@@ -755,13 +755,13 @@ export default function Contractor() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mayaChatMessages, selectedCase]);
 
+  const isUrgentPriority = (priority: string) => {
+    const p = priority?.toLowerCase();
+    return p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+  };
+
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "Urgent": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "High": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-      case "Normal": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      default: return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-    }
+    return isUrgentPriority(priority) ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "";
   };
 
   const getStatusColor = (status: string) => {
@@ -2242,9 +2242,11 @@ export default function Contractor() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Badge className={getPriorityColor(selectedCase.priority || "Normal")}>
-                      {selectedCase.priority || "Normal"}
-                    </Badge>
+                    {isUrgentPriority(selectedCase.priority || "") ? (
+                      <Badge variant="destructive">
+                        <AlertTriangle className="h-3 w-3 mr-1" />Urgent
+                      </Badge>
+                    ) : null}
                     <Badge className={getStatusColor(selectedCase.status)}>
                       {selectedCase.status}
                     </Badge>

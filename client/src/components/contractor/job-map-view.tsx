@@ -204,8 +204,8 @@ export function JobMapView({ items, itemType, selectedItemId, onSelectItem, onAc
 
                   <div className="flex items-center gap-1.5 mb-3">
                     <Badge variant="secondary" className="text-[10px] h-5">{item.status}</Badge>
-                    {item.priority && item.priority !== "Normal" && (
-                      <Badge variant={item.priority === "Urgent" ? "destructive" : "secondary"} className="text-[10px] h-5">{item.priority}</Badge>
+                    {item.priority && (item.priority.toLowerCase() === "urgent" || item.priority.toLowerCase() === "critical" || item.priority.toLowerCase() === "emergency" || item.priority.toLowerCase() === "emergent") && (
+                      <Badge variant="destructive" className="text-[10px] h-5">Urgent</Badge>
                     )}
                   </div>
 

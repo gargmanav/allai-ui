@@ -43,7 +43,7 @@ export default function Sidebar() {
   // Tenants now use a unified dashboard without sidebar navigation
   // This is kept minimal in case they somehow access a page with sidebar
   const tenantNavigation = [
-    { name: "Home", href: "/tenant-dashboard", icon: Home },
+    { name: "Home", href: "/tenant-hub", icon: Home },
   ];
 
   let navigation = currentRole === 'platform_super_admin'

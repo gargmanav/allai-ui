@@ -72,7 +72,7 @@ export default function Dashboard() {
         return;
       }
       if (user.primaryRole === "tenant") {
-        setLocation("/tenant-dashboard");
+        setLocation("/tenant-hub");
         return;
       }
       if (user.primaryRole === "org_admin") {

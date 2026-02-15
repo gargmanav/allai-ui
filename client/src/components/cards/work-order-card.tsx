@@ -110,31 +110,24 @@ export default function WorkOrderCard({
     }
   };
 
+  const isUrgentPriority = (priority: string | null) => {
+    const p = priority?.toLowerCase();
+    return p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+  };
+
   const getPriorityCircleColor = (priority: string | null) => {
-    switch (priority) {
-      case "Urgent": return "bg-red-500";
-      case "High": return "bg-orange-500";
-      case "Normal": return "bg-blue-500";
-      default: return "bg-gray-300";
-    }
+    return isUrgentPriority(priority) ? "bg-red-500" : "bg-gray-300";
   };
 
   const getPriorityBorderClass = (priority: string | null) => {
-    switch (priority) {
-      case "Urgent": return "[border-left-color:#ef4444] hover:[border-left-color:#dc2626]";
-      case "High": return "[border-left-color:#f97316] hover:[border-left-color:#ea580c]";
-      case "Normal": return "[border-left-color:#3b82f6] hover:[border-left-color:#2563eb]";
-      default: return "[border-left-color:#d1d5db] hover:[border-left-color:#3b82f6]";
-    }
+    return isUrgentPriority(priority) ? "[border-left-color:#ef4444] hover:[border-left-color:#dc2626]" : "[border-left-color:#d1d5db] hover:[border-left-color:#3b82f6]";
   };
 
   const getPriorityBadge = (priority: string | null) => {
-    switch (priority) {
-      case "Urgent": return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">Urgent</Badge>;
-      case "High": return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">High</Badge>;
-      case "Normal": return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">Normal</Badge>;
-      default: return <Badge variant="secondary">{priority}</Badge>;
+    if (isUrgentPriority(priority)) {
+      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Urgent</Badge>;
     }
+    return null;
   };
 
   const getStatusBadge = (status: string | null) => {

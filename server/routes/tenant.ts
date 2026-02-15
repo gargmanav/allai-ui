@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { db } from '../db';
-import { tenants, smartCases, caseMedia, properties } from '@shared/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { tenants, smartCases, caseMedia, properties, users, contractorProfiles, contractorOrgLinks, favoriteContractors, userContractorSpecialties, contractorSpecialties, approvalPolicies } from '@shared/schema';
+import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { notificationService } from '../notificationService.js';
 
@@ -176,9 +176,8 @@ router.post('/cases', requireAuth, requireRole('tenant'), async (req: Authentica
     // Map AI triage urgency to database priority enum
     const mapUrgencyToPriority = (urgency: string): 'Normal' | 'High' | 'Urgent' => {
       const urgencyLower = urgency.toLowerCase();
-      if (urgencyLower === 'critical' || urgencyLower === 'urgent') return 'Urgent';
-      if (urgencyLower === 'high') return 'High';
-      return 'Normal'; // Default for 'low', 'medium', or any other value
+      if (urgencyLower === 'critical' || urgencyLower === 'urgent' || urgencyLower === 'emergency' || urgencyLower === 'emergent' || urgencyLower === 'high') return 'Urgent';
+      return 'Normal';
     };
 
     // Get propertyId - use tenant's unit property if available, or fallback to org's first property
@@ -280,6 +279,205 @@ router.post('/cases', requireAuth, requireRole('tenant'), async (req: Authentica
   } catch (error) {
     console.error('Error creating tenant case:', error);
     res.status(500).json({ error: 'Failed to create case' });
+  }
+});
+
+// Maya AI Top-3 Contractor Recommendations
+router.get('/maya/contractors', requireAuth, requireRole('tenant'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const userOrgId = req.user!.orgId;
+    const category = (req.query.category as string) || '';
+    const caseId = req.query.caseId as string | undefined;
+
+    if (!userOrgId) {
+      return res.status(403).json({ error: 'Organization not found' });
+    }
+
+    // Get tenant info for property context
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.userId, userId),
+      with: { unit: { with: { property: true } } },
+    });
+
+    // Get org's approval policy (involvement mode + trusted contractors)
+    const policy = await db.query.approvalPolicies.findFirst({
+      where: and(eq(approvalPolicies.orgId, userOrgId), eq(approvalPolicies.isActive, true)),
+    });
+
+    const involvementMode = policy?.involvementMode || 'balanced';
+    const trustedIds = (policy?.trustedContractorIds || []).filter(Boolean);
+
+    // Get favorite contractors for this org
+    const favorites = await db.query.favoriteContractors.findMany({
+      where: eq(favoriteContractors.orgId, userOrgId),
+    });
+    const favoriteIds = favorites.map(f => f.contractorUserId);
+
+    // Get contractors linked to this org
+    const orgLinks = await db.query.contractorOrgLinks.findMany({
+      where: and(eq(contractorOrgLinks.orgId, userOrgId), eq(contractorOrgLinks.status, 'active')),
+    });
+
+    // Build candidate pool: org-linked contractors + favorites + trusted
+    const candidateIds = new Set<string>();
+    orgLinks.forEach(l => candidateIds.add(l.contractorUserId));
+    favoriteIds.forEach(id => candidateIds.add(id));
+    trustedIds.forEach(id => candidateIds.add(id));
+
+    if (candidateIds.size === 0) {
+      return res.json({ contractors: [], involvementMode });
+    }
+
+    // Get contractor user profiles
+    const candidateArray = Array.from(candidateIds);
+    const contractorUsers = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profileImageUrl: users.profileImageUrl,
+    }).from(users).where(
+      and(eq(users.primaryRole, 'contractor'), inArray(users.id, candidateArray))
+    );
+
+    // Get contractor profiles for availability info
+    const profiles = await db.query.contractorProfiles.findMany({
+      where: inArray(contractorProfiles.userId, candidateArray),
+    });
+    const profileMap = new Map(profiles.map(p => [p.userId, p]));
+
+    // Get specialties for filtering by category
+    const specialtyLinks = await db.query.userContractorSpecialties.findMany({
+      where: inArray(userContractorSpecialties.userId, candidateArray),
+    });
+
+    // Get specialty names
+    const specialtyIds = [...new Set(specialtyLinks.map(s => s.specialtyId))];
+    let specialtyMap = new Map<string, string>();
+    if (specialtyIds.length > 0) {
+      const specs = await db.query.contractorSpecialties.findMany({
+        where: inArray(contractorSpecialties.id, specialtyIds),
+      });
+      specialtyMap = new Map(specs.map(s => [s.id, s.name]));
+    }
+
+    // Build user → specialties mapping
+    const userSpecialties = new Map<string, string[]>();
+    specialtyLinks.forEach(sl => {
+      const name = specialtyMap.get(sl.specialtyId);
+      if (name) {
+        const existing = userSpecialties.get(sl.userId) || [];
+        existing.push(name);
+        userSpecialties.set(sl.userId, existing);
+      }
+    });
+
+    // Get org link stats for rating info
+    const linkMap = new Map(orgLinks.map(l => [l.contractorUserId, l]));
+
+    // Score and rank contractors
+    const scored = contractorUsers.map(cu => {
+      const profile = profileMap.get(cu.id);
+      const link = linkMap.get(cu.id);
+      const specs = userSpecialties.get(cu.id) || [];
+      const isTrusted = trustedIds.includes(cu.id);
+      const isFavorite = favoriteIds.includes(cu.id);
+      const isAvailable = profile?.isAvailable !== false;
+      const rating = link?.averageRating ? parseFloat(link.averageRating) : 0;
+      const jobsCompleted = link?.totalJobsCompleted || 0;
+
+      // Category match scoring
+      const categoryLower = category.toLowerCase();
+      const categoryMatch = category ? specs.some(s => s.toLowerCase().includes(categoryLower) || categoryLower.includes(s.toLowerCase())) : true;
+
+      // Scoring influenced by involvementMode:
+      // hands-off: heavily favor trusted/favorite, auto-assign without landlord review
+      // balanced: mix of trusted preference and open pool
+      // hands-on: landlord will review, so broader pool is fine
+      let score = 0;
+      
+      if (involvementMode === 'hands-off') {
+        if (isTrusted) score += 200;
+        if (isFavorite) score += 150;
+        if (categoryMatch) score += 30;
+        if (isAvailable) score += 20;
+      } else if (involvementMode === 'hands-on') {
+        if (isTrusted) score += 50;
+        if (isFavorite) score += 30;
+        if (categoryMatch) score += 60;
+        if (isAvailable) score += 40;
+      } else {
+        if (isTrusted) score += 100;
+        if (isFavorite) score += 50;
+        if (categoryMatch) score += 30;
+        if (isAvailable) score += 20;
+      }
+      score += rating * 5;
+      score += Math.min(jobsCompleted, 10);
+
+      return {
+        id: cu.id,
+        firstName: cu.firstName,
+        lastName: cu.lastName,
+        profileImageUrl: cu.profileImageUrl,
+        specialties: specs,
+        rating: rating || null,
+        jobsCompleted,
+        isAvailable,
+        isTrusted,
+        isFavorite,
+        categoryMatch,
+        responseTimeHours: profile?.responseTimeHours || 24,
+        emergencyAvailable: profile?.emergencyAvailable || false,
+        score,
+      };
+    });
+
+    // Filter: only available contractors that match category (if specified)
+    let filtered = scored.filter(c => c.isAvailable);
+    if (category) {
+      const categoryMatches = filtered.filter(c => c.categoryMatch);
+      if (categoryMatches.length > 0) {
+        filtered = categoryMatches;
+      }
+    }
+    
+    // In hands-off mode, strongly prefer trusted/favorite contractors
+    if (involvementMode === 'hands-off') {
+      const trustedOrFav = filtered.filter(c => c.isTrusted || c.isFavorite);
+      if (trustedOrFav.length > 0) {
+        filtered = trustedOrFav;
+      }
+    }
+
+    // Sort by score descending, take top 3
+    filtered.sort((a, b) => b.score - a.score);
+    const top3 = filtered.slice(0, 3);
+
+    // Strip internal scoring before sending to tenant (no pricing info)
+    const result = top3.map((c, idx) => ({
+      rank: idx + 1,
+      id: c.id,
+      name: `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Contractor',
+      profileImageUrl: c.profileImageUrl,
+      specialties: c.specialties,
+      rating: c.rating,
+      responseTimeHours: c.responseTimeHours,
+      emergencyAvailable: c.emergencyAvailable,
+      isTrusted: c.isTrusted,
+      isFavorite: c.isFavorite,
+      jobsCompleted: c.jobsCompleted,
+      mayaNote: c.isTrusted ? 'Trusted by your landlord' : c.isFavorite ? 'Preferred contractor' : c.categoryMatch ? 'Specialist match' : 'Available now',
+    }));
+
+    res.json({
+      contractors: result,
+      involvementMode,
+      totalCandidates: candidateIds.size,
+    });
+  } catch (error) {
+    console.error('Error fetching Maya contractor recommendations:', error);
+    res.status(500).json({ error: 'Failed to fetch contractor recommendations' });
   }
 });
 

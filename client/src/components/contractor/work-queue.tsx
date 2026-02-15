@@ -49,18 +49,21 @@ interface WorkQueueProps {
 type SortOption = 'newest' | 'oldest' | 'priority' | 'value';
 type TimeFilter = 'all' | 'today' | 'this_week';
 
+const isUrgentPriority = (priority: string) => {
+  const p = priority?.toLowerCase();
+  return p === "urgent" || p === "critical" || p === "emergency" || p === "emergent";
+};
+
 const PRIORITY_ORDER: Record<string, number> = {
   'Urgent': 0,
-  'High': 1,
-  'Medium': 2,
-  'Low': 3
+};
+
+const getPriorityOrder = (priority: string): number => {
+  return isUrgentPriority(priority) ? 0 : 1;
 };
 
 const PRIORITY_STYLES: Record<string, string> = {
   'Urgent': 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300',
-  'High': 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950 dark:text-orange-300',
-  'Medium': 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300',
-  'Low': 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-300',
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -145,7 +148,7 @@ export default function WorkQueue({
         case 'oldest':
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         case 'priority':
-          return (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
+          return getPriorityOrder(a.priority) - getPriorityOrder(b.priority);
         case 'value':
           return (b.estimatedCost || 0) - (a.estimatedCost || 0);
         default:
@@ -159,7 +162,7 @@ export default function WorkQueue({
   const stats = useMemo(() => {
     const actionable = cases.filter(c => ['New', 'Assigned'].includes(c.status));
     const inProgress = cases.filter(c => c.status === 'In Progress');
-    const urgent = cases.filter(c => c.priority === 'Urgent' && !['Resolved', 'Closed'].includes(c.status));
+    const urgent = cases.filter(c => isUrgentPriority(c.priority) && !['Resolved', 'Closed'].includes(c.status));
     const todayCount = cases.filter(c => isToday(new Date(c.createdAt))).length;
     
     return { actionable: actionable.length, inProgress: inProgress.length, urgent: urgent.length, today: todayCount };
@@ -175,8 +178,7 @@ export default function WorkQueue({
   };
 
   const getPriorityIcon = (priority: string) => {
-    if (priority === 'Urgent') return <Zap className="h-3 w-3 text-red-600" />;
-    if (priority === 'High') return <AlertTriangle className="h-3 w-3 text-orange-600" />;
+    if (isUrgentPriority(priority)) return <AlertTriangle className="h-3 w-3 text-red-600" />;
     return null;
   };
 
@@ -358,9 +360,11 @@ export default function WorkQueue({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("text-xs", PRIORITY_STYLES[case_.priority])}>
-                        {case_.priority}
-                      </Badge>
+                      {isUrgentPriority(case_.priority) ? (
+                        <Badge variant="destructive" className="text-xs">
+                          <AlertTriangle className="h-3 w-3 mr-1" />Urgent
+                        </Badge>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={cn("text-xs", STATUS_STYLES[case_.status])}>
