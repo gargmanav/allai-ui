@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Building2, Plus, Calendar, FileText, Globe, Bell, Archive, RotateCcw, Trash2, TrendingUp, Pencil } from "lucide-react";
+import { Building2, Plus, Calendar, FileText, Globe, Bell, Archive, RotateCcw, Trash2, TrendingUp, Pencil, Briefcase, ShieldCheck, Handshake, UserRound } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocation } from "wouter";
 import type { OwnershipEntity, Property, Unit } from "@shared/schema";
@@ -289,9 +289,13 @@ export default function Entities() {
   const getEntityIcon = (type: string) => {
     switch (type) {
       case "LLC":
-        return <Building2 className="h-6 w-6 text-blue-600" />;
+        return <Briefcase className="h-6 w-6 text-blue-600" />;
+      case "Trust":
+        return <ShieldCheck className="h-6 w-6 text-emerald-600" />;
+      case "Partnership":
+        return <Handshake className="h-6 w-6 text-amber-600" />;
       case "Individual":
-        return <Globe className="h-6 w-6 text-green-600" />;
+        return <UserRound className="h-6 w-6 text-violet-600" />;
       default:
         return <Building2 className="h-6 w-6 text-gray-600" />;
     }
