@@ -818,7 +818,7 @@ export function HubTenantsView() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center cursor-default">
-                            {group.name.includes("&") || group.name.toLowerCase().includes(" and ") || group.name.includes(",") ? (
+                            {(group.name || "").includes("&") || (group.name || "").toLowerCase().includes(" and ") || (group.name || "").includes(",") ? (
                               <UsersRound className="h-6 w-6 text-violet-600" />
                             ) : (
                               <UserRound className="h-6 w-6 text-violet-600" />
@@ -826,7 +826,7 @@ export function HubTenantsView() {
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{group.name.includes("&") || group.name.toLowerCase().includes(" and ") || group.name.includes(",") ? "Tenants in Common" : "Individual Tenant"}</p>
+                          <p>{(group.name || "").includes("&") || (group.name || "").toLowerCase().includes(" and ") || (group.name || "").includes(",") ? "Tenants in Common" : "Individual Tenant"}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
