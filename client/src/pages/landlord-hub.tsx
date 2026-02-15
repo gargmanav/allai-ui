@@ -322,7 +322,7 @@ function LandlordQuickAdd({
           <Users className="h-4 w-4 mr-2" />
           Add Tenant
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => { onNavigate("portfolio-vendors"); }}>
+        <DropdownMenuItem onClick={() => { onNavigate("financial-vendors"); }}>
           <Wrench className="h-4 w-4 mr-2" />
           Add Vendor
         </DropdownMenuItem>
@@ -963,9 +963,9 @@ export default function LandlordHub() {
                 <div className="flex items-center gap-2">
                   <LandlordQuickAdd
                     onNavigate={(v) => {
-                      if (v === "portfolio-vendors") {
-                        setView("portfolio");
-                        setPortfolioTab("vendors");
+                      if (v === "financial-vendors") {
+                        setView("financial");
+                        setFinancialTab("vendors");
                       } else {
                         setView(v as ViewState);
                       }
@@ -1899,7 +1899,7 @@ export default function LandlordHub() {
                       Portfolio Management
                     </span>
                   </div>
-                  <TabsList className="grid w-full max-w-lg grid-cols-3">
+                  <TabsList className="grid w-full max-w-lg grid-cols-2">
                     <TabsTrigger value="properties">
                       <Building className="h-4 w-4 mr-2" />
                       Properties
@@ -1907,10 +1907,6 @@ export default function LandlordHub() {
                     <TabsTrigger value="entities">
                       <Building2 className="h-4 w-4 mr-2" />
                       Entities
-                    </TabsTrigger>
-                    <TabsTrigger value="vendors">
-                      <Wrench className="h-4 w-4 mr-2" />
-                      Vendors
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -1930,9 +1926,6 @@ export default function LandlordHub() {
                 </TabsContent>
                 <TabsContent value="entities" className="mt-0">
                   <Entities />
-                </TabsContent>
-                <TabsContent value="vendors" className="mt-0">
-                  <HubVendorsView />
                 </TabsContent>
               </MayaSidebarPanel>
             </Tabs>
@@ -1966,10 +1959,14 @@ export default function LandlordHub() {
                       Financial Management
                     </span>
                   </div>
-                  <TabsList className="grid w-full max-w-lg grid-cols-3">
+                  <TabsList className="grid w-full max-w-lg grid-cols-4">
                     <TabsTrigger value="expenses">
                       <Receipt className="h-4 w-4 mr-2" />
                       Expenses
+                    </TabsTrigger>
+                    <TabsTrigger value="vendors">
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Vendors
                     </TabsTrigger>
                     <TabsTrigger value="revenue">
                       <DollarSign className="h-4 w-4 mr-2" />
@@ -1994,6 +1991,9 @@ export default function LandlordHub() {
               >
                 <TabsContent value="expenses" className="mt-0">
                   <Expenses />
+                </TabsContent>
+                <TabsContent value="vendors" className="mt-0">
+                  <HubVendorsView />
                 </TabsContent>
                 <TabsContent value="revenue" className="mt-0">
                   <Revenue />
