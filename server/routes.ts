@@ -2029,6 +2029,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Smart case routes
+  app.get('/api/media/:mediaId', async (req: any, res) => {
+    try {
+      const { mediaId } = req.params;
+      const [mediaItem] = await db.select().from(caseMedia).where(eq(caseMedia.id, mediaId));
+      if (!mediaItem) return res.status(404).json({ message: "Media not found" });
+      
+      const url = mediaItem.url;
+      if (url.startsWith('data:')) {
+        const matches = url.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], 'base64');
+          res.set('Content-Type', mimeType);
+          res.set('Cache-Control', 'public, max-age=86400');
+          return res.send(buffer);
+        }
+      }
+      res.redirect(url);
+    } catch (error) {
+      console.error("Error serving media:", error);
+      res.status(500).json({ message: "Failed to serve media" });
+    }
+  });
+
   app.get('/api/cases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -2060,17 +2084,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        const caseMediaItems = await db.select().from(caseMedia).where(eq(caseMedia.caseId, smartCase.id));
+        const caseMediaItems = await db.select({
+          id: caseMedia.id,
+          caseId: caseMedia.caseId,
+          type: caseMedia.type,
+          caption: caseMedia.caption,
+          createdAt: caseMedia.createdAt,
+        }).from(caseMedia).where(eq(caseMedia.caseId, smartCase.id));
+        const mediaWithUrls = caseMediaItems.map(m => ({
+          ...m,
+          url: `/api/media/${m.id}`,
+        }));
 
         return {
           ...smartCase,
           scheduledJobs: jobs,
           reporter,
-          media: caseMediaItems
+          media: mediaWithUrls
         };
       }));
       
-      res.json(casesWithExtras);
+      res.set('Content-Type', 'application/json');
+      res.set('Cache-Control', 'no-store');
+      res.send(JSON.stringify(casesWithExtras));
     } catch (error) {
       console.error("Error fetching cases:", error);
       res.status(500).json({ message: "Failed to fetch cases" });
@@ -2101,13 +2137,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter to only cases where this user is the reporter
       const tenantCases = allCases.filter(c => c.reporterUserId === userId);
       
-      // Include media for each case
       const casesWithMedia = await Promise.all(tenantCases.map(async (c) => {
-        const mediaItems = await db.select().from(caseMedia).where(eq(caseMedia.caseId, c.id));
-        return { ...c, media: mediaItems };
+        const mediaItems = await db.select({
+          id: caseMedia.id,
+          caseId: caseMedia.caseId,
+          type: caseMedia.type,
+          caption: caseMedia.caption,
+          createdAt: caseMedia.createdAt,
+        }).from(caseMedia).where(eq(caseMedia.caseId, c.id));
+        const mediaWithUrls = mediaItems.map(m => ({ ...m, url: `/api/media/${m.id}` }));
+        return { ...c, media: mediaWithUrls };
       }));
       
-      res.json(casesWithMedia);
+      res.set('Content-Type', 'application/json');
+      res.set('Cache-Control', 'no-store');
+      res.send(JSON.stringify(casesWithMedia));
     } catch (error) {
       console.error("Error fetching tenant cases:", error);
       res.status(500).json({ message: "Failed to fetch tenant cases" });
@@ -4890,19 +4934,30 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
         const property = case_.propertyId ? await storage.getProperty(case_.propertyId) : null;
         const unit = case_.unitId ? await storage.getUnit(case_.unitId) : null;
         
-        // Get scheduled jobs for this case (includes team assignments)
         const jobs = await storage.getScheduledJobs(case_.orgId, { caseId: case_.id });
         
+        const mediaItems = await db.select({
+          id: caseMedia.id,
+          caseId: caseMedia.caseId,
+          type: caseMedia.type,
+          caption: caseMedia.caption,
+          createdAt: caseMedia.createdAt,
+        }).from(caseMedia).where(eq(caseMedia.caseId, case_.id));
+        const mediaWithUrls = mediaItems.map(m => ({ ...m, url: `/api/media/${m.id}` }));
+
         return {
           ...case_,
           buildingName: property?.name,
           roomNumber: unit?.label,
           locationText: property ? `${property.street}, ${property.city}` : undefined,
-          scheduledJobs: jobs
+          scheduledJobs: jobs,
+          media: mediaWithUrls
         };
       }));
 
-      res.json(enrichedCases);
+      res.set('Content-Type', 'application/json');
+      res.set('Cache-Control', 'no-store');
+      res.send(JSON.stringify(enrichedCases));
     } catch (error) {
       console.error("Error fetching contractor cases:", error);
       res.status(500).json({ message: "Failed to fetch contractor cases" });

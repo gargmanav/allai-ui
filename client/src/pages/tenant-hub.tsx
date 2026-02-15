@@ -292,6 +292,7 @@ export default function TenantHub() {
         setSelectedPhotos([]);
       }
       queryClient.invalidateQueries({ queryKey: ['/api/tenant/cases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/cases'] });
       setSelectedRequest(newCase);
       setView("requestDetail");
       toast({ title: "Request submitted", description: "Your maintenance request has been sent to your property manager." });

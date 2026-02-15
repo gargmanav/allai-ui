@@ -127,7 +127,6 @@ router.get('/cases', requireAuth, requireRole('tenant'), async (req: Authenticat
       orderBy: (cases, { desc }) => [desc(cases.createdAt)],
     });
 
-    // Filter cases to ensure they belong to the user's organization
     const scopedCases = cases.filter(c => {
       const caseOrgId = c.property?.orgId || c.orgId;
       if (caseOrgId !== userOrgId) {
@@ -137,7 +136,19 @@ router.get('/cases', requireAuth, requireRole('tenant'), async (req: Authenticat
       return true;
     });
 
-    res.json(scopedCases);
+    const casesWithMediaUrls = scopedCases.map(c => ({
+      ...c,
+      media: (c.media || []).map((m: any) => ({
+        id: m.id,
+        caseId: m.caseId,
+        type: m.type,
+        caption: m.caption,
+        createdAt: m.createdAt,
+        url: `/api/media/${m.id}`,
+      })),
+    }));
+
+    res.json(casesWithMediaUrls);
   } catch (error) {
     console.error('Error fetching tenant cases:', error);
     res.status(500).json({ error: 'Failed to fetch cases' });
