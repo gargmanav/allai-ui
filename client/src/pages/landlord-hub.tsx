@@ -44,6 +44,7 @@ import {
   Briefcase,
   Receipt,
   MapPin,
+  Contact,
   LayoutGrid,
   List,
   Map as MapIcon,
@@ -315,7 +316,7 @@ function LandlordQuickAdd({
           Create Maintenance Request
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onRouteNavigate("/financial")}>
-          <DollarSign className="h-4 w-4 mr-2" />
+          <Receipt className="h-4 w-4 mr-2" />
           Log Expense
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onRouteNavigate("/tenants")}>
@@ -323,7 +324,7 @@ function LandlordQuickAdd({
           Add Tenant
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => { onNavigate("financial-vendors"); }}>
-          <Wrench className="h-4 w-4 mr-2" />
+          <Contact className="h-4 w-4 mr-2" />
           Add Vendor
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onNavigate("reminders")}>
@@ -1964,13 +1965,13 @@ export default function LandlordHub() {
                       <Receipt className="h-4 w-4 mr-2" />
                       Expenses
                     </TabsTrigger>
-                    <TabsTrigger value="vendors">
-                      <Wrench className="h-4 w-4 mr-2" />
-                      Vendors
-                    </TabsTrigger>
                     <TabsTrigger value="revenue">
                       <DollarSign className="h-4 w-4 mr-2" />
                       Revenue
+                    </TabsTrigger>
+                    <TabsTrigger value="vendors">
+                      <Contact className="h-4 w-4 mr-2" />
+                      Vendors
                     </TabsTrigger>
                     <TabsTrigger value="tax">
                       <Calculator className="h-4 w-4 mr-2" />
@@ -1992,11 +1993,11 @@ export default function LandlordHub() {
                 <TabsContent value="expenses" className="mt-0">
                   <Expenses />
                 </TabsContent>
-                <TabsContent value="vendors" className="mt-0">
-                  <HubVendorsView />
-                </TabsContent>
                 <TabsContent value="revenue" className="mt-0">
                   <Revenue />
+                </TabsContent>
+                <TabsContent value="vendors" className="mt-0">
+                  <HubVendorsView />
                 </TabsContent>
                 <TabsContent value="tax" className="mt-0">
                   <Tax />
