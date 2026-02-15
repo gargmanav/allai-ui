@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Mail, Phone, User, FileText, DollarSign, Calendar, AlertTriangle, Archive, Edit, RotateCcw, Trash2 } from "lucide-react";
+import { Users, Plus, Mail, Phone, User, FileText, DollarSign, Calendar, AlertTriangle, Archive, RotateCcw, Trash2, UserRound, UsersRound, Pencil } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TenantGroup, Property, OwnershipEntity, Lease, Unit, InsertLease } from "@shared/schema";
 
 export function HubTenantsView() {
@@ -813,24 +814,24 @@ export function HubTenantsView() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-6 w-6 text-green-600" />
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center cursor-default">
+                            {group.name.includes("&") || group.name.toLowerCase().includes(" and ") || group.name.includes(",") ? (
+                              <UsersRound className="h-6 w-6 text-violet-600" />
+                            ) : (
+                              <UserRound className="h-6 w-6 text-violet-600" />
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{group.name.includes("&") || group.name.toLowerCase().includes(" and ") || group.name.includes(",") ? "Tenants in Common" : "Individual Tenant"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <div>
                       <CardTitle className="text-lg" data-testid={`text-tenant-name-${index}`}>{group.name}</CardTitle>
-                      <Badge 
-                        variant={
-                          getTenantStatus(group, groupLeases) === "Current" ? "default" :
-                          getTenantStatus(group, groupLeases) === "Archived" ? "destructive" : "secondary"
-                        } 
-                        className={
-                          getTenantStatus(group, groupLeases) === "Current" ? "bg-green-100 text-green-800" :
-                          getTenantStatus(group, groupLeases) === "Archived" ? "bg-gray-100 text-gray-600" : ""
-                        }
-                        data-testid={`badge-tenant-status-${index}`}
-                      >
-                        {getTenantStatus(group, groupLeases)}
-                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -898,220 +899,282 @@ export function HubTenantsView() {
                   </p>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 mt-4">
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
                   {group.status === "Archived" ? (
                     <>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-0" 
-                        onClick={() => {
-                          setEditingTenant(group);
-                          setShowTenantForm(true);
-                        }}
-                        data-testid={`button-edit-archived-tenant-${index}`}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        View/Edit
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="px-3" 
-                        onClick={() => setShowUnarchiveConfirm(group.id)}
-                        data-testid={`button-unarchive-tenant-${index}`}
-                        disabled={unarchiveIndividualTenantMutation.isPending}
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        className="px-3" 
-                        onClick={async () => {
-                          try {
-                            const response = await apiRequest("GET", `/api/tenants/${group.id}/relationship-count`);
-                            const relationshipData = await response.json();
-                            
-                            if (relationshipData.count > 0) {
-                              toast({
-                                title: "Cannot Delete Tenant",
-                                description: `This tenant has ${relationshipData.count} relationship${relationshipData.count === 1 ? '' : 's'} (leases, transactions). Please archive instead of deleting.`,
-                                variant: "destructive",
-                              });
-                            } else {
-                              setShowPermanentDeleteConfirm(group.id);
-                            }
-                          } catch (error) {
-                            console.error("Error checking tenant relationships:", error);
-                            toast({
-                              title: "Error",
-                              description: "Could not verify tenant relationships. Please try again.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        data-testid={`button-delete-tenant-${index}`}
-                        disabled={permanentDeleteTenantMutation.isPending}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => {
+                                setEditingTenant(group);
+                                setShowTenantForm(true);
+                              }}
+                              data-testid={`button-edit-archived-tenant-${index}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>View / Edit</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => setShowUnarchiveConfirm(group.id)}
+                              data-testid={`button-unarchive-tenant-${index}`}
+                              disabled={unarchiveIndividualTenantMutation.isPending}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Unarchive</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={async () => {
+                                try {
+                                  const response = await apiRequest("GET", `/api/tenants/${group.id}/relationship-count`);
+                                  const relationshipData = await response.json();
+                                  
+                                  if (relationshipData.count > 0) {
+                                    toast({
+                                      title: "Cannot Delete Tenant",
+                                      description: `This tenant has ${relationshipData.count} relationship${relationshipData.count === 1 ? '' : 's'} (leases, transactions). Please archive instead of deleting.`,
+                                      variant: "destructive",
+                                    });
+                                  } else {
+                                    setShowPermanentDeleteConfirm(group.id);
+                                  }
+                                } catch (error) {
+                                  console.error("Error checking tenant relationships:", error);
+                                  toast({
+                                    title: "Error",
+                                    description: "Could not verify tenant relationships. Please try again.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              data-testid={`button-delete-tenant-${index}`}
+                              disabled={permanentDeleteTenantMutation.isPending}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Delete Permanently</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </>
                   ) : activeLease ? (
                     <>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-[110px]" 
-                        onClick={() => {
-                          setSelectedTenantGroup(group);
-                          setSelectedLease(activeLease);
-                          setShowLeaseForm(true);
-                        }}
-                        data-testid={`button-view-lease-${index}`}
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        Manage Lease
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-[80px]" 
-                        onClick={() => {
-                          setSelectedTenantGroup(group);
-                          setSelectedLease(activeLease);
-                          setIsRenewalMode(true);
-                          setShowLeaseForm(true);
-                        }}
-                        data-testid={`button-renew-lease-${index}`}
-                      >
-                        <Calendar className="h-3 w-3 mr-1" />
-                        Renew
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-[70px]" 
-                        onClick={async () => {
-                          try {
-                            const response = await apiRequest("GET", `/api/tenants/${group.id}/members`);
-                            const groupTenants = await response.json();
-                            
-                            const formData = {
-                              tenantGroup: {
-                                name: group.name,
-                                propertyId: group.propertyId || "",
-                                unitId: ""
-                              },
-                              tenants: groupTenants.length > 0 ? groupTenants : [{
-                                firstName: "",
-                                lastName: "",
-                                email: "",
-                                phone: "",
-                                emergencyContact: "",
-                                emergencyPhone: "",
-                                notes: ""
-                              }]
-                            };
-                            
-                            setEditingTenant(group);
-                            setEditingTenantData(formData);
-                            setShowTenantForm(true);
-                          } catch (error) {
-                            console.error("Error fetching tenant data:", error);
-                            toast({
-                              title: "Error",
-                              description: "Failed to load tenant data",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        data-testid={`button-edit-tenant-${index}`}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-[80px]" 
-                        onClick={() => setShowArchiveConfirm(group.id)}
-                        data-testid={`button-archive-tenant-${index}`}
-                        disabled={archiveIndividualTenantMutation.isPending}
-                      >
-                        <Archive className="h-3 w-3 mr-1" />
-                        Archive
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => {
+                                setSelectedTenantGroup(group);
+                                setSelectedLease(activeLease);
+                                setShowLeaseForm(true);
+                              }}
+                              data-testid={`button-view-lease-${index}`}
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Manage Lease</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => {
+                                setSelectedTenantGroup(group);
+                                setSelectedLease(activeLease);
+                                setIsRenewalMode(true);
+                                setShowLeaseForm(true);
+                              }}
+                              data-testid={`button-renew-lease-${index}`}
+                            >
+                              <Calendar className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Renew Lease</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={async () => {
+                                try {
+                                  const response = await apiRequest("GET", `/api/tenants/${group.id}/members`);
+                                  const groupTenants = await response.json();
+                                  
+                                  const formData = {
+                                    tenantGroup: {
+                                      name: group.name,
+                                      propertyId: group.propertyId || "",
+                                      unitId: ""
+                                    },
+                                    tenants: groupTenants.length > 0 ? groupTenants : [{
+                                      firstName: "",
+                                      lastName: "",
+                                      email: "",
+                                      phone: "",
+                                      emergencyContact: "",
+                                      emergencyPhone: "",
+                                      notes: ""
+                                    }]
+                                  };
+                                  
+                                  setEditingTenant(group);
+                                  setEditingTenantData(formData);
+                                  setShowTenantForm(true);
+                                } catch (error) {
+                                  console.error("Error fetching tenant data:", error);
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to load tenant data",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              data-testid={`button-edit-tenant-${index}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Edit</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => setShowArchiveConfirm(group.id)}
+                              data-testid={`button-archive-tenant-${index}`}
+                              disabled={archiveIndividualTenantMutation.isPending}
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Archive</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </>
                   ) : (
                     <>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="flex-1 min-w-[100px]" 
-                        onClick={() => {
-                          setSelectedTenantGroup(group);
-                          setShowLeaseForm(true);
-                        }}
-                        data-testid={`button-create-lease-${index}`}
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Create Lease
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-[70px]" 
-                        onClick={async () => {
-                          try {
-                            const response = await apiRequest("GET", `/api/tenants/${group.id}/members`);
-                            const groupTenants = await response.json();
-                            
-                            const formData = {
-                              tenantGroup: {
-                                name: group.name,
-                                propertyId: group.propertyId || "",
-                                unitId: ""
-                              },
-                              tenants: groupTenants.length > 0 ? groupTenants : [{
-                                firstName: "",
-                                lastName: "",
-                                email: "",
-                                phone: "",
-                                emergencyContact: "",
-                                emergencyPhone: "",
-                                notes: ""
-                              }]
-                            };
-                            
-                            setEditingTenant(group);
-                            setEditingTenantData(formData);
-                            setShowTenantForm(true);
-                          } catch (error) {
-                            console.error("Error fetching tenant data:", error);
-                            toast({
-                              title: "Error",
-                              description: "Failed to load tenant data",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        data-testid={`button-edit-tenant-${index}`}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 min-w-[80px]" 
-                        onClick={() => setShowArchiveConfirm(group.id)}
-                        data-testid={`button-archive-tenant-${index}`}
-                        disabled={archiveIndividualTenantMutation.isPending}
-                      >
-                        <Archive className="h-3 w-3 mr-1" />
-                        Archive
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => {
+                                setSelectedTenantGroup(group);
+                                setShowLeaseForm(true);
+                              }}
+                              data-testid={`button-create-lease-${index}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Create Lease</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={async () => {
+                                try {
+                                  const response = await apiRequest("GET", `/api/tenants/${group.id}/members`);
+                                  const groupTenants = await response.json();
+                                  
+                                  const formData = {
+                                    tenantGroup: {
+                                      name: group.name,
+                                      propertyId: group.propertyId || "",
+                                      unitId: ""
+                                    },
+                                    tenants: groupTenants.length > 0 ? groupTenants : [{
+                                      firstName: "",
+                                      lastName: "",
+                                      email: "",
+                                      phone: "",
+                                      emergencyContact: "",
+                                      emergencyPhone: "",
+                                      notes: ""
+                                    }]
+                                  };
+                                  
+                                  setEditingTenant(group);
+                                  setEditingTenantData(formData);
+                                  setShowTenantForm(true);
+                                } catch (error) {
+                                  console.error("Error fetching tenant data:", error);
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to load tenant data",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              data-testid={`button-edit-tenant-${index}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Edit</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => setShowArchiveConfirm(group.id)}
+                              data-testid={`button-archive-tenant-${index}`}
+                              disabled={archiveIndividualTenantMutation.isPending}
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Archive</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </>
                   )}
                 </div>
