@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThoughtBubble } from "@/components/contractor/thought-bubble";
+import { PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2081,11 +2082,17 @@ export default function LandlordHub() {
                             {selectedCase.aiTriageJson && (
                               <Card className="border-2 border-violet-200 dark:border-violet-700">
                                 <CardContent className="p-4">
-                                  <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-sm shadow-violet-200">
-                                      <Sparkles className="h-3.5 w-3.5 text-white" />
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                                        <Sparkles className="h-3 w-3 text-white" />
+                                      </div>
+                                      <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
                                     </div>
-                                    <span className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Maya AI Assessment</span>
+                                    <PhotoAnalysisButton
+                                      media={(selectedCase.media || []).map(m => ({ ...m, id: String(m.id) }))}
+                                      photoAnalysis={selectedCase.aiTriageJson?.photoAnalysis}
+                                    />
                                   </div>
                                   <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white dark:from-violet-950/20 dark:to-slate-900 p-3 space-y-3">
                                     <div className="flex items-center justify-between">
