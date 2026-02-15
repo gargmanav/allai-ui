@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -53,9 +53,17 @@ import {
   Building2,
   Calculator,
   Settings2,
+  Star,
+  Shield,
+  Zap,
+  XCircle,
+  Loader2,
+  ThumbsUp,
+  UserCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Textarea } from "@/components/ui/textarea";
 import { AnimatedPyramid } from "@/components/AnimatedPyramid";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -109,6 +117,26 @@ interface MaintenanceCase {
   updatedAt: string;
   propertyId?: number;
   propertyName?: string;
+}
+
+interface ContractorRecommendation {
+  id: string;
+  name: string;
+  category: string | null;
+  rating: string | null;
+  responseTimeHours: number | null;
+  emergencyAvailable: boolean;
+  isPreferred: boolean;
+  isTrusted: boolean;
+  isFavorite: boolean;
+  specialties: string[];
+  mayaNote: string;
+}
+
+interface RecommendationsResponse {
+  contractors: ContractorRecommendation[];
+  involvementMode: string;
+  autoApproveCostLimit: number | null;
 }
 
 interface PropertyData {
@@ -470,6 +498,78 @@ export default function LandlordHub() {
   }, [reminders]);
 
   const activePolicy = approvalPolicies.find(p => p.isActive);
+
+  const { data: recommendations, isLoading: recsLoading } = useQuery<RecommendationsResponse>({
+    queryKey: ["/api/landlord/maya/recommendations", selectedCaseId],
+    enabled: !!selectedCaseId && !!user,
+    queryFn: async () => {
+      const res = await fetch(`/api/landlord/maya/recommendations/${selectedCaseId}`);
+      if (!res.ok) throw new Error("Failed to fetch recommendations");
+      return res.json();
+    },
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ caseId, vendorId }: { caseId: number; vendorId: string }) => {
+      const res = await apiRequest("POST", `/api/landlord/cases/${caseId}/assign`, { vendorId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/landlord/maya/recommendations", selectedCaseId] });
+      toast({ title: "Contractor assigned", description: "The case has been assigned successfully." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Assignment failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const priorityMutation = useMutation({
+    mutationFn: async ({ caseId, priority }: { caseId: number; priority: string }) => {
+      const res = await apiRequest("POST", `/api/landlord/cases/${caseId}/priority`, { priority });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      toast({ title: "Priority updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const closeMutation = useMutation({
+    mutationFn: async ({ caseId, resolution }: { caseId: number; resolution?: string }) => {
+      const res = await apiRequest("POST", `/api/landlord/cases/${caseId}/close`, { resolution });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      setSelectedCaseId(null);
+      toast({ title: "Case resolved", description: "The case has been closed." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Close failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const [noteText, setNoteText] = useState("");
+  const [showNoteForm, setShowNoteForm] = useState(false);
+
+  const noteMutation = useMutation({
+    mutationFn: async ({ caseId, note }: { caseId: number; note: string }) => {
+      const res = await apiRequest("POST", `/api/landlord/cases/${caseId}/note`, { note });
+      return res.json();
+    },
+    onSuccess: () => {
+      setNoteText("");
+      setShowNoteForm(false);
+      toast({ title: "Note added" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to add note", description: err.message, variant: "destructive" });
+    },
+  });
 
   const newCases = useMemo(
     () =>
@@ -1778,108 +1878,268 @@ export default function LandlordHub() {
                   ))}
 
                 {selectedCase && (
-                  <div className="hidden xl:flex flex-col w-80 border-l p-4 overflow-y-auto">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold">Case Details</h3>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => setSelectedCaseId(null)}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
+                  <div className="hidden xl:flex flex-col w-96 border-l overflow-y-auto" style={{ background: 'linear-gradient(180deg, rgba(248,249,251,0.98) 0%, rgba(244,245,248,0.95) 100%)' }}>
+                    <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b bg-white/80 backdrop-blur-sm">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-violet-500" />
+                        <h3 className="text-sm font-semibold">Case Action Panel</h3>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedCaseId(null)}>
+                        <XCircle className="h-4 w-4" />
                       </Button>
                     </div>
 
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="text-base font-semibold">
-                          {selectedCase.title}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge
-                            variant={
-                              selectedCase.priority === "Urgent" ||
-                              selectedCase.priority === "High"
-                                ? "destructive"
-                                : "secondary"
-                            }
-                          >
-                            {selectedCase.priority}
-                          </Badge>
-                          <Badge variant="outline">{selectedCase.status}</Badge>
+                    <div className="p-4 space-y-4">
+                      <div className="rounded-xl p-3" style={{
+                        ...FROSTED_CARD_STYLE,
+                        boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                      }}>
+                        <h4 className="text-sm font-bold mb-1">{selectedCase.title}</h4>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") && (
+                            <Badge variant="destructive" className="text-[10px] gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {selectedCase.priority}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px]">{selectedCase.status}</Badge>
+                          {selectedCase.category && (
+                            <Badge variant="secondary" className="text-[10px]">{selectedCase.category}</Badge>
+                          )}
                         </div>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">
-                          Description
-                        </p>
-                        <p className="text-sm">{selectedCase.description}</p>
-                      </div>
-
-                      {selectedCase.category && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            Category
-                          </p>
-                          <p className="text-sm">{selectedCase.category}</p>
-                        </div>
-                      )}
-
-                      {(selectedCase.propertyName ||
-                        selectedCase.buildingName) && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            Property
-                          </p>
-                          <p className="text-sm flex items-center gap-1">
+                        <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{selectedCase.description}</p>
+                        {(selectedCase.propertyName || selectedCase.buildingName) && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {selectedCase.propertyName ||
-                              selectedCase.buildingName}
+                            {selectedCase.propertyName || selectedCase.buildingName}
                           </p>
-                        </div>
-                      )}
-
-                      {selectedCase.estimatedCost && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            Estimated Cost
+                        )}
+                        {selectedCase.estimatedCost && (
+                          <p className="text-xs font-semibold mt-1">
+                            Est. ${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}
                           </p>
-                          <p className="text-sm font-semibold">
-                            $
-                            {parseFloat(
-                              String(selectedCase.estimatedCost)
-                            ).toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-
-                      {selectedCase.assignedContractorName && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            Assigned Contractor
-                          </p>
-                          <p className="text-sm flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {selectedCase.assignedContractorName}
-                          </p>
-                        </div>
-                      )}
-
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">
-                          Created
-                        </p>
-                        <p className="text-sm">
-                          {selectedCase.createdAt
-                            ? format(
-                                new Date(selectedCase.createdAt),
-                                "MMM d, yyyy 'at' h:mm a"
-                              )
-                            : "—"}
+                        )}
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          {selectedCase.createdAt ? format(new Date(selectedCase.createdAt), "MMM d, yyyy 'at' h:mm a") : "—"}
                         </p>
                       </div>
+
+                      {selectedCase.assignedContractorName ? (
+                        <div className="rounded-xl p-3 border-2 border-emerald-200 bg-emerald-50/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <UserCheck className="h-4 w-4 text-emerald-600" />
+                            <span className="text-xs font-semibold text-emerald-700">Assigned Contractor</span>
+                          </div>
+                          <p className="text-sm font-bold text-emerald-800">{selectedCase.assignedContractorName}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-violet-500" />
+                            <span className="text-xs font-semibold text-violet-700">Maya's Recommendations</span>
+                            {recommendations?.involvementMode && (
+                              <Badge variant="outline" className="text-[9px] ml-auto">
+                                {recommendations.involvementMode === 'hands-on' ? '🎯 Hands-On' :
+                                 recommendations.involvementMode === 'balanced' ? '⚖️ Balanced' : '🤖 Hands-Off'}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {recsLoading ? (
+                            <div className="flex items-center justify-center py-6">
+                              <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+                              <span className="text-xs text-muted-foreground ml-2">Maya is analyzing...</span>
+                            </div>
+                          ) : recommendations?.contractors?.length ? (
+                            <div className="space-y-2">
+                              {recommendations.contractors.map((contractor, idx) => (
+                                <div
+                                  key={contractor.id}
+                                  className="group/rec rounded-xl p-3 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-pointer"
+                                  style={{
+                                    ...FROSTED_CARD_STYLE,
+                                    borderColor: idx === 0 ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.85)',
+                                    boxShadow: idx === 0
+                                      ? '0 4px 16px rgba(139,92,246,0.12), 0 2px 8px rgba(0,0,0,0.04)'
+                                      : '0 2px 8px rgba(0,0,0,0.04)',
+                                  }}
+                                >
+                                  <div className="flex items-start justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      {idx === 0 && <span className="text-xs">🥇</span>}
+                                      {idx === 1 && <span className="text-xs">🥈</span>}
+                                      {idx === 2 && <span className="text-xs">🥉</span>}
+                                      <span className="text-sm font-semibold">{contractor.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {contractor.isTrusted && (
+                                        <Shield className="h-3 w-3 text-emerald-500" title="Trusted" />
+                                      )}
+                                      {contractor.isFavorite && (
+                                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" title="Favorite" />
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
+                                    {contractor.category && (
+                                      <span className="flex items-center gap-1">
+                                        <Wrench className="h-3 w-3" />
+                                        {contractor.category}
+                                      </span>
+                                    )}
+                                    {contractor.rating && (
+                                      <span className="flex items-center gap-1">
+                                        <Star className="h-3 w-3 text-amber-400" />
+                                        {parseFloat(contractor.rating).toFixed(1)}
+                                      </span>
+                                    )}
+                                    {contractor.responseTimeHours != null && (
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {contractor.responseTimeHours}h
+                                      </span>
+                                    )}
+                                    {contractor.emergencyAvailable && (
+                                      <span className="flex items-center gap-1 text-red-500">
+                                        <Zap className="h-3 w-3" />
+                                        24/7
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {contractor.specialties.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                      {contractor.specialties.slice(0, 3).map(s => (
+                                        <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">{s}</span>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  <p className="text-[10px] text-violet-600 italic mb-2">{contractor.mayaNote}</p>
+
+                                  <Button
+                                    size="sm"
+                                    className="w-full h-7 text-xs bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600 text-white shadow-sm"
+                                    disabled={assignMutation.isPending}
+                                    onClick={() => assignMutation.mutate({ caseId: selectedCase.id, vendorId: contractor.id })}
+                                  >
+                                    {assignMutation.isPending ? (
+                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    ) : (
+                                      <UserCheck className="h-3 w-3 mr-1" />
+                                    )}
+                                    Assign {contractor.name.split(' ')[0]}
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded-xl p-4 text-center" style={FROSTED_CARD_STYLE}>
+                              <User className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-xs text-muted-foreground">No contractors available for this category.</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">Add vendors in Portfolio → Vendors</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="rounded-xl p-3" style={{
+                        ...FROSTED_CARD_STYLE,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      }}>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Actions</p>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start h-8 text-xs"
+                            disabled={priorityMutation.isPending}
+                            onClick={() => {
+                              const newPriority = (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent";
+                              priorityMutation.mutate({ caseId: selectedCase.id, priority: newPriority });
+                            }}
+                          >
+                            {priorityMutation.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                            ) : (
+                              <AlertTriangle className={cn("h-3 w-3 mr-2", (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "text-red-500" : "text-muted-foreground")} />
+                            )}
+                            {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Set Normal Priority" : "Mark as Urgent"}
+                          </Button>
+
+                          {!showNoteForm ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full justify-start h-8 text-xs"
+                              onClick={() => setShowNoteForm(true)}
+                            >
+                              <FileText className="h-3 w-3 mr-2" />
+                              Add Note
+                            </Button>
+                          ) : (
+                            <div className="space-y-2 p-2 rounded-lg bg-slate-50 border">
+                              <Textarea
+                                placeholder="Add a note about this case..."
+                                className="text-xs min-h-[60px] resize-none"
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="h-6 text-[10px] flex-1"
+                                  disabled={!noteText.trim() || noteMutation.isPending}
+                                  onClick={() => noteMutation.mutate({ caseId: selectedCase.id, note: noteText.trim() })}
+                                >
+                                  {noteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 text-[10px]"
+                                  onClick={() => { setShowNoteForm(false); setNoteText(""); }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full justify-start h-8 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              disabled={closeMutation.isPending}
+                              onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
+                            >
+                              {closeMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                              ) : (
+                                <CheckCircle className="h-3 w-3 mr-2" />
+                              )}
+                              Resolve & Close
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {recommendations?.involvementMode && (
+                        <div className="rounded-lg p-2 bg-violet-50/50 border border-violet-100">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="h-3 w-3 text-violet-400" />
+                            <span className="text-[10px] text-violet-600">
+                              {recommendations.involvementMode === 'hands-on'
+                                ? "You're in full control — review every assignment"
+                                : recommendations.involvementMode === 'balanced'
+                                ? "Maya suggests, you decide with one tap"
+                                : "Maya handles assignments — you get notified"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

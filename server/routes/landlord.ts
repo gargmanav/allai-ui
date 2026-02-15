@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { db } from '../db';
-import { properties, smartCases, tenants, ownershipEntities, units, transactions, quotes, quoteLineItems, quoteCounterProposals, users, insertQuoteCounterProposalSchema, vendors, contractorProfiles, contractorOrgLinks, favoriteContractors, userContractorSpecialties, contractorSpecialties, approvalPolicies } from '@shared/schema';
+import { properties, smartCases, tenants, ownershipEntities, units, transactions, quotes, quoteLineItems, quoteCounterProposals, users, insertQuoteCounterProposalSchema, vendors, contractorProfiles, contractorOrgLinks, favoriteContractors, userContractorSpecialties, contractorSpecialties, approvalPolicies, caseEvents } from '@shared/schema';
 import { eq, and, ne, gte, desc, count, isNull, inArray, sql } from 'drizzle-orm';
+import { notificationService } from '../notificationService.js';
 
 const router = Router();
 
@@ -692,6 +693,27 @@ router.post('/cases/:caseId/assign', requireAuth, requireRole('org_admin'), asyn
       .where(eq(smartCases.id, caseId))
       .returning();
 
+    // Insert caseEvent for contractor assignment
+    await db.insert(caseEvents)
+      .values({
+        caseId,
+        type: 'contractor_assigned',
+        description: `Contractor ${vendor.name} assigned by landlord`,
+      });
+
+    // Send notification to contractor if they have a userId
+    if (vendor.userId) {
+      await notificationService.notifyContractor(
+        {
+          type: 'case_assigned',
+          title: 'New Job Assignment',
+          message: `You've been assigned to case: ${updated.title}`,
+        },
+        vendor.userId,
+        orgId
+      );
+    }
+
     res.json(updated);
   } catch (error) {
     console.error('Error assigning contractor:', error);
@@ -765,6 +787,50 @@ router.post('/cases/:caseId/close', requireAuth, requireRole('org_admin'), async
   } catch (error) {
     console.error('Error closing case:', error);
     res.status(500).json({ error: 'Failed to close case' });
+  }
+});
+
+// Add note to case
+router.post('/cases/:caseId/note', requireAuth, requireRole('org_admin'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const orgId = req.user!.orgId;
+    const caseId = req.params.caseId;
+    const { note } = req.body;
+
+    if (!orgId) {
+      return res.status(403).json({ error: 'No organization access' });
+    }
+
+    if (!note || typeof note !== 'string') {
+      return res.status(400).json({ error: 'Note is required and must be a string' });
+    }
+
+    // Verify the case belongs to this org
+    const smartCase = await db.query.smartCases.findFirst({
+      where: and(eq(smartCases.id, caseId), eq(smartCases.orgId, orgId)),
+    });
+
+    if (!smartCase) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    // Insert the note as a caseEvent
+    const [event] = await db.insert(caseEvents)
+      .values({
+        caseId,
+        type: 'landlord_note',
+        description: note,
+        metadata: {
+          userId: req.user!.id,
+          userName: req.user!.firstName || req.user!.username,
+        },
+      })
+      .returning();
+
+    res.json(event);
+  } catch (error) {
+    console.error('Error adding note to case:', error);
+    res.status(500).json({ error: 'Failed to add note' });
   }
 });
 
