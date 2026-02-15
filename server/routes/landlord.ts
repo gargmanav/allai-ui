@@ -790,6 +790,34 @@ router.post('/cases/:caseId/close', requireAuth, requireRole('org_admin'), async
   }
 });
 
+router.get('/cases/:caseId/events', requireAuth, requireRole('org_admin'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const orgId = req.user!.orgId;
+    const caseId = req.params.caseId;
+
+    if (!orgId) {
+      return res.status(403).json({ error: 'No organization access' });
+    }
+
+    const smartCase = await db.query.smartCases.findFirst({
+      where: and(eq(smartCases.id, caseId), eq(smartCases.orgId, orgId)),
+    });
+
+    if (!smartCase) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const events = await db.select().from(caseEvents)
+      .where(eq(caseEvents.caseId, caseId))
+      .orderBy(caseEvents.createdAt);
+
+    res.json(events);
+  } catch (error) {
+    console.error('Error fetching case events:', error);
+    res.status(500).json({ error: 'Failed to fetch case events' });
+  }
+});
+
 // Add note to case
 router.post('/cases/:caseId/note', requireAuth, requireRole('org_admin'), async (req: AuthenticatedRequest, res) => {
   try {

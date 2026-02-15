@@ -63,6 +63,11 @@ import {
   Send,
   X,
   MessageCircle,
+  Droplets,
+  Flame,
+  Bug,
+  PaintBucket,
+  Hammer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -83,7 +88,20 @@ import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
 import { HubSettingsView } from "@/components/landlord/hub-settings-view";
 import { HubVendorsView } from "@/components/landlord/hub-vendors-view";
 import { MayaSidebarPanel } from "@/components/landlord/maya-sidebar-panel";
-import { ThreadChat } from "@/components/contractor/thread-chat";
+import { formatDistanceToNow } from "date-fns";
+// ThreadChat removed - landlord uses inline note system instead
+
+function getCategoryIcon(category?: string) {
+  const cat = (category || "").toLowerCase();
+  if (cat.includes("plumbing") || cat.includes("water") || cat.includes("leak")) return Droplets;
+  if (cat.includes("electric") || cat.includes("power") || cat.includes("wiring")) return Zap;
+  if (cat.includes("hvac") || cat.includes("heating") || cat.includes("cooling")) return Flame;
+  if (cat.includes("pest") || cat.includes("exterminator")) return Bug;
+  if (cat.includes("paint") || cat.includes("cosmetic") || cat.includes("drywall")) return PaintBucket;
+  if (cat.includes("structural") || cat.includes("carpentry") || cat.includes("door") || cat.includes("window")) return Hammer;
+  if (cat.includes("appliance") || cat.includes("repair")) return Wrench;
+  return Wrench;
+}
 
 type ViewState =
   | "landing"
@@ -527,6 +545,16 @@ export default function LandlordHub() {
     },
   });
 
+  const { data: caseEvents = [] } = useQuery<{ id: string; caseId: string; type: string; description: string; metadata: any; createdAt: string }[]>({
+    queryKey: ["/api/landlord/cases", selectedCaseId, "events"],
+    enabled: !!selectedCaseId && !!user,
+    queryFn: async () => {
+      const res = await fetch(`/api/landlord/cases/${selectedCaseId}/events`);
+      if (!res.ok) throw new Error("Failed to fetch events");
+      return res.json();
+    },
+  });
+
   const assignMutation = useMutation({
     mutationFn: async ({ caseId, vendorId }: { caseId: number; vendorId: string }) => {
       const res = await apiRequest("POST", `/api/landlord/cases/${caseId}/assign`, { vendorId });
@@ -583,6 +611,7 @@ export default function LandlordHub() {
     onSuccess: () => {
       setNoteText("");
       setShowNoteForm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/landlord/cases", selectedCaseId, "events"] });
       toast({ title: "Note added" });
     },
     onError: (err: Error) => {
@@ -1794,9 +1823,10 @@ export default function LandlordHub() {
                               >
                                 {imageMedia?.url ? (
                                   <img src={imageMedia.url} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  <Home className={`h-5 w-5 ${isSelected ? "text-violet-500" : "text-gray-400"}`} />
-                                )}
+                                ) : (() => {
+                                  const CatIcon = getCategoryIcon(c.category);
+                                  return <CatIcon className={`h-5 w-5 ${isSelected ? "text-violet-500" : "text-gray-400"}`} />;
+                                })()}
                                 {(c.priority === "Urgent" || c.priority === "High") && (
                                   <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                                     <span className="text-[8px] text-white font-bold">!</span>
@@ -1831,9 +1861,10 @@ export default function LandlordHub() {
                                 >
                                   {selectedCase.media?.[0]?.url ? (
                                     <img src={selectedCase.media[0].url} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <Home className="h-5 w-5 text-gray-400" />
-                                  )}
+                                  ) : (() => {
+                                    const CatIcon = getCategoryIcon(selectedCase.category);
+                                    return <CatIcon className="h-5 w-5 text-violet-400" />;
+                                  })()}
                                 </div>
                                 <div>
                                   <h3 className="font-bold text-lg">
@@ -2030,13 +2061,13 @@ export default function LandlordHub() {
                             </div>
 
                             {selectedCase.aiTriageJson && (
-                              <Card className="border-violet-100">
+                              <Card className="border-2 border-violet-200 dark:border-violet-700">
                                 <CardContent className="p-4">
                                   <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
-                                      <Sparkles className="h-3 w-3 text-white" />
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-sm shadow-violet-200">
+                                      <Sparkles className="h-3.5 w-3.5 text-white" />
                                     </div>
-                                    <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Maya AI Assessment</span>
+                                    <span className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Maya AI Assessment</span>
                                   </div>
                                   <div className="rounded-lg border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white dark:from-violet-950/20 dark:to-slate-900 p-3 space-y-3">
                                     <div className="flex items-center justify-between">
@@ -2102,7 +2133,12 @@ export default function LandlordHub() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 text-xs flex-1"
+                                  className={cn(
+                                    "h-9 text-xs flex-1 gap-1.5 font-medium",
+                                    (selectedCase.priority === "Urgent" || selectedCase.priority === "High")
+                                      ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300"
+                                      : "hover:bg-slate-50"
+                                  )}
                                   disabled={priorityMutation.isPending}
                                   onClick={() => {
                                     const newPriority = (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent";
@@ -2110,36 +2146,30 @@ export default function LandlordHub() {
                                   }}
                                 >
                                   {priorityMutation.isPending ? (
-                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                   ) : (
-                                    <AlertTriangle className={cn("h-3 w-3 mr-1", (selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "text-red-500" : "text-muted-foreground")} />
+                                    <AlertTriangle className="h-3.5 w-3.5" />
                                   )}
-                                  {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Normal" : "Urgent"}
+                                  {(selectedCase.priority === "Urgent" || selectedCase.priority === "High") ? "Urgent" : "Normal"}
                                 </Button>
-                                {!showNoteForm ? (
-                                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1" onClick={() => setShowNoteForm(true)}>
-                                    <FileText className="h-3 w-3 mr-1" /> Note
-                                  </Button>
-                                ) : (
-                                  <div className="flex-1 space-y-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border">
-                                    <Textarea placeholder="Add a note..." className="text-xs min-h-[50px] resize-none" value={noteText} onChange={(e) => setNoteText(e.target.value)} />
-                                    <div className="flex gap-1">
-                                      <Button size="sm" className="h-6 text-[10px] flex-1" disabled={!noteText.trim() || noteMutation.isPending} onClick={() => noteMutation.mutate({ caseId: selectedCase.id, note: noteText.trim() })}>
-                                        {noteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-                                      </Button>
-                                      <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => { setShowNoteForm(false); setNoteText(""); }}>Cancel</Button>
-                                    </div>
-                                  </div>
-                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 text-xs flex-1 gap-1.5 font-medium bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300"
+                                  onClick={() => setShowInlineRecs(!showInlineRecs)}
+                                >
+                                  <UserCheck className="h-3.5 w-3.5" />
+                                  Assign
+                                </Button>
                                 {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs flex-1 text-emerald-600 hover:bg-emerald-50"
+                                    className="h-9 text-xs flex-1 gap-1.5 font-medium bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300"
                                     disabled={closeMutation.isPending}
                                     onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
                                   >
-                                    {closeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle className="h-3 w-3 mr-1" />}
+                                    {closeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
                                     Resolve
                                   </Button>
                                 )}
@@ -2149,18 +2179,74 @@ export default function LandlordHub() {
                             <Card>
                               <CardContent className="p-4">
                                 <div className="flex items-center gap-2 mb-3">
-                                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                                  <MessageCircle className="h-4 w-4 text-violet-500" />
                                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Messages</span>
+                                  {caseEvents.length > 0 && (
+                                    <span className="text-xs text-slate-400 ml-auto">{caseEvents.length}</span>
+                                  )}
                                 </div>
-                                {selectedCase.reporterUserId ? (
-                                  <ThreadChat
-                                    caseId={String(selectedCase.id)}
-                                    homeownerUserId={selectedCase.reporterUserId}
-                                    compact
+                                <div className="space-y-2 max-h-[200px] overflow-y-auto mb-3" style={{ minHeight: "40px" }}>
+                                  {caseEvents.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-3">No messages yet. Add a note below.</p>
+                                  ) : (
+                                    caseEvents.map((evt) => {
+                                      const isNote = evt.type === "landlord_note";
+                                      return (
+                                        <div key={evt.id} className={`flex ${isNote ? "justify-end" : "justify-start"}`}>
+                                          <div
+                                            className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm ${
+                                              isNote
+                                                ? "bg-violet-500 text-white rounded-br-sm"
+                                                : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-sm"
+                                            }`}
+                                          >
+                                            {!isNote && (
+                                              <p className={`text-[10px] font-medium mb-0.5 ${isNote ? "text-violet-200" : "text-slate-500"}`}>
+                                                {evt.type.replace(/_/g, " ")}
+                                              </p>
+                                            )}
+                                            <p className="break-words">{evt.description}</p>
+                                            <p className={`text-[10px] mt-0.5 ${isNote ? "text-violet-200" : "text-slate-400"}`}>
+                                              {evt.createdAt ? formatDistanceToNow(new Date(evt.createdAt), { addSuffix: true }) : ""}
+                                              {isNote && evt.metadata?.userName ? ` · ${evt.metadata.userName}` : ""}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                                <div className="flex gap-2 border-t pt-3">
+                                  <Input
+                                    value={noteText}
+                                    onChange={(e) => setNoteText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && !e.shiftKey && noteText.trim()) {
+                                        e.preventDefault();
+                                        noteMutation.mutate({ caseId: selectedCase.id, note: noteText.trim() });
+                                      }
+                                    }}
+                                    placeholder="Add a note..."
+                                    className="h-9 text-sm"
+                                    disabled={noteMutation.isPending}
                                   />
-                                ) : (
-                                  <p className="text-xs text-muted-foreground text-center py-4">No messages yet. Start the conversation!</p>
-                                )}
+                                  <Button
+                                    size="sm"
+                                    className="h-9 px-3 bg-violet-500 hover:bg-violet-600"
+                                    onClick={() => {
+                                      if (noteText.trim()) {
+                                        noteMutation.mutate({ caseId: selectedCase.id, note: noteText.trim() });
+                                      }
+                                    }}
+                                    disabled={!noteText.trim() || noteMutation.isPending}
+                                  >
+                                    {noteMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Send className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
                               </CardContent>
                             </Card>
                           </CardContent>
