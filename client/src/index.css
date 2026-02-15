@@ -334,3 +334,8 @@
 .hub-themed-content .empty-state-action:hover {
   background: hsla(210, 75%, 46%, 0.92);
 }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

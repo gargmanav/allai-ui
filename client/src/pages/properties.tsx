@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, MapPin, Home, Calendar, Building2, Filter, ChevronDown, ChevronRight, Bed, Bath, DollarSign, Settings, Bell, Archive, Trash2, RotateCcw, Warehouse, House, Store, LayoutGrid, List as ListIcon, TrendingUp, Pencil } from "lucide-react";
+import { Building, Plus, MapPin, Home, Calendar, Building2, Filter, ChevronDown, ChevronRight, Bed, Bath, DollarSign, Settings, Bell, Archive, Trash2, RotateCcw, Warehouse, HousePlus, Store, LayoutGrid, List as ListIcon, TrendingUp, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -63,7 +63,7 @@ export default function Properties() {
     switch (type) {
       case "Single Family": return <Home className="h-6 w-6 text-violet-600" />;
       case "Condo": return <Building className="h-6 w-6 text-violet-600" />;
-      case "Townhome": return <House className="h-6 w-6 text-violet-600" />;
+      case "Townhome": return <HousePlus className="h-6 w-6 text-violet-600" />;
       case "Residential Building": return <Building2 className="h-6 w-6 text-violet-600" />;
       case "Commercial Unit": return <Store className="h-6 w-6 text-violet-600" />;
       case "Commercial Building": return <Warehouse className="h-6 w-6 text-violet-600" />;
@@ -460,7 +460,7 @@ export default function Properties() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Properties</h1>
-          <p className="text-muted-foreground">Manage your property portfolio</p>
+          <p className="text-muted-foreground">Manage your portfolio</p>
         </div>
             
             <div className="flex items-center space-x-4">

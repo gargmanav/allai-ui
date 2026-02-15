@@ -7,10 +7,10 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Building2, Plus, Calendar, FileText, Globe, Bell, Archive, RotateCcw, Trash2 } from "lucide-react";
+import { Building2, Plus, Calendar, FileText, Globe, Bell, Archive, RotateCcw, Trash2, TrendingUp, Pencil } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocation } from "wouter";
 import type { OwnershipEntity, Property, Unit } from "@shared/schema";
 import EntityForm from "@/components/forms/entity-form";
@@ -527,22 +527,30 @@ export default function Entities() {
           ) : (entities && entities.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEntities.map((entity, index) => (
-                <Card key={entity.id} className="hover:shadow-md transition-shadow rounded-2xl overflow-hidden" data-testid={`card-entity-${index}`} style={{
+                <Card key={entity.id} className="group relative hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 rounded-2xl overflow-hidden" data-testid={`card-entity-${index}`} style={{
                   background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                   backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                   WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                   border: '2px solid rgba(255, 255, 255, 0.85)',
                   boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
                 }}>
+                  <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-blue-500 to-violet-500 bg-[length:200%_100%] animate-[shimmer_3s_ease-in-out_infinite]" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-blue-500/0 to-violet-500/0 group-hover:from-violet-500/[0.03] group-hover:via-blue-500/[0.02] group-hover:to-violet-500/[0.03] transition-all duration-500 pointer-events-none rounded-2xl" />
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
-                          {getEntityIcon(entity.type)}
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center cursor-default">
+                                {getEntityIcon(entity.type)}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent><p>{entity.type}</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <div>
                           <CardTitle className="text-lg" data-testid={`text-entity-name-${index}`}>{entity.name}</CardTitle>
-                          <Badge variant="secondary" data-testid={`badge-entity-type-${index}`}>{entity.type}</Badge>
                         </div>
                       </div>
                     </div>
@@ -586,47 +594,75 @@ export default function Entities() {
                       )}
                     </div>
                     
-                    <div className="flex space-x-2 mt-4">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1" 
-                        onClick={() => setLocation(`/entities/${entity.id}/performance`)}
-                        data-testid={`button-view-performance-${index}`}
-                      >
-                        View Performance
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1" 
-                        onClick={() => handleEditEntity(entity)}
-                        data-testid={`button-edit-entity-${index}`}
-                      >
-                        Edit
-                      </Button>
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => setLocation(`/entities/${entity.id}/performance`)}
+                              data-testid={`button-view-performance-${index}`}
+                            >
+                              <TrendingUp className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>View Performance</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 rounded-full"
+                              onClick={() => handleEditEntity(entity)}
+                              data-testid={`button-edit-entity-${index}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Edit</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       {entity.status === "Archived" ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="px-3" 
-                          onClick={() => setShowUnarchiveConfirm(entity.id)}
-                          data-testid={`button-unarchive-entity-${index}`}
-                          disabled={unarchiveEntityMutation.isPending}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 rounded-full"
+                                onClick={() => setShowUnarchiveConfirm(entity.id)}
+                                data-testid={`button-unarchive-entity-${index}`}
+                                disabled={unarchiveEntityMutation.isPending}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Unarchive</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="px-3" 
-                          onClick={() => setShowArchiveConfirm(entity.id)}
-                          data-testid={`button-archive-entity-${index}`}
-                          disabled={archiveEntityMutation.isPending}
-                        >
-                          <Archive className="h-3 w-3" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 rounded-full"
+                                onClick={() => setShowArchiveConfirm(entity.id)}
+                                data-testid={`button-archive-entity-${index}`}
+                                disabled={archiveEntityMutation.isPending}
+                              >
+                                <Archive className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Archive</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                   </CardContent>
