@@ -438,6 +438,31 @@ export default function LandlordHub() {
     enabled: !!user,
   });
 
+  const { data: reminders = [] } = useQuery<{ id: string; title: string; type: string; status: string; dueAt: string | null }[]>({
+    queryKey: ["/api/reminders"],
+    enabled: !!user,
+  });
+
+  const dueReminders = useMemo(() => {
+    const now = new Date();
+    return reminders.filter(r => {
+      if (r.status === "Completed" || r.status === "Cancelled") return false;
+      if (!r.dueAt) return false;
+      const due = new Date(r.dueAt);
+      const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    });
+  }, [reminders]);
+
+  const overdueReminders = useMemo(() => {
+    const now = new Date();
+    return reminders.filter(r => {
+      if (r.status === "Completed" || r.status === "Cancelled") return false;
+      if (!r.dueAt) return false;
+      return new Date(r.dueAt) < now;
+    });
+  }, [reminders]);
+
   const activePolicy = approvalPolicies.find(p => p.isActive);
 
   const newCases = useMemo(
@@ -1323,26 +1348,131 @@ export default function LandlordHub() {
                 </div>
               </div>
 
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Today's Schedule
-                </h3>
-                <div
-                  className="rounded-xl p-6 text-center"
-                  style={FROSTED_CARD_STYLE}
-                >
-                  <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    No appointments scheduled for today
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Today's Schedule
+                  </h3>
+                  <button
+                    className={FROSTED_CARD_CLASS}
                     onClick={() => setView("calendar")}
+                    style={FROSTED_CARD_STYLE}
                   >
-                    View Calendar
-                  </Button>
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
+                      style={{ boxShadow: "0 0 20px rgba(139, 92, 246, 0.2)" }}
+                    />
+                    <div
+                      className="running-light-bar h-1 transition-all duration-300"
+                      style={{
+                        backdropFilter: "blur(16px) saturate(200%)",
+                        boxShadow: "inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)",
+                      }}
+                    />
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">
+                          Calendar
+                        </span>
+                        <Calendar className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
+                      </div>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">
+                          Today
+                        </span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                          0
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">
+                            Appointments
+                          </span>
+                          <span className="text-xs font-semibold text-gray-700">
+                            None today
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">
+                            This Week
+                          </span>
+                          <span className="text-sm font-bold text-blue-600">
+                            View All
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Reminders
+                  </h3>
+                  <button
+                    className={FROSTED_CARD_CLASS}
+                    onClick={() => setView("reminders")}
+                    style={FROSTED_CARD_STYLE}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
+                      style={{ boxShadow: "0 0 20px rgba(139, 92, 246, 0.2)" }}
+                    />
+                    <div
+                      className="running-light-bar h-1 transition-all duration-300"
+                      style={{
+                        backdropFilter: "blur(16px) saturate(200%)",
+                        boxShadow: "inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)",
+                      }}
+                    />
+                    <div className="relative p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">
+                          Reminders
+                        </span>
+                        <Bell className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
+                      </div>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs text-gray-500 font-medium">
+                          Due Soon
+                        </span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                          {dueReminders.length}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">
+                            Overdue
+                          </span>
+                          <span className={`text-xs font-semibold ${overdueReminders.length > 0 ? "text-red-500" : "text-gray-700"}`}>
+                            {overdueReminders.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-500">
+                            Total Active
+                          </span>
+                          <span className="text-xs font-semibold text-emerald-600">
+                            {reminders.filter(r => r.status !== "Completed" && r.status !== "Cancelled").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-[11px] text-gray-500">
+                            Next Due
+                          </span>
+                          <span className="text-sm font-bold text-amber-600">
+                            {dueReminders.length > 0 && dueReminders[0]?.dueAt
+                              ? format(new Date(dueReminders[0].dueAt), "MMM d")
+                              : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
                 </div>
               </div>
 
