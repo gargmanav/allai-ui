@@ -270,10 +270,16 @@ export default function TenantHub() {
         try {
           const formData = new FormData();
           selectedPhotos.forEach(p => formData.append("photos", p.file));
+          const headers: Record<string, string> = {};
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (refreshToken) {
+            headers["Authorization"] = `Bearer ${refreshToken}`;
+          }
           const uploadRes = await fetch(`/api/tenant/cases/${newCase.id}/photos`, {
             method: "POST",
             body: formData,
             credentials: "include",
+            headers,
           });
           if (!uploadRes.ok) {
             toast({ title: "Photos couldn't be uploaded", description: "Your request was saved but photos failed to upload.", variant: "destructive" });
