@@ -51,6 +51,7 @@ import {
   CheckCircle2,
   Building2,
   Calculator,
+  Settings2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -67,6 +68,7 @@ import { HubTenantsView } from "@/components/landlord/hub-tenants-view";
 import { HubRemindersView } from "@/components/landlord/hub-reminders-view";
 import { HubInboxView } from "@/components/landlord/hub-inbox-view";
 import { HubCalendarView } from "@/components/landlord/hub-calendar-view";
+import { HubSettingsView } from "@/components/landlord/hub-settings-view";
 import { MayaSidebarPanel } from "@/components/landlord/maya-sidebar-panel";
 
 type ViewState =
@@ -77,7 +79,8 @@ type ViewState =
   | "financial"
   | "calendar"
   | "reminders"
-  | "inbox";
+  | "inbox"
+  | "settings";
 
 type DashboardStats = {
   totalProperties: number;
@@ -429,6 +432,13 @@ export default function LandlordHub() {
     queryKey: ["/api/properties"],
     enabled: !!user,
   });
+
+  const { data: approvalPolicies = [] } = useQuery<{ id: string; name: string; isActive: boolean; involvementMode: string }[]>({
+    queryKey: ["/api/approval-policies"],
+    enabled: !!user,
+  });
+
+  const activePolicy = approvalPolicies.find(p => p.isActive);
 
   const newCases = useMemo(
     () =>
@@ -807,6 +817,16 @@ export default function LandlordHub() {
               <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">
                 Calendar
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={SIDEBAR_BTN_CLASS}
+              onClick={() => setView("settings")}
+            >
+              <Settings2 className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+              <span className="font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">
+                Settings
               </span>
             </Button>
           </div>
@@ -1325,6 +1345,55 @@ export default function LandlordHub() {
                   </Button>
                 </div>
               </div>
+
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Management Mode
+                </h3>
+                <button
+                  className={FROSTED_CARD_CLASS}
+                  onClick={() => setView("settings")}
+                  style={FROSTED_CARD_STYLE}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
+                    style={{ boxShadow: "0 0 20px rgba(139, 92, 246, 0.2)" }}
+                  />
+                  <div
+                    className="running-light-bar h-1 transition-all duration-300"
+                    style={{
+                      backdropFilter: "blur(16px) saturate(200%)",
+                      boxShadow: "inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)",
+                    }}
+                  />
+                  <div className="relative p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">
+                        Settings
+                      </span>
+                      <Settings2 className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">
+                        {activePolicy?.involvementMode === "hands-off" ? "🙌" :
+                         activePolicy?.involvementMode === "hands-on" ? "👋" :
+                         activePolicy ? "⚖️" : "⚙️"}
+                      </span>
+                      <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        {activePolicy?.involvementMode === "hands-off" ? "Hands Off" :
+                         activePolicy?.involvementMode === "hands-on" ? "Hands On" :
+                         activePolicy ? "Balanced" : "Not Set"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500">
+                      {activePolicy?.involvementMode === "hands-off" ? "Auto-approve most things" :
+                       activePolicy?.involvementMode === "hands-on" ? "Review everything" :
+                       activePolicy ? "Review some, auto-approve trusted" : "Configure your management style"}
+                    </p>
+                  </div>
+                </button>
+              </div>
             </div>
           )}
 
@@ -1829,6 +1898,21 @@ export default function LandlordHub() {
               ]}
             >
               <HubInboxView />
+            </MayaSidebarPanel>
+          )}
+
+          {view === "settings" && (
+            <MayaSidebarPanel
+              context="settings"
+              description="Ask Maya about your approval settings, management mode, or automation preferences."
+              placeholder="Ask about settings..."
+              suggestions={[
+                "What's my current management mode?",
+                "Should I switch to hands-off mode?",
+                "How do auto-approval thresholds work?",
+              ]}
+            >
+              <HubSettingsView />
             </MayaSidebarPanel>
           )}
         </main>
