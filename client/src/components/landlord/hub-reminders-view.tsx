@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Plus, Clock, CheckCircle, Calendar, AlertTriangle, DollarSign, FileText, Wrench, Shield, Edit, Trash2, CalendarDays, Repeat, List, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
+import { Bell, Plus, Clock, CheckCircle, Calendar, AlertTriangle, DollarSign, FileText, Wrench, Shield, Edit, Trash2, CalendarDays, Repeat, List, ChevronLeft, ChevronRight, LayoutGrid, MapPin } from "lucide-react";
 import type { Reminder, Property, OwnershipEntity, Lease, Unit, TenantGroup } from "@shared/schema";
 import { REMINDER_TYPE_COLORS, STATUS_COLORS, getReminderStatus, getStatusBadgeText, type ReminderType, type ReminderStatus } from "@/lib/colorTokens";
 
@@ -483,6 +483,27 @@ export function HubRemindersView() {
     );
   };
 
+  const getScopeLabel = (reminder: Reminder): string => {
+    if (reminder.scope === 'property' && reminder.scopeId) {
+      const property = properties?.find(p => p.id === reminder.scopeId);
+      return property ? (property.name || `${property.street}, ${property.city}`) : '';
+    }
+    if (reminder.scope === 'entity' && reminder.scopeId) {
+      const entity = entities?.find(e => e.id === reminder.scopeId);
+      return entity ? entity.name : '';
+    }
+    if (reminder.scope === 'lease' && reminder.scopeId) {
+      const lease = leases?.find(l => l.id === reminder.scopeId);
+      if (!lease) return '';
+      const unit = units?.find(u => u.id === lease.unitId);
+      const property = properties?.find(p => p.id === unit?.propertyId);
+      if (unit && property) return `${property.name || property.street} (${unit.label})`;
+      if (property) return property.name || property.street;
+      return '';
+    }
+    return '';
+  };
+
   const allReminders = reminders || [];
   const overdueReminders = allReminders.filter(r => 
     getEffectiveStatus(r) === "Overdue"
@@ -859,11 +880,13 @@ export function HubRemindersView() {
             </div>
             {overdueReminders > 0 && (
               <div className="pt-2 border-t border-gray-100/50">
-                <button
-                  className="text-[11px] text-green-600 hover:text-green-700 font-semibold flex items-center gap-1 disabled:opacity-50"
-                  disabled={completeReminderMutation.isPending}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="text-[11px] text-green-600 hover:text-green-700 font-semibold flex items-center gap-1 cursor-pointer select-none"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (completeReminderMutation.isPending) return;
                     const overdueIds = allReminders
                       .filter(r => getEffectiveStatus(r) === "Overdue")
                       .map(r => r.id);
@@ -880,7 +903,7 @@ export function HubRemindersView() {
                 >
                   <CheckCircle className="h-3 w-3" />
                   Clear All
-                </button>
+                </span>
               </div>
             )}
           </div>
@@ -1092,40 +1115,50 @@ export function HubRemindersView() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredReminders.map((reminder, index) => {
             const effectiveStatus = getEffectiveStatus(reminder);
-            const statusColor = effectiveStatus === "Overdue" ? "from-red-500/10 to-orange-500/10" : effectiveStatus === "Completed" ? "from-green-500/10 to-emerald-500/10" : "from-violet-500/10 to-blue-500/10";
-            const statusDot = effectiveStatus === "Overdue" ? "bg-red-500" : effectiveStatus === "Completed" ? "bg-green-500" : "bg-blue-500";
             return (
-              <div key={reminder.id} className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)]" data-testid={`card-reminder-grid-${index}`} style={{
+              <div key={reminder.id} className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(139,92,246,0.12),0_10px_25px_rgba(59,130,246,0.08),0_4px_12px_rgba(0,0,0,0.06)]" data-testid={`card-reminder-grid-${index}`} style={{
                 background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                 backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                 WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                 border: '2px solid rgba(255, 255, 255, 0.85)',
-                boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
               }}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${statusColor} opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl`} />
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/8 group-hover:to-blue-500/8 transition-all duration-300 rounded-xl" />
                 <div className="running-light-bar h-1 transition-all duration-300" style={{
                   backdropFilter: 'blur(16px) saturate(200%)',
                   boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
                 }} />
-                <div className="relative p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 bg-violet-100/60 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="relative p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-violet-100/60 rounded-lg flex items-center justify-center shrink-0">
                       {getTypeIcon(reminder.type)}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${statusDot}`} />
-                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                        {effectiveStatus || "Due"}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm text-foreground line-clamp-2 leading-tight">
+                        {reminder.title}
+                      </h4>
                     </div>
                   </div>
-                  <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mb-1 line-clamp-2 leading-tight">
-                    {reminder.title}
-                  </h4>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-                    <CalendarDays className="h-3 w-3" />
-                    <span>{new Date(reminder.dueAt).toLocaleDateString()}</span>
+                  <div className="space-y-1.5 text-sm text-muted-foreground mb-3">
+                    {getScopeLabel(reminder) && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{getScopeLabel(reminder)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays className="h-3 w-3 shrink-0" />
+                      <span>Due {new Date(reminder.dueAt).toLocaleDateString()}</span>
+                    </div>
+                    {(reminder.leadDays || 0) > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span>{reminder.leadDays} day(s) notice</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    {getStatusBadge(effectiveStatus)}
                     {reminder.isRecurring && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-blue-600 border-blue-300">
                         <Repeat className="h-2.5 w-2.5 mr-0.5" />
@@ -1133,56 +1166,40 @@ export function HubRemindersView() {
                       </Badge>
                     )}
                   </div>
-                  {reminder.scope && reminder.scopeId && (
-                    <div className="text-[11px] text-gray-500 mb-3 truncate">
-                      {reminder.scope === 'property' && (() => {
-                        const property = properties?.find(p => p.id === reminder.scopeId);
-                        return property ? `📍 ${property.name || property.street}` : '';
-                      })()}
-                      {reminder.scope === 'entity' && (() => {
-                        const entity = entities?.find(e => e.id === reminder.scopeId);
-                        return entity ? `🏢 ${entity.name}` : '';
-                      })()}
-                    </div>
-                  )}
-                  {getTypeBadge(reminder.type)}
-                  <div className="flex items-center gap-1 mt-3 pt-2 border-t border-gray-100/50">
-                    {(!reminder.status || reminder.status === "Overdue") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => completeReminderMutation.mutate(reminder.id)}
-                        disabled={completeReminderMutation.isPending}
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Done
-                      </Button>
-                    )}
-                    <div className="flex-1" />
+                  <div className="flex items-center gap-1 pt-2 border-t border-gray-100/60">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                       onClick={() => {
-                        if (reminder.isRecurring) {
+                        if (reminder.isRecurring || reminder.parentRecurringId) {
                           setPendingEditReminder(reminder);
-                          setIsEditingSeries(true);
                         } else {
                           setEditingReminder(reminder);
                           setShowReminderForm(true);
                         }
                       }}
                     >
-                      <Edit className="h-3 w-3" />
+                      <Edit className="h-3.5 w-3.5" />
                     </Button>
+                    {(effectiveStatus === "Pending" || effectiveStatus === "Overdue") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-green-600"
+                        onClick={() => completeReminderMutation.mutate(reminder.id)}
+                        disabled={completeReminderMutation.isPending}
+                      >
+                        <CheckCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteReminderId(reminder.id)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -1191,161 +1208,95 @@ export function HubRemindersView() {
           })}
         </div>
         : 
-        <div className="space-y-4">
+        <div className="space-y-2">
           {filteredReminders.map((reminder, index) => {
             const effectiveStatus = getEffectiveStatus(reminder);
             return (
-            <div key={reminder.id} className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(139,92,246,0.15),0_15px_35px_rgba(59,130,246,0.10),0_8px_20px_rgba(0,0,0,0.08)]" data-testid={`card-reminder-${index}`} style={{
+            <div key={reminder.id} className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:-translate-y-0.5 hover:shadow-[0_15px_40px_rgba(139,92,246,0.10),0_8px_20px_rgba(59,130,246,0.06),0_4px_12px_rgba(0,0,0,0.05)]" data-testid={`card-reminder-${index}`} style={{
                 background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
                 backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                 WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
                 border: '2px solid rgba(255, 255, 255, 0.85)',
-                boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)',
+                boxShadow: 'inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), 0 10px 40px rgba(0, 0, 0, 0.06)',
               }}>
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/12 group-hover:to-blue-500/12 transition-all duration-300 rounded-xl" />
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" style={{ boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)' }} />
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-blue-500/0 group-hover:from-violet-500/8 group-hover:to-blue-500/8 transition-all duration-300 rounded-xl" />
                 <div className="running-light-bar h-1 transition-all duration-300" style={{
                   backdropFilter: 'blur(16px) saturate(200%)',
                   boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.08)',
                 }} />
-                <div className="relative">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
-                      {getTypeIcon(reminder.type)}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground" data-testid={`text-reminder-title-${index}`}>
+                <div className="relative flex items-center p-4 gap-4">
+                  <div className="w-10 h-10 bg-violet-100/60 rounded-lg flex items-center justify-center shrink-0">
+                    {getTypeIcon(reminder.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-foreground truncate" data-testid={`text-reminder-title-${index}`}>
                         {reminder.title}
                       </h3>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        {reminder.scope === 'property' && reminder.scopeId && (
-                          <div>
-                            <span className="text-blue-600 font-medium">Property:</span>
-                            <span className="ml-1" data-testid={`text-reminder-property-${index}`}>
-                              {(() => {
-                                const property = properties?.find(p => p.id === reminder.scopeId);
-                                return property ? (property.name || `${property.street}, ${property.city}`) : 'Property';
-                              })()}
-                            </span>
-                          </div>
-                        )}
-                        {reminder.scope === 'entity' && reminder.scopeId && (
-                          <div>
-                            <span className="text-purple-600 font-medium">Entity:</span>
-                            <span className="ml-1" data-testid={`text-reminder-entity-${index}`}>
-                              {entities?.find(e => e.id === reminder.scopeId)?.name || 'Entity'}
-                            </span>
-                          </div>
-                        )}
-                        {reminder.scope === 'lease' && reminder.scopeId && (
-                          <div>
-                            <span className="text-green-600 font-medium">Lease:</span>
-                            <span className="ml-1" data-testid={`text-reminder-lease-${index}`}>
-                              {(() => {
-                                const lease = leases?.find(l => l.id === reminder.scopeId);
-                                if (!lease) return 'Lease';
-                                
-                                const unit = units?.find(u => u.id === lease.unitId);
-                                const tenant = tenants?.find(t => t.id === lease.tenantGroupId);
-                                const property = properties?.find(p => p.id === unit?.propertyId);
-                                
-                                if (unit && tenant && property) {
-                                  return `${property.name || property.street} Unit ${unit.label} - ${tenant.name}`;
-                                } else if (unit && property) {
-                                  return `${property.name || property.street} Unit ${unit.label}`;
-                                } else if (tenant) {
-                                  return `${tenant.name}`;
-                                }
-                                return 'Lease';
-                              })()} 
-                            </span>
-                          </div>
-                        )}
-                        <span data-testid={`text-reminder-due-${index}`}>
-                          Due {new Date(reminder.dueAt).toLocaleDateString()}
+                      {reminder.isRecurring && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-blue-600 border-blue-300 shrink-0">
+                          <Repeat className="h-2.5 w-2.5 mr-0.5" />
+                          {reminder.recurringFrequency}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-0.5">
+                      {getScopeLabel(reminder) && (
+                        <span className="flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {getScopeLabel(reminder)}
                         </span>
-                        {reminder.isRecurring && (
-                          <Badge variant="outline" className="text-blue-600 border-blue-600" data-testid={`badge-recurring-${index}`}>
-                            <Repeat className="h-3 w-3 mr-1" />
-                            {reminder.recurringFrequency}
-                          </Badge>
-                        )}
-                        {reminder.parentRecurringId && (
-                          <Badge variant="outline" className="text-purple-600 border-purple-600" data-testid={`badge-recurring-instance-${index}`}>
-                            Auto-generated
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="mt-2">
-                        {getTypeBadge(reminder.type)}
-                      </div>
+                      )}
+                      <span className="flex items-center gap-1 shrink-0" data-testid={`text-reminder-due-${index}`}>
+                        <CalendarDays className="h-3 w-3" />
+                        {new Date(reminder.dueAt).toLocaleDateString()}
+                      </span>
+                      {(reminder.leadDays || 0) > 0 && (
+                        <span className="shrink-0 text-xs">{reminder.leadDays}d notice</span>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     {getStatusBadge(effectiveStatus)}
-                    
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600"
-                        onClick={() => {
-                          const isRecurring = reminder.isRecurring || reminder.parentRecurringId;
-                          if (isRecurring) {
-                            setPendingEditReminder(reminder);
-                          } else {
-                            setEditingReminder(reminder);
-                            setShowReminderForm(true);
-                          }
-                        }}
-                        data-testid={`button-edit-reminder-${index}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600"
-                        onClick={() => setDeleteReminderId(reminder.id)}
-                        data-testid={`button-delete-reminder-${index}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    {(!reminder.status || reminder.status === "Overdue") && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="text-xs h-8 w-8 p-0"
+                      onClick={() => {
+                        const isRecurring = reminder.isRecurring || reminder.parentRecurringId;
+                        if (isRecurring) {
+                          setPendingEditReminder(reminder);
+                        } else {
+                          setEditingReminder(reminder);
+                          setShowReminderForm(true);
+                        }
+                      }}
+                      data-testid={`button-edit-reminder-${index}`}
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    {(effectiveStatus === "Pending" || effectiveStatus === "Overdue") && (
                       <Button 
                         variant="outline" 
                         size="sm"
+                        className="h-8 w-8 p-0"
                         onClick={() => completeReminderMutation.mutate(reminder.id)}
                         disabled={completeReminderMutation.isPending}
                         data-testid={`button-complete-reminder-${index}`}
                       >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Complete
+                        <CheckCircle className="h-3.5 w-3.5" />
                       </Button>
                     )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteReminderId(reminder.id)}
+                      data-testid={`button-delete-reminder-${index}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                </div>
-                
-                <div className="mt-3 text-sm text-muted-foreground">
-                  <div className="flex items-center justify-between">
-                    {(reminder.leadDays || 0) > 0 && (
-                      <span data-testid={`text-reminder-lead-${index}`}>
-                        {reminder.leadDays} day(s) notice
-                      </span>
-                    )}
-                  </div>
-                  {reminder.completedAt && (
-                    <p className="text-green-600 mt-2" data-testid={`text-reminder-completed-${index}`}>
-                      Completed {new Date(reminder.completedAt).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
                 </div>
             </div>
             );
