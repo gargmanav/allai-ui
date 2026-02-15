@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Mail, Phone, User, FileText, DollarSign, Calendar, AlertTriangle, Archive, RotateCcw, Trash2, UserRound, UsersRound, Pencil } from "lucide-react";
+import { Users, Plus, Mail, Phone, FileText, DollarSign, Calendar, AlertTriangle, Archive, RotateCcw, Trash2, UserRound, UsersRound, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TenantGroup, Property, OwnershipEntity, Lease, Unit, InsertLease } from "@shared/schema";
 
@@ -888,10 +888,6 @@ export function HubTenantsView() {
                       </div>
                     )}
                     
-                    <div className="flex items-center space-x-2 mb-2">
-                      <User className="h-4 w-4" />
-                      <span data-testid={`text-tenant-type-${index}`}>Tenant Group</span>
-                    </div>
                   </div>
                   
                   <p className="text-sm text-muted-foreground" data-testid={`text-tenant-created-${index}`}>
@@ -899,7 +895,7 @@ export function HubTenantsView() {
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t">
                   {group.status === "Archived" ? (
                     <>
                       <TooltipProvider>
