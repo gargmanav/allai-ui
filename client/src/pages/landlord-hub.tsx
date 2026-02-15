@@ -1761,16 +1761,12 @@ export default function LandlordHub() {
                             <h4 className="text-sm font-semibold line-clamp-1">
                               {c.title}
                             </h4>
-                            <Badge
-                              variant={
-                                c.priority === "Urgent" || c.priority === "High"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                              className="text-[10px] ml-2 shrink-0"
-                            >
-                              {c.priority}
-                            </Badge>
+                            {(c.priority === "Urgent" || c.priority === "High") && (
+                              <Badge variant="destructive" className="text-[10px] ml-2 shrink-0 gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Urgent
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                             {c.description}
@@ -1831,17 +1827,12 @@ export default function LandlordHub() {
                               <span className="text-sm font-medium truncate">
                                 {c.title}
                               </span>
-                              <Badge
-                                variant={
-                                  c.priority === "Urgent" ||
-                                  c.priority === "High"
-                                    ? "destructive"
-                                    : "secondary"
-                                }
-                                className="text-[10px] shrink-0"
-                              >
-                                {c.priority}
-                              </Badge>
+                              {(c.priority === "Urgent" || c.priority === "High") && (
+                                <Badge variant="destructive" className="text-[10px] shrink-0 gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Urgent
+                                </Badge>
+                              )}
                               <Badge
                                 variant="outline"
                                 className="text-[10px] shrink-0"
@@ -1878,7 +1869,9 @@ export default function LandlordHub() {
                   ))}
 
                 {selectedCase && (
-                  <div className="hidden xl:flex flex-col w-96 border-l overflow-y-auto" style={{ background: 'linear-gradient(180deg, rgba(248,249,251,0.98) 0%, rgba(244,245,248,0.95) 100%)' }}>
+                  <>
+                  <div className="fixed inset-0 bg-black/30 z-40 xl:hidden" onClick={() => setSelectedCaseId(null)} />
+                  <div className="fixed right-0 top-0 bottom-0 z-50 xl:relative xl:z-auto flex flex-col w-[90vw] sm:w-96 border-l overflow-y-auto shadow-2xl xl:shadow-none" style={{ background: 'linear-gradient(180deg, rgba(248,249,251,0.98) 0%, rgba(244,245,248,0.95) 100%)' }}>
                     <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b bg-white/80 backdrop-blur-sm">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-violet-500" />
@@ -2142,6 +2135,7 @@ export default function LandlordHub() {
                       )}
                     </div>
                   </div>
+                  </>
                 )}
               </MayaSidebarPanel>
             </div>
