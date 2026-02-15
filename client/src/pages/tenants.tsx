@@ -552,7 +552,7 @@ export default function Tenants() {
                 }
               }}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-add-tenant" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200/50">
+                  <Button data-testid="button-add-tenant" className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-300/40">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Tenant
                   </Button>
@@ -1177,7 +1177,7 @@ export default function Tenants() {
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-tenants">No Tenants Yet</h3>
                 <p className="text-muted-foreground mb-4">Start managing tenant relationships by adding your first tenant.</p>
-                <Button onClick={() => setShowTenantForm(true)} data-testid="button-add-first-tenant" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200/50">
+                <Button onClick={() => setShowTenantForm(true)} data-testid="button-add-first-tenant" className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-300/40">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Your First Tenant
                 </Button>
