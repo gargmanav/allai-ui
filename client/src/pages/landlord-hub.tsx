@@ -1915,23 +1915,36 @@ export default function LandlordHub() {
                                   </div>
                                 </div>
                               ) : (
-                                <>
-                                  <Button
-                                    className="flex-1 h-11 touch-manipulation bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200/60"
-                                    onClick={() => setShowInlineRecs(!showInlineRecs)}
-                                  >
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Accept & Assign
-                                  </Button>
-                                  <Button
-                                    className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
-                                    onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
-                                    disabled={closeMutation.isPending}
-                                  >
-                                    {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                                    Resolve
-                                  </Button>
-                                </>
+                                <Button
+                                  className="flex-1 h-11 touch-manipulation bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200/60"
+                                  onClick={() => setShowInlineRecs(!showInlineRecs)}
+                                >
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Accept & Assign
+                                </Button>
+                              )}
+                              <Button
+                                className="h-11 touch-manipulation hover:bg-slate-50 border border-slate-200/60"
+                                variant="outline"
+                                disabled={statusMutation.isPending}
+                                onClick={() => {
+                                  const currentIdx = STATUS_CYCLE.indexOf(selectedCase.status as any);
+                                  const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length;
+                                  statusMutation.mutate({ caseId: String(selectedCase.id), status: STATUS_CYCLE[nextIdx] });
+                                }}
+                              >
+                                {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LayoutGrid className="h-4 w-4 mr-1" />}
+                                Change Status
+                              </Button>
+                              {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
+                                <Button
+                                  className="h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                                  onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
+                                  disabled={closeMutation.isPending}
+                                >
+                                  {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                                  Resolve
+                                </Button>
                               )}
                             </div>
 
@@ -2152,41 +2165,6 @@ export default function LandlordHub() {
                               </Card>
                             )}
 
-                            <div className="space-y-2">
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</p>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-9 text-xs flex-1 gap-1.5 font-medium hover:bg-slate-50"
-                                  disabled={statusMutation.isPending}
-                                  onClick={() => {
-                                    const currentIdx = STATUS_CYCLE.indexOf(selectedCase.status as any);
-                                    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length;
-                                    statusMutation.mutate({ caseId: String(selectedCase.id), status: STATUS_CYCLE[nextIdx] });
-                                  }}
-                                >
-                                  {statusMutation.isPending ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <LayoutGrid className="h-3.5 w-3.5" />
-                                  )}
-                                  Change Status
-                                </Button>
-                                {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-9 text-xs flex-1 gap-1.5 font-medium bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/20 dark:border-violet-700 dark:text-violet-300"
-                                    disabled={closeMutation.isPending}
-                                    onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
-                                  >
-                                    {closeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-                                    Resolve
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
 
                             <Card>
                               <CardContent className="p-4">
