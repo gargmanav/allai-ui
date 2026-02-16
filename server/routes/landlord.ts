@@ -837,37 +837,74 @@ router.post('/cases/:caseId/assign', requireAuth, requireRole('org_admin'), asyn
 
     const contractorUserId = vendor.userId || vendorId;
 
+    const activePolicy = await db.query.approvalPolicies.findFirst({
+      where: and(eq(approvalPolicies.orgId, orgId), eq(approvalPolicies.isActive, true)),
+    });
+    const involvementMode = activePolicy?.involvementMode || 'balanced';
+    const autoApproveCostLimit = activePolicy?.autoApproveCostLimit ? parseFloat(String(activePolicy.autoApproveCostLimit)) : 500;
+    const trustedIds = activePolicy?.trustedContractorIds || [];
+
+    const isFavorite = await db.query.favoriteContractors.findFirst({
+      where: and(eq(favoriteContractors.orgId, orgId), eq(favoriteContractors.contractorUserId, contractorUserId)),
+    });
+    const isTrusted = trustedIds.includes(contractorUserId) || !!isFavorite;
+
+    const estimatedCostVal = smartCase.estimatedCost ? parseFloat(String(smartCase.estimatedCost)) : 0;
+    const aiEstCost = (smartCase.aiTriageJson as any)?.estimatedCost;
+    let parsedAiCost = 0;
+    if (aiEstCost) {
+      const match = String(aiEstCost).match(/\$?([\d,]+)/);
+      if (match) parsedAiCost = parseFloat(match[1].replace(',', ''));
+    }
+    const effectiveCost = estimatedCostVal || parsedAiCost;
+    const isUnderThreshold = effectiveCost > 0 && effectiveCost <= autoApproveCostLimit;
+    const isEmergency = smartCase.priority === 'Urgent' || smartCase.isUrgent;
+    const autoEmergency = activePolicy?.autoApproveEmergencies !== false;
+
+    const shouldAutoConfirm = (
+      (involvementMode === 'hands-off' && isTrusted && isUnderThreshold) ||
+      (involvementMode === 'hands-off' && isEmergency && autoEmergency) ||
+      (involvementMode === 'balanced' && isTrusted && isUnderThreshold && isEmergency && autoEmergency)
+    );
+
+    const newStatus = shouldAutoConfirm ? 'Scheduled' : 'In Review';
+    const flowPath = shouldAutoConfirm ? 'auto-confirmed' : (involvementMode === 'hands-off' ? 'quote-optional' : 'quote-required');
+
     const [updated] = await db.update(smartCases)
       .set({
         assignedContractorId: contractorUserId,
-        status: 'In Review',
+        status: newStatus,
         updatedAt: new Date(),
       })
       .where(eq(smartCases.id, caseId))
       .returning();
 
-    // Insert caseEvent for contractor assignment
+    const eventDesc = shouldAutoConfirm
+      ? `Job auto-confirmed and assigned to ${vendor.name} (${involvementMode} mode, trusted contractor, under $${autoApproveCostLimit} threshold)`
+      : `Contractor ${vendor.name} assigned by landlord (${involvementMode} mode)`;
+
     await db.insert(caseEvents)
       .values({
         caseId,
-        type: 'contractor_assigned',
-        description: `Contractor ${vendor.name} assigned by landlord`,
+        type: shouldAutoConfirm ? 'job_auto_confirmed' : 'contractor_assigned',
+        description: eventDesc,
       });
 
-    // Send notification to contractor if they have a userId
     if (vendor.userId) {
       await notificationService.notifyContractor(
         {
           type: 'case_assigned',
-          title: 'New Job Assignment',
-          message: `You've been assigned to case: ${updated.title}`,
+          title: shouldAutoConfirm ? 'New Confirmed Job' : 'New Job Assignment',
+          message: shouldAutoConfirm
+            ? `You have a confirmed job: ${updated.title}. Schedule and start when ready.`
+            : `You've been assigned to case: ${updated.title}. Please review and provide your quote.`,
         },
         vendor.userId,
         orgId
       );
     }
 
-    res.json(updated);
+    res.json({ ...updated, flowPath, autoConfirmed: shouldAutoConfirm });
   } catch (error) {
     console.error('Error assigning contractor:', error);
     res.status(500).json({ error: 'Failed to assign contractor' });

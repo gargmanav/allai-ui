@@ -1915,9 +1915,18 @@ export default function LandlordHub() {
                                 <div className="flex-1 rounded-xl p-3 border-2 border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/20">
                                   <div className="flex items-center gap-2">
                                     <UserCheck className="h-4 w-4 text-emerald-600" />
-                                    <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-                                      Assigned to {selectedCase.assignedContractorName}
-                                    </span>
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                                        {selectedCase.assignedContractorName}
+                                      </span>
+                                      <span className="text-[10px] text-emerald-600/70">
+                                        {selectedCase.status === "Scheduled" ? "Job confirmed - awaiting schedule" :
+                                         selectedCase.status === "In Review" ? "Awaiting quote & availability" :
+                                         selectedCase.status === "In Progress" ? "Work in progress" :
+                                         selectedCase.status === "Resolved" || selectedCase.status === "Closed" ? "Completed" :
+                                         "Assigned"}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               ) : (

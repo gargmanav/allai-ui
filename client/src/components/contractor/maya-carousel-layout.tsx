@@ -1268,15 +1268,15 @@ export function MayaCarouselLayout({
 
                     {itemType === "job" && (
                       <div className="mb-4">
-                        {selectedItem.status === "In Review" && onConfirmJob && !confirmJobOpen && (
+                        {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && !confirmJobOpen && (
                           <Button
                             className="w-full h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => setConfirmJobOpen(true)}
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" /> Confirm Job
+                            <CheckCircle className="h-4 w-4 mr-2" /> {selectedItem.status === "Scheduled" ? "Add Schedule" : "Confirm Job"}
                           </Button>
                         )}
-                        {selectedItem.status === "In Review" && onConfirmJob && confirmJobOpen && (
+                        {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && confirmJobOpen && (
                           <div className="space-y-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50/50">
                             <p className="text-sm font-medium text-emerald-800">Confirm & Schedule</p>
                             <div>
@@ -1778,11 +1778,11 @@ export function MayaCarouselLayout({
                     </div>
                     {itemType === "job" && (
                       <div className="mt-3">
-                        {selectedItem.status === "In Review" && onConfirmJob && (
+                        {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && (
                           <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => { setConfirmJobOpen(true); }}
                           >
-                            <CheckCircle className="h-3 w-3 mr-1" /> Confirm Job
+                            <CheckCircle className="h-3 w-3 mr-1" /> {selectedItem.status === "Scheduled" ? "Add Schedule" : "Confirm Job"}
                           </Button>
                         )}
                         {selectedItem.status === "Scheduled" && onStartJob && (

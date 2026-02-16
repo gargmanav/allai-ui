@@ -138,8 +138,8 @@ router.post('/cases/:caseId/confirm-job', requireAuth, requireRole('contractor')
       return res.status(404).json({ error: 'Case not found or not assigned to you' });
     }
 
-    if (caseRecord.status !== 'In Review') {
-      return res.status(400).json({ error: 'Case is not awaiting confirmation' });
+    if (caseRecord.status !== 'In Review' && caseRecord.status !== 'Scheduled') {
+      return res.status(400).json({ error: 'Case is not awaiting confirmation or scheduling' });
     }
 
     const startDate = confirmedStartDate ? new Date(confirmedStartDate) : null;
