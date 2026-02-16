@@ -817,9 +817,11 @@ router.post('/cases/:caseId/assign', requireAuth, requireRole('org_admin'), asyn
       return res.status(404).json({ error: 'Vendor not found in this organization' });
     }
 
+    const contractorUserId = vendor.userId || vendorId;
+
     const [updated] = await db.update(smartCases)
       .set({
-        assignedContractorId: vendorId,
+        assignedContractorId: contractorUserId,
         status: 'In Review',
         updatedAt: new Date(),
       })
