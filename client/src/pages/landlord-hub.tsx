@@ -656,13 +656,13 @@ export default function LandlordHub() {
     [cases]
   );
   const inProgressCases = useMemo(
-    () => cases.filter((c) => ["In Progress"].includes(c.status)),
+    () => cases.filter((c) => ["In Progress", "On Hold"].includes(c.status)),
     [cases]
   );
   const completedCases = useMemo(
     () =>
       cases.filter((c) =>
-        ["Completed", "Resolved"].includes(c.status)
+        ["Completed", "Resolved", "Closed"].includes(c.status)
       ),
     [cases]
   );
@@ -699,8 +699,8 @@ export default function LandlordHub() {
       assigned: ["Assigned", "In Review"],
       quoted: ["Quoted"],
       scheduled: ["Scheduled", "Confirmed"],
-      in_progress: ["In Progress"],
-      completed: ["Completed", "Resolved"],
+      in_progress: ["In Progress", "On Hold"],
+      completed: ["Completed", "Resolved", "Closed"],
     };
 
     if (filterMap[maintenanceFilter]) {
@@ -1927,6 +1927,7 @@ export default function LandlordHub() {
                                 className="h-11 touch-manipulation hover:bg-slate-50 border border-slate-200/60"
                                 variant="outline"
                                 disabled={statusMutation.isPending}
+                                title={`Move to: ${STATUS_CYCLE[(STATUS_CYCLE.indexOf(selectedCase.status as any) + 1) % STATUS_CYCLE.length]}`}
                                 onClick={() => {
                                   const currentIdx = STATUS_CYCLE.indexOf(selectedCase.status as any);
                                   const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length;
@@ -1934,7 +1935,7 @@ export default function LandlordHub() {
                                 }}
                               >
                                 {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LayoutGrid className="h-4 w-4 mr-1" />}
-                                Change Status
+                                Advance Status
                               </Button>
                               {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
                                 <Button
