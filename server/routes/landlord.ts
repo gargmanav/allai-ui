@@ -552,12 +552,23 @@ router.get('/maya/recommendations/:caseId', requireAuth, requireRole('org_admin'
 
     const vendorUserIds = orgVendors.filter(v => v.userId).map(v => v.userId!);
 
+    const linkedContractors = await db.select({
+      contractorUserId: contractorOrgLinks.contractorUserId,
+      status: contractorOrgLinks.status,
+      averageRating: contractorOrgLinks.averageRating,
+      totalJobsCompleted: contractorOrgLinks.totalJobsCompleted,
+    }).from(contractorOrgLinks)
+      .where(and(eq(contractorOrgLinks.orgId, orgId), eq(contractorOrgLinks.status, 'active')));
+
+    const linkedUserIds = linkedContractors.map(lc => lc.contractorUserId);
+    const allContractorUserIds = [...new Set([...vendorUserIds, ...linkedUserIds])];
+
     let profiles: any[] = [];
     let specialtiesMap: Record<string, string[]> = {};
     let orgLinksMap: Record<string, any> = {};
 
-    if (vendorUserIds.length > 0) {
-      profiles = await db.select().from(contractorProfiles).where(inArray(contractorProfiles.userId, vendorUserIds));
+    if (allContractorUserIds.length > 0) {
+      profiles = await db.select().from(contractorProfiles).where(inArray(contractorProfiles.userId, allContractorUserIds));
 
       const userSpecs = await db.select({
         userId: userContractorSpecialties.userId,
@@ -565,7 +576,7 @@ router.get('/maya/recommendations/:caseId', requireAuth, requireRole('org_admin'
       })
         .from(userContractorSpecialties)
         .innerJoin(contractorSpecialties, eq(userContractorSpecialties.specialtyId, contractorSpecialties.id))
-        .where(inArray(userContractorSpecialties.userId, vendorUserIds));
+        .where(inArray(userContractorSpecialties.userId, allContractorUserIds));
 
       for (const s of userSpecs) {
         if (!specialtiesMap[s.userId]) specialtiesMap[s.userId] = [];
@@ -574,7 +585,7 @@ router.get('/maya/recommendations/:caseId', requireAuth, requireRole('org_admin'
 
       const orgLinks = await db.select().from(contractorOrgLinks)
         .where(and(
-          inArray(contractorOrgLinks.contractorUserId, vendorUserIds),
+          inArray(contractorOrgLinks.contractorUserId, allContractorUserIds),
           eq(contractorOrgLinks.orgId, orgId)
         ));
       for (const link of orgLinks) {
@@ -587,31 +598,67 @@ router.get('/maya/recommendations/:caseId', requireAuth, requireRole('org_admin'
       profilesMap[p.userId] = p;
     }
 
+    const linkedUsers = allContractorUserIds.length > 0
+      ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, allContractorUserIds))
+      : [];
+    const usersMap: Record<string, any> = {};
+    for (const u of linkedUsers) {
+      usersMap[u.id] = u;
+    }
+
     const caseCategory = smartCase.category?.toLowerCase() || '';
 
-    const scored = orgVendors.map(vendor => {
+    const categoryRoots: Record<string, string[]> = {
+      'electric': ['electrical', 'electrician', 'electrical & lighting', 'wiring', 'outlet', 'circuit'],
+      'plumb': ['plumbing', 'plumber', 'pipe', 'drain', 'water'],
+      'hvac': ['hvac', 'heating', 'cooling', 'air conditioning', 'furnace'],
+      'appli': ['appliance', 'appliances', 'appliance repair'],
+      'roof': ['roofing', 'roofer', 'roof repair', 'roof'],
+      'paint': ['painting', 'painter', 'paint'],
+      'carpet': ['carpentry', 'carpenter', 'woodwork'],
+      'landscap': ['landscaping', 'lawn', 'garden'],
+      'general': ['general maintenance', 'handyman', 'general'],
+      'garage': ['garage', 'garage door', 'garage doors'],
+    };
+
+    function categoryMatches(cat1: string, cat2: string): boolean {
+      if (!cat1 || !cat2) return false;
+      const c1 = cat1.toLowerCase();
+      const c2 = cat2.toLowerCase();
+      if (c1.includes(c2) || c2.includes(c1)) return true;
+      for (const [, synonyms] of Object.entries(categoryRoots)) {
+        const c1Match = synonyms.some(s => c1.includes(s) || s.includes(c1));
+        const c2Match = synonyms.some(s => c2.includes(s) || s.includes(c2));
+        if (c1Match && c2Match) return true;
+      }
+      return false;
+    }
+
+    const vendorScored = orgVendors.map(vendor => {
       const isTrusted = trustedIds.includes(vendor.id);
       const isFavorite = vendor.userId ? favoriteUserIds.includes(vendor.userId) : false;
       const profile = vendor.userId ? profilesMap[vendor.userId] : null;
       const vendorSpecialties = vendor.userId ? (specialtiesMap[vendor.userId] || []) : [];
       const isAvailable = profile?.isAvailable ?? true;
-      const categoryMatch = caseCategory && vendor.category?.toLowerCase().includes(caseCategory);
+      const categoryMatch = caseCategory && categoryMatches(caseCategory, vendor.category || '');
+      const specialtyMatch = !categoryMatch && caseCategory && vendorSpecialties.some(s => categoryMatches(caseCategory, s));
 
       let score = 0;
       if (involvementMode === 'hands-on') {
-        if (categoryMatch) score += 60;
+        if (categoryMatch || specialtyMatch) score += 60;
         if (isAvailable) score += 40;
         if (isTrusted) score += 50;
         if (isFavorite) score += 30;
       } else if (involvementMode === 'balanced') {
         if (isTrusted) score += 100;
         if (isFavorite) score += 50;
-        if (categoryMatch) score += 30;
+        if (categoryMatch || specialtyMatch) score += 30;
         if (isAvailable) score += 20;
       } else {
         if (isTrusted) score += 200;
         if (isFavorite) score += 150;
-        if (categoryMatch) score += 30;
+        if (categoryMatch || specialtyMatch) score += 30;
         if (isAvailable) score += 20;
       }
 
@@ -621,11 +668,12 @@ router.get('/maya/recommendations/:caseId', requireAuth, requireRole('org_admin'
       if (isTrusted && isFavorite) mayaNote = 'Trusted & favorite contractor';
       else if (isTrusted) mayaNote = 'Trusted contractor per your policy';
       else if (isFavorite) mayaNote = 'One of your favorite contractors';
-      else if (categoryMatch) mayaNote = `Specializes in ${vendor.category}`;
+      else if (categoryMatch || specialtyMatch) mayaNote = `Specializes in ${vendor.category || vendorSpecialties.join(', ')}`;
       else if (isAvailable) mayaNote = 'Currently available';
 
       return {
         id: vendor.id,
+        userId: vendor.userId,
         name: vendor.name,
         category: vendor.category,
         rating: vendor.rating ? parseFloat(vendor.rating) : null,
@@ -639,6 +687,58 @@ router.get('/maya/recommendations/:caseId', requireAuth, requireRole('org_admin'
         score,
       };
     });
+
+    const vendorLinkedUserIds = new Set(vendorUserIds);
+    const extraLinked = linkedContractors
+      .filter(lc => !vendorLinkedUserIds.has(lc.contractorUserId))
+      .map(lc => {
+        const profile = profilesMap[lc.contractorUserId];
+        const userInfo = usersMap[lc.contractorUserId];
+        const contSpecialties = specialtiesMap[lc.contractorUserId] || [];
+        const isAvailable = profile?.isAvailable ?? true;
+        const isFavorite = favoriteUserIds.includes(lc.contractorUserId);
+        const specialtyMatch = caseCategory && contSpecialties.some(s => categoryMatches(caseCategory, s));
+        const name = userInfo ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Contractor' : 'Contractor';
+
+        let score = 0;
+        if (involvementMode === 'hands-on') {
+          if (specialtyMatch) score += 60;
+          if (isAvailable) score += 40;
+          if (isFavorite) score += 30;
+        } else if (involvementMode === 'balanced') {
+          if (isFavorite) score += 50;
+          if (specialtyMatch) score += 30;
+          if (isAvailable) score += 20;
+        } else {
+          if (isFavorite) score += 150;
+          if (specialtyMatch) score += 30;
+          if (isAvailable) score += 20;
+        }
+
+        let mayaNote = '';
+        if (isFavorite) mayaNote = 'One of your favorite contractors';
+        else if (specialtyMatch) mayaNote = `Specializes in ${contSpecialties.join(', ')}`;
+        else if (isAvailable) mayaNote = 'Currently available';
+        else mayaNote = 'Linked contractor';
+
+        return {
+          id: lc.contractorUserId,
+          userId: lc.contractorUserId,
+          name,
+          category: contSpecialties[0] || null,
+          rating: lc.averageRating ? parseFloat(lc.averageRating) : null,
+          responseTimeHours: profile?.responseTimeHours ?? 24,
+          emergencyAvailable: profile?.emergencyAvailable ?? false,
+          isPreferred: false,
+          isTrusted: false,
+          isFavorite,
+          specialties: contSpecialties,
+          mayaNote,
+          score,
+        };
+      });
+
+    const scored = [...vendorScored, ...extraLinked];
 
     let filtered = scored;
     if (involvementMode === 'hands-off') {
@@ -688,9 +788,30 @@ router.post('/cases/:caseId/assign', requireAuth, requireRole('org_admin'), asyn
       return res.status(400).json({ error: 'Case is already assigned' });
     }
 
-    const vendor = await db.query.vendors.findFirst({
+    let vendor = await db.query.vendors.findFirst({
       where: and(eq(vendors.id, vendorId), eq(vendors.orgId, orgId)),
     });
+
+    if (!vendor) {
+      const linkedContractor = await db.query.contractorOrgLinks.findFirst({
+        where: and(eq(contractorOrgLinks.contractorUserId, vendorId), eq(contractorOrgLinks.orgId, orgId)),
+      });
+      if (linkedContractor) {
+        const contractorUser = await db.query.users.findFirst({ where: eq(users.id, vendorId) });
+        const contSpecs = await db.select({ name: contractorSpecialties.name })
+          .from(userContractorSpecialties)
+          .innerJoin(contractorSpecialties, eq(userContractorSpecialties.specialtyId, contractorSpecialties.id))
+          .where(eq(userContractorSpecialties.userId, vendorId));
+        const [newVendor] = await db.insert(vendors).values({
+          orgId: orgId,
+          userId: vendorId,
+          name: contractorUser ? `${contractorUser.firstName || ''} ${contractorUser.lastName || ''}`.trim() || 'Contractor' : 'Contractor',
+          category: contSpecs[0]?.name || 'General',
+          status: 'active',
+        }).returning();
+        vendor = newVendor;
+      }
+    }
 
     if (!vendor) {
       return res.status(404).json({ error: 'Vendor not found in this organization' });
