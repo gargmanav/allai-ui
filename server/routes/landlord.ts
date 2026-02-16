@@ -66,7 +66,25 @@ router.get('/cases', requireAuth, requireRole('org_admin'), async (req: Authenti
         createdAt: caseMedia.createdAt,
       }).from(caseMedia).where(eq(caseMedia.caseId, c.id));
       const mediaWithUrls = mediaItems.map(m => ({ ...m, url: `/api/media/${m.id}` }));
-      return { ...c, media: mediaWithUrls };
+
+      let assignedContractorName: string | null = null;
+      if (c.assignedContractorId) {
+        const vendor = await db.query.vendors.findFirst({
+          where: and(eq(vendors.userId, c.assignedContractorId), eq(vendors.orgId, orgId)),
+        });
+        if (vendor) {
+          assignedContractorName = vendor.name;
+        } else {
+          const contractorUser = await db.query.users.findFirst({
+            where: eq(users.id, c.assignedContractorId),
+          });
+          if (contractorUser) {
+            assignedContractorName = `${contractorUser.firstName || ''} ${contractorUser.lastName || ''}`.trim() || contractorUser.email || 'Contractor';
+          }
+        }
+      }
+
+      return { ...c, media: mediaWithUrls, assignedContractorName };
     }));
 
     res.json(casesWithMedia);

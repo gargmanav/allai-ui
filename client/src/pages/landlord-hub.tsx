@@ -1859,8 +1859,8 @@ export default function LandlordHub() {
                               <span className={`text-[10px] mt-1 font-semibold leading-tight text-center max-w-[80px] truncate ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
                                 {shortTitle || "Issue"}
                               </span>
-                              <span className="text-[9px] text-muted-foreground truncate max-w-[80px]">
-                                {[tenantShort, unitShort].filter(Boolean).join(" · ") || "Unassigned"}
+                              <span className={`text-[9px] truncate max-w-[80px] ${c.assignedContractorName ? "text-emerald-600 font-medium" : "text-muted-foreground"}`}>
+                                {c.assignedContractorName || [tenantShort, unitShort].filter(Boolean).join(" · ") || "Unassigned"}
                               </span>
                             </button>
                           );
