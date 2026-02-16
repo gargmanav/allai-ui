@@ -540,7 +540,10 @@ export default function LandlordHub() {
     queryKey: ["/api/landlord/maya/recommendations", selectedCaseId],
     enabled: !!selectedCaseId && !!user,
     queryFn: async () => {
-      const res = await fetch(`/api/landlord/maya/recommendations/${selectedCaseId}`);
+      const headers: Record<string, string> = {};
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) headers["Authorization"] = `Bearer ${refreshToken}`;
+      const res = await fetch(`/api/landlord/maya/recommendations/${selectedCaseId}`, { headers, credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch recommendations");
       return res.json();
     },
@@ -550,7 +553,10 @@ export default function LandlordHub() {
     queryKey: ["/api/landlord/cases", selectedCaseId, "events"],
     enabled: !!selectedCaseId && !!user,
     queryFn: async () => {
-      const res = await fetch(`/api/landlord/cases/${selectedCaseId}/events`);
+      const headers: Record<string, string> = {};
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) headers["Authorization"] = `Bearer ${refreshToken}`;
+      const res = await fetch(`/api/landlord/cases/${selectedCaseId}/events`, { headers, credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch events");
       return res.json();
     },
