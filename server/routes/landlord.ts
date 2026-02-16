@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/rbac';
 import { db } from '../db';
-import { properties, smartCases, tenants, ownershipEntities, units, transactions, quotes, quoteLineItems, quoteCounterProposals, users, insertQuoteCounterProposalSchema, vendors, contractorProfiles, contractorOrgLinks, favoriteContractors, userContractorSpecialties, contractorSpecialties, approvalPolicies, caseEvents } from '@shared/schema';
+import { properties, smartCases, tenants, ownershipEntities, units, transactions, quotes, quoteLineItems, quoteCounterProposals, users, insertQuoteCounterProposalSchema, vendors, contractorProfiles, contractorOrgLinks, favoriteContractors, userContractorSpecialties, contractorSpecialties, approvalPolicies, caseEvents, caseMedia } from '@shared/schema';
 import { eq, and, ne, gte, desc, count, isNull, inArray, sql } from 'drizzle-orm';
 import { notificationService } from '../notificationService.js';
 
@@ -57,7 +57,19 @@ router.get('/cases', requireAuth, requireRole('org_admin'), async (req: Authenti
       limit: 50,
     });
 
-    res.json(cases);
+    const casesWithMedia = await Promise.all(cases.map(async (c) => {
+      const mediaItems = await db.select({
+        id: caseMedia.id,
+        caseId: caseMedia.caseId,
+        type: caseMedia.type,
+        caption: caseMedia.caption,
+        createdAt: caseMedia.createdAt,
+      }).from(caseMedia).where(eq(caseMedia.caseId, c.id));
+      const mediaWithUrls = mediaItems.map(m => ({ ...m, url: `/api/media/${m.id}` }));
+      return { ...c, media: mediaWithUrls };
+    }));
+
+    res.json(casesWithMedia);
   } catch (error) {
     console.error('Error fetching landlord cases:', error);
     res.status(500).json({ error: 'Failed to fetch cases' });

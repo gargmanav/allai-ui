@@ -2104,9 +2104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }));
       
-      res.set('Content-Type', 'application/json');
-      res.set('Cache-Control', 'no-store');
-      res.send(JSON.stringify(casesWithExtras));
+      res.json(casesWithExtras);
     } catch (error) {
       console.error("Error fetching cases:", error);
       res.status(500).json({ message: "Failed to fetch cases" });
@@ -2149,9 +2147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { ...c, media: mediaWithUrls };
       }));
       
-      res.set('Content-Type', 'application/json');
-      res.set('Cache-Control', 'no-store');
-      res.send(JSON.stringify(casesWithMedia));
+      res.json(casesWithMedia);
     } catch (error) {
       console.error("Error fetching tenant cases:", error);
       res.status(500).json({ message: "Failed to fetch tenant cases" });
@@ -4955,9 +4951,7 @@ Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{
         };
       }));
 
-      res.set('Content-Type', 'application/json');
-      res.set('Cache-Control', 'no-store');
-      res.send(JSON.stringify(enrichedCases));
+      res.json(enrichedCases);
     } catch (error) {
       console.error("Error fetching contractor cases:", error);
       res.status(500).json({ message: "Failed to fetch contractor cases" });
