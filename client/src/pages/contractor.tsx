@@ -224,7 +224,7 @@ export default function Contractor() {
     }
   ]);
 
-  const firstName = user?.firstName || user?.username?.split("@")[0] || "John";
+  const firstName = user?.firstName || (user?.email ? user.email.split("@")[0] : null) || "Contractor";
 
   // Fetch real data from APIs - both direct assignments and marketplace offers
   const { data: cases = [], isLoading: casesLoading } = useQuery<ContractorCase[]>({
