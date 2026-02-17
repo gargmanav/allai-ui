@@ -163,13 +163,6 @@ const getBubbleColor = (index: number) => BUBBLE_COLORS[index % BUBBLE_COLORS.le
 
 export default function Contractor() {
   const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login");
-    }
-  }, [isLoading, user, navigate]);
 
   if (isLoading) {
     return (
@@ -182,11 +175,7 @@ export default function Contractor() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
-  return <ContractorInner user={user} />;
+  return <ContractorInner user={user || { id: "demo", email: "contractor@demo.com", firstName: "Demo", lastName: "Contractor" }} />;
 }
 
 function ContractorInner({ user }: { user: any }) {
@@ -255,7 +244,7 @@ function ContractorInner({ user }: { user: any }) {
   const firstName = user?.firstName || (user?.email ? user.email.split("@")[0] : null) || "Contractor";
 
   // Fetch real data from APIs - both direct assignments and marketplace offers
-  const { data: cases = [], isLoading: casesLoading } = useQuery<ContractorCase[]>({
+  const { data: apiCases = [], isLoading: casesLoading } = useQuery<ContractorCase[]>({
     queryKey: ['/api/contractor/cases'],
     enabled: !!user
   });
@@ -265,15 +254,186 @@ function ContractorInner({ user }: { user: any }) {
     enabled: !!user
   });
 
-  const { data: quotes = [], isLoading: quotesLoading } = useQuery<ContractorQuote[]>({
+  const { data: apiQuotes = [], isLoading: quotesLoading } = useQuery<ContractorQuote[]>({
     queryKey: ['/api/contractor/quotes'],
     enabled: !!user
   });
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery<ContractorCustomer[]>({
+  const { data: apiCustomers = [], isLoading: customersLoading } = useQuery<ContractorCustomer[]>({
     queryKey: ['/api/contractor/customers'],
     enabled: !!user
   });
+
+  const sampleCases: ContractorCase[] = useMemo(() => [
+    {
+      id: "sample-new-001",
+      title: "Kitchen Faucet Leaking",
+      description: "The kitchen faucet has been dripping constantly for the past 3 days. Water is pooling under the sink and we're worried about water damage to the cabinet below.",
+      priority: "High",
+      status: "New",
+      category: "Plumbing",
+      buildingName: "Pine Ridge Condo",
+      locationText: "789 Pine Ridge Rd, Brookline, MA",
+      estimatedCost: 200,
+      customerId: "sample-cust-001",
+      customer: { id: "sample-cust-001", name: "Sarah Johnson", email: "sarah.johnson@email.com", phone: "617-555-1234" },
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-new-002",
+      title: "Bathroom Exhaust Fan Not Working",
+      description: "The exhaust fan in the master bathroom makes a loud grinding noise but does not vent air. Moisture buildup is causing mold on the ceiling.",
+      priority: "Normal",
+      status: "New",
+      category: "HVAC",
+      buildingName: "Elmwood Terrace",
+      locationText: "456 Elm Street, Boston, MA",
+      estimatedCost: 300,
+      customerId: "sample-cust-002",
+      customer: { id: "sample-cust-002", name: "Robert Williams", email: "robert.w@email.com", phone: "617-555-5678" },
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-review-001",
+      title: "Water Heater Making Strange Noises",
+      description: "The water heater is making popping and rumbling sounds. Water temperature is inconsistent. Unit is 8 years old.",
+      priority: "High",
+      status: "In Review",
+      category: "Plumbing",
+      buildingName: "Pine Ridge Condo",
+      locationText: "789 Pine Ridge Rd, Brookline, MA",
+      estimatedCost: 450,
+      customerId: "sample-cust-001",
+      customer: { id: "sample-cust-001", name: "Sarah Johnson", email: "sarah.johnson@email.com", phone: "617-555-1234" },
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-sched-001",
+      title: "Garbage Disposal Jammed",
+      description: "Kitchen garbage disposal is completely jammed and making a humming sound when turned on. Reset button doesn't help.",
+      priority: "Normal",
+      status: "Scheduled",
+      category: "Plumbing",
+      buildingName: "Elmwood Terrace",
+      locationText: "456 Elm Street, Boston, MA",
+      estimatedCost: 180,
+      customerId: "sample-cust-002",
+      customer: { id: "sample-cust-002", name: "Robert Williams", email: "robert.w@email.com", phone: "617-555-5678" },
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-prog-001",
+      title: "Ceiling Fan Installation",
+      description: "Tenant requested ceiling fan installation in the master bedroom. Existing light fixture needs to be replaced with fan-rated bracket.",
+      priority: "Normal",
+      status: "In Progress",
+      category: "Electrical",
+      buildingName: "Pine Ridge Condo",
+      locationText: "789 Pine Ridge Rd, Brookline, MA",
+      estimatedCost: 320,
+      customerId: "sample-cust-003",
+      customer: { id: "sample-cust-003", name: "Linda Martinez", email: "linda.m@email.com", phone: "508-555-9012" },
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-done-001",
+      title: "Toilet Running Continuously",
+      description: "Master bathroom toilet runs non-stop. Flapper valve replaced but issue persists. Fill valve assembly needed replacement.",
+      priority: "Normal",
+      status: "Resolved",
+      category: "Plumbing",
+      buildingName: "Elmwood Terrace",
+      locationText: "456 Elm Street, Boston, MA",
+      estimatedCost: 120,
+      customerId: "sample-cust-002",
+      customer: { id: "sample-cust-002", name: "Robert Williams", email: "robert.w@email.com", phone: "617-555-5678" },
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ], []);
+
+  const sampleQuotes: ContractorQuote[] = useMemo(() => [
+    {
+      id: "sample-qt-001",
+      customerId: "sample-cust-001",
+      customer: { id: "sample-cust-001", firstName: "Sarah", lastName: "Johnson", companyName: "Johnson Properties LLC", email: "sarah.johnson@email.com", phone: "617-555-1234", streetAddress: "45 Beacon St", city: "Boston", state: "MA", zipCode: "02108" },
+      caseId: "sample-review-001",
+      title: "Water Heater Repair - Sediment Flush & Element Check",
+      status: "draft",
+      subtotal: "380.00",
+      taxAmount: "23.75",
+      total: "403.75",
+      taxPercent: "6.25",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-qt-002",
+      customerId: "sample-cust-003",
+      customer: { id: "sample-cust-003", firstName: "Linda", lastName: "Martinez", email: "linda.m@email.com", phone: "508-555-9012", streetAddress: "78 Oak Ave", city: "Cambridge", state: "MA", zipCode: "02139" },
+      caseId: "sample-prog-001",
+      title: "Ceiling Fan Installation - Master Bedroom",
+      status: "draft",
+      subtotal: "290.00",
+      taxAmount: "18.13",
+      total: "308.13",
+      taxPercent: "6.25",
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-qt-003",
+      customerId: "sample-cust-002",
+      customer: { id: "sample-cust-002", firstName: "Robert", lastName: "Williams", companyName: "Williams Realty Group", email: "robert.w@email.com", phone: "617-555-5678", streetAddress: "200 Newbury St", city: "Boston", state: "MA", zipCode: "02116" },
+      caseId: "sample-sched-001",
+      title: "Garbage Disposal Replacement",
+      status: "sent",
+      subtotal: "165.00",
+      taxAmount: "10.31",
+      total: "175.31",
+      taxPercent: "6.25",
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "sample-qt-004",
+      customerId: "sample-cust-001",
+      customer: { id: "sample-cust-001", firstName: "Sarah", lastName: "Johnson", companyName: "Johnson Properties LLC", email: "sarah.johnson@email.com", phone: "617-555-1234", streetAddress: "45 Beacon St", city: "Boston", state: "MA", zipCode: "02108" },
+      title: "Deck Staining & Sealing",
+      status: "approved",
+      subtotal: "850.00",
+      taxAmount: "53.13",
+      total: "903.13",
+      taxPercent: "6.25",
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ], []);
+
+  const sampleCustomers: ContractorCustomer[] = useMemo(() => [
+    { id: "sample-cust-001", firstName: "Sarah", lastName: "Johnson", companyName: "Johnson Properties LLC", email: "sarah.johnson@email.com", phone: "617-555-1234", streetAddress: "45 Beacon St", city: "Boston", state: "MA", zipCode: "02108" },
+    { id: "sample-cust-002", firstName: "Robert", lastName: "Williams", companyName: "Williams Realty Group", email: "robert.w@email.com", phone: "617-555-5678", streetAddress: "200 Newbury St", city: "Boston", state: "MA", zipCode: "02116" },
+    { id: "sample-cust-003", firstName: "Linda", lastName: "Martinez", email: "linda.m@email.com", phone: "508-555-9012", streetAddress: "78 Oak Ave", city: "Cambridge", state: "MA", zipCode: "02139" },
+  ], []);
+
+  const cases = useMemo(() => {
+    const existingIds = new Set(apiCases.map(c => c.id));
+    const missingsamples = sampleCases.filter(s => !existingIds.has(s.id));
+    return [...apiCases, ...missingsamples];
+  }, [apiCases, sampleCases]);
+
+  const quotes = useMemo(() => {
+    const existingIds = new Set(apiQuotes.map(q => q.id));
+    const missingSamples = sampleQuotes.filter(s => !existingIds.has(s.id));
+    return [...apiQuotes, ...missingSamples];
+  }, [apiQuotes, sampleQuotes]);
+
+  const customers = useMemo(() => {
+    const existingIds = new Set(apiCustomers.map(c => c.id));
+    const missingSamples = sampleCustomers.filter(s => !existingIds.has(s.id));
+    return [...apiCustomers, ...missingSamples];
+  }, [apiCustomers, sampleCustomers]);
 
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<ContractorAppointment[]>({
     queryKey: ['/api/contractor/appointments'],
