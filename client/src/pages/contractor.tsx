@@ -162,12 +162,40 @@ const getInitials = (name: string) => {
 const getBubbleColor = (index: number) => BUBBLE_COLORS[index % BUBBLE_COLORS.length];
 
 export default function Contractor() {
-  const { user, logout } = useAuth();
+  const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/login");
+    }
+  }, [isLoading, user, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AnimatedPyramid className="h-12 w-12 mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return <ContractorInner user={user} />;
+}
+
+function ContractorInner({ user }: { user: any }) {
+  const { logout } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  
+
   const [view, setView] = useState<ViewState>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlView = params.get("view");
