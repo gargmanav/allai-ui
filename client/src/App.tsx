@@ -1,0 +1,168 @@
+import { Switch, Route, Redirect } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import { DevModeProvider } from "@/contexts/DevModeContext";
+import Landing from "@/pages/landing";
+import LandingPage from "@/pages/LandingPage";
+import Login from "@/pages/Login";
+import VerifyEmail from "@/pages/VerifyEmail";
+import ContractorSignup from "@/pages/ContractorSignup";
+import PropertyOwnerSignup from "@/pages/PropertyOwnerSignup";
+import ContractorMarketplaceDashboard from "@/pages/ContractorMarketplaceDashboard";
+import Dashboard from "@/pages/dashboard";
+import Properties from "@/pages/properties";
+import Entities from "@/pages/entities";
+import Portfolio from "@/pages/portfolio";
+import Financial from "@/pages/financial";
+import EntityPerformance from "@/pages/entity-performance";
+import PropertyPerformance from "@/pages/property-performance";
+import Tenants from "@/pages/tenants";
+import Maintenance from "@/pages/maintenance";
+import TenantRequest from "@/pages/tenant-request";
+import ContractorDashboard from "@/pages/contractor-dashboard";
+import ContractorAvailability from "@/pages/contractor-availability";
+import ContractorSchedule from "@/pages/contractor-schedule";
+import AdminDashboard from "@/pages/admin-dashboard";
+import AdminCalendar from "@/pages/admin-calendar";
+import TenantDashboard from "@/pages/tenant-dashboard";
+import Expenses from "@/pages/expenses";
+import Revenue from "@/pages/revenue";
+import Tax from "@/pages/tax";
+import Reminders from "@/pages/reminders";
+import Categories from "@/pages/categories";
+import Messages from "@/pages/messages";
+import ApprovalSettings from "@/pages/approval-settings";
+import PromptTester from "@/pages/prompt-tester";
+import MayaTester from "@/pages/maya-tester";
+import Inbox from "@/pages/inbox";
+import ChannelSettings from "@/pages/channel-settings";
+import Customers from "@/pages/customers";
+import Quotes from "@/pages/quotes";
+import QuoteForm from "@/pages/quote-form";
+import QuoteApproval from "@/pages/quote-approval";
+import FavoriteContractors from "@/pages/favorite-contractors";
+import Homeowner from "@/pages/homeowner";
+import Contractor from "@/pages/contractor";
+import LandlordHub from "@/pages/landlord-hub";
+import TenantHub from "@/pages/tenant-hub";
+import NotFound from "@/pages/not-found";
+
+function RoleBasedHome() {
+  const { user } = useAuth();
+  
+  // Redirect based on authenticated user's actual role
+  if (user?.primaryRole === 'tenant') {
+    return <Redirect to="/tenant-hub" />;
+  } else if (user?.primaryRole === 'contractor') {
+    return <Redirect to="/contractor" />;
+  } else if (user?.primaryRole === 'platform_super_admin') {
+    return <Redirect to="/admin-dashboard" />;
+  }
+  
+  // Property owners go to simplified homeowner view
+  if (user?.primaryRole === 'property_owner') {
+    return <Redirect to="/homeowner" />;
+  }
+  
+  // Landlords go to landlord hub
+  return <Redirect to="/landlord" />;
+}
+
+function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Switch>
+      {!isAuthenticated ? (
+        <>
+          <Route path="/" component={LandingPage} />
+          <Route path="/landing" component={Landing} />
+          <Route path="/login" component={Login} />
+          <Route path="/property-owner-signup" component={PropertyOwnerSignup} />
+          <Route path="/contractor-signup" component={ContractorSignup} />
+          <Route path="/auth/verify-email" component={VerifyEmail} />
+          <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
+          <Route component={LandingPage} />
+        </>
+      ) : (
+        <>
+          <Route path="/" component={RoleBasedHome} />
+          <Route path="/portfolio" component={Portfolio} />
+          <Route path="/financial" component={Financial} />
+          <Route path="/properties" component={Properties} />
+          <Route path="/properties/:id/performance" component={PropertyPerformance} />
+          <Route path="/entities" component={Entities} />
+          <Route path="/entities/:id/performance" component={EntityPerformance} />
+          <Route path="/tenants" component={Tenants} />
+          <Route path="/maintenance" component={Maintenance} />
+          <Route path="/tenant-request" component={TenantRequest} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/tenant-dashboard" component={TenantDashboard} />
+          <Route path="/contractor-dashboard" component={ContractorDashboard} />
+          <Route path="/contractor-marketplace-dashboard" component={ContractorMarketplaceDashboard} />
+          <Route path="/contractor-availability" component={ContractorAvailability} />
+          <Route path="/contractor-schedule" component={AdminCalendar} />
+          <Route path="/customers" component={Customers} />
+          <Route path="/quotes" component={Quotes} />
+          <Route path="/quotes/new" component={QuoteForm} />
+          <Route path="/quotes/:id" component={QuoteForm} />
+          <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
+          <Route path="/favorite-contractors" component={FavoriteContractors} />
+          <Route path="/homeowner" component={Homeowner} />
+          <Route path="/tenant-hub" component={TenantHub} />
+          <Route path="/contractor" component={Contractor} />
+          <Route path="/landlord" component={LandlordHub} />
+          <Route path="/admin-dashboard" component={AdminDashboard} />
+          <Route path="/admin-calendar" component={AdminCalendar} />
+          <Route path="/expenses" component={Expenses} />
+          <Route path="/revenue" component={Revenue} />
+          <Route path="/tax" component={Tax} />
+          <Route path="/reminders" component={Reminders} />
+          <Route path="/categories" component={Categories} />
+          <Route path="/messages" component={Messages} />
+          <Route path="/approval-settings" component={ApprovalSettings} />
+          <Route path="/prompt-tester" component={PromptTester} />
+          <Route path="/maya-tester" component={MayaTester} />
+          <Route path="/inbox" component={Inbox} />
+          <Route path="/channel-settings" component={ChannelSettings} />
+          <Route component={NotFound} />
+        </>
+      )}
+    </Switch>
+  );
+}
+
+function AppWithProviders() {
+  return (
+    <DevModeProvider>
+      <Toaster />
+      <Router />
+    </DevModeProvider>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AppWithProviders />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

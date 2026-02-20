@@ -1,0 +1,8998 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { requireAuth, AuthenticatedRequest } from "./middleware/rbac";
+import { ObjectStorageService } from "./objectStorage";
+import { db } from "./db";
+import { users, organizationMembers, vendors, counterProposals, tenants, smartCases, transactions as transactionsTable, caseMedia } from "@shared/schema";
+import { z } from "zod";
+import authRouter from "./routes/auth";
+import contractorRouter from "./routes/contractor";
+import publicQuotesRouter from "./routes/public-quotes";
+import adminRouter from "./routes/admin";
+import landlordRouter from "./routes/landlord";
+import landlordInvitesRouter from "./routes/landlord-invites";
+import propertyOwnerRouter from "./routes/property-owner";
+import propertyOwnerAuthRouter from "./routes/property-owner-auth";
+import tenantRouter from "./routes/tenant";
+import tenantAuthRouter from "./routes/tenant-auth";
+import messagingRouter from "./routes/messaging";
+import { eq, and, or, desc, sql } from "drizzle-orm";
+import { 
+  insertOrganizationSchema,
+  insertOwnershipEntitySchema,
+  insertPropertySchema,
+  insertUnitSchema,
+  insertTenantGroupSchema,
+  insertTenantSchema,
+  insertLeaseSchema,
+  insertAssetSchema,
+  insertSmartCaseSchema,
+  insertVendorSchema,
+  insertTransactionSchema,
+  insertExpenseSchema,
+  insertReminderSchema,
+  insertContractorAvailabilitySchema,
+  insertContractorBlackoutSchema,
+  insertAppointmentSchema,
+  insertUserCategorySchema,
+  insertUserCategoryMemberSchema,
+  insertMessageThreadSchema,
+  insertChatMessageSchema,
+  insertEquipmentSchema,
+  insertTeamSchema,
+  insertScheduledJobSchema,
+} from "@shared/schema";
+import { EQUIPMENT_CATALOG, calculateReplacementYear, getEquipmentDefinition } from "./equipment-catalog";
+import { PredictiveAnalyticsEngine } from "./predictiveAnalyticsEngine";
+import OpenAI from "openai";
+import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { parseISO } from 'date-fns';
+import { parse as parseDate } from 'date-fns';
+
+// Revenue schema for API validation
+const insertRevenueSchema = insertTransactionSchema;
+import { startCronJobs } from "./cronJobs";
+
+// Timezone mapper: US state codes to IANA timezone identifiers
+// Note: Some states span multiple timezones. We use the majority timezone for simplicity.
+// For more precise handling, consider using city/ZIP code or storing timezone on property.
+function getTimezoneFromState(stateCode: string): string {
+  const timezoneMap: Record<string, string> = {
+    // Eastern Time
+    'CT': 'America/New_York', 'DE': 'America/New_York', 'FL': 'America/New_York',
+    'GA': 'America/New_York', 'ME': 'America/New_York', 'MD': 'America/New_York',
+    'MA': 'America/New_York', 'MI': 'America/New_York', 'NH': 'America/New_York',
+    'NJ': 'America/New_York', 'NY': 'America/New_York', 'NC': 'America/New_York',
+    'OH': 'America/New_York', 'PA': 'America/New_York', 'RI': 'America/New_York',
+    'SC': 'America/New_York', 'VT': 'America/New_York', 'VA': 'America/New_York',
+    'WV': 'America/New_York', 'DC': 'America/New_York',
+    
+    // Central Time (Note: IN, KY, TN have mixed zones - using majority)
+    'AL': 'America/Chicago', 'AR': 'America/Chicago', 'IL': 'America/Chicago',
+    'IN': 'America/Indiana/Indianapolis', 'IA': 'America/Chicago', 'KS': 'America/Chicago',
+    'KY': 'America/Kentucky/Louisville', 'LA': 'America/Chicago', 'MN': 'America/Chicago',
+    'MS': 'America/Chicago', 'MO': 'America/Chicago', 'NE': 'America/Chicago',
+    'ND': 'America/North_Dakota/Center', 'OK': 'America/Chicago', 'SD': 'America/Chicago',
+    'TN': 'America/Chicago', 'TX': 'America/Chicago', 'WI': 'America/Chicago',
+    
+    // Mountain Time
+    'CO': 'America/Denver', 'ID': 'America/Boise', 'MT': 'America/Denver',
+    'NM': 'America/Denver', 'UT': 'America/Denver', 'WY': 'America/Denver',
+    
+    // Mountain Time (no DST)
+    'AZ': 'America/Phoenix',
+    
+    // Pacific Time
+    'CA': 'America/Los_Angeles', 'NV': 'America/Los_Angeles',
+    'OR': 'America/Los_Angeles', 'WA': 'America/Los_Angeles',
+    
+    // Alaska Time
+    'AK': 'America/Anchorage',
+    
+    // Hawaii Time
+    'HI': 'Pacific/Honolulu',
+  };
+  
+  const timezone = timezoneMap[stateCode.toUpperCase()];
+  if (!timezone) {
+    console.warn(`⚠️ Unknown state code: ${stateCode}, defaulting to America/New_York`);
+    return 'America/New_York';
+  }
+  return timezone;
+}
+
+// Helper function to create equipment reminders
+async function createEquipmentReminders({
+  org,
+  property,
+  unit,
+  unitData,
+  storage
+}: {
+  org: any;
+  property: any;
+  unit: any;
+  unitData: any;
+  storage: any;
+}) {
+  const reminderPromises = [];
+  
+  // HVAC Reminder
+  if (unitData.hvacReminder && unitData.hvacYear && unitData.hvacLifetime) {
+    const replacementYear = unitData.hvacYear + unitData.hvacLifetime;
+    const reminderDate = new Date(replacementYear - 1, 0, 1); // 1 year before
+    
+    const reminderData = {
+      orgId: org.id,
+      scope: "property" as const,
+      scopeId: property.id,
+      title: `HVAC System Replacement - ${property.address}`,
+      description: `HVAC system installed in ${unitData.hvacYear} (${unitData.hvacBrand || 'Unknown'} ${unitData.hvacModel || ''}) is approaching its expected lifetime of ${unitData.hvacLifetime} years.`,
+      type: "maintenance" as const,
+      dueAt: reminderDate,
+      leadDays: 365,
+      channel: "inapp" as const,
+      status: "Pending" as const,
+    };
+    
+    reminderPromises.push(storage.createReminder(reminderData));
+  }
+  
+  // Water Heater Reminder
+  if (unitData.waterHeaterReminder && unitData.waterHeaterYear && unitData.waterHeaterLifetime) {
+    const replacementYear = unitData.waterHeaterYear + unitData.waterHeaterLifetime;
+    const reminderDate = new Date(replacementYear - 1, 0, 1); // 1 year before
+    
+    const reminderData = {
+      orgId: org.id,
+      scope: "property" as const,
+      scopeId: property.id,
+      title: `Water Heater Replacement - ${property.address}`,
+      description: `Water heater installed in ${unitData.waterHeaterYear} (${unitData.waterHeaterBrand || 'Unknown'} ${unitData.waterHeaterModel || ''}) is approaching its expected lifetime of ${unitData.waterHeaterLifetime} years.`,
+      type: "maintenance" as const,
+      dueAt: reminderDate,
+      leadDays: 365,
+      channel: "inapp" as const,
+      status: "Pending" as const,
+    };
+    
+    reminderPromises.push(storage.createReminder(reminderData));
+  }
+  
+  // Custom Appliance Reminders
+  if (unitData.appliances) {
+    for (const appliance of unitData.appliances) {
+      if (appliance.alertBeforeExpiry && appliance.year && appliance.expectedLifetime) {
+        const replacementYear = appliance.year + appliance.expectedLifetime;
+        const reminderDate = new Date(replacementYear, 0, 1);
+        reminderDate.setMonth(reminderDate.getMonth() - appliance.alertBeforeExpiry);
+        
+        const reminderData = {
+          orgId: org.id,
+          scope: "unit" as const,
+          scopeId: unit.id,
+          title: `${appliance.name} Replacement - ${property.address}`,
+          description: `${appliance.name} installed in ${appliance.year} (${appliance.manufacturer || 'Unknown'} ${appliance.model || ''}) is approaching its expected lifetime of ${appliance.expectedLifetime} years.`,
+          type: "maintenance" as const,
+          dueAt: reminderDate,
+          leadDays: appliance.alertBeforeExpiry * 30,
+          channel: "inapp" as const,
+          status: "Pending" as const,
+        };
+        
+        reminderPromises.push(storage.createReminder(reminderData));
+      }
+    }
+  }
+  
+  // Create all reminders
+  await Promise.all(reminderPromises);
+}
+
+// Helper function to create recurring mortgage expense
+async function createMortgageExpense({
+  org,
+  property,
+  monthlyMortgage,
+  mortgageStartDate,
+  mortgageType = "Primary",
+  storage
+}: {
+  org: any;
+  property: any;
+  monthlyMortgage: string;
+  mortgageStartDate?: Date;
+  mortgageType?: string;
+  storage: any;
+}) {
+  try {
+    // Use mortgageStartDate if provided, otherwise default to next month from today
+    let firstPaymentDate;
+    if (mortgageStartDate) {
+      firstPaymentDate = new Date(mortgageStartDate);
+    } else {
+      // Default to first day of next month
+      firstPaymentDate = new Date();
+      firstPaymentDate.setMonth(firstPaymentDate.getMonth() + 1);
+      firstPaymentDate.setDate(1);
+    }
+    
+    // Set end date to sale date if property was sold, otherwise 30 years from first payment
+    const endDate = property.saleDate ? new Date(property.saleDate) : new Date(firstPaymentDate);
+    if (!property.saleDate) {
+      endDate.setFullYear(endDate.getFullYear() + 30); // 30 years if no sale date
+    }
+    
+    const mortgageExpenseData = {
+      orgId: org.id,
+      type: "Expense" as const,
+      propertyId: property.id,
+      scope: "property" as const,
+      amount: monthlyMortgage,
+      description: `${mortgageType === "Secondary" ? "Secondary " : ""}Mortgage payment for ${property.name || `${property.street}, ${property.city}`}`,
+      category: "Mortgage",
+      date: firstPaymentDate,
+      isRecurring: true,
+      recurringFrequency: "months",
+      recurringInterval: 1,
+      recurringEndDate: endDate,
+      taxDeductible: false, // Will be adjusted at year-end with interest allocation
+      isBulkEntry: false,
+    };
+    
+    console.log("🏦 Creating recurring mortgage expense:", {
+      propertyId: property.id,
+      amount: monthlyMortgage,
+      firstPayment: firstPaymentDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
+    
+    await storage.createTransaction(mortgageExpenseData);
+  } catch (error) {
+    console.error("Error creating mortgage expense:", error);
+    // Don't throw - we don't want mortgage expense creation to fail the property creation
+  }
+}
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Start cron jobs
+  startCronJobs();
+
+  // Multi-user auth routes
+  app.use('/api/auth', authRouter);
+  app.use('/auth', tenantAuthRouter);
+  app.use('/api/auth', propertyOwnerAuthRouter);
+  
+  // Public routes (no auth required)
+  app.use('/api/public/quotes', publicQuotesRouter);
+  
+  // Contractor routes
+  app.use('/api/contractor', contractorRouter);
+  
+  // Platform admin routes
+  app.use('/api/admin', adminRouter);
+  
+  // Landlord routes (mounted at /api for impersonation support + /api/landlord for compatibility)
+  app.use('/api', landlordRouter);  // Primary mount - supports impersonation via requireAuth middleware
+  app.use('/api/landlord', landlordRouter);
+  app.use('/api/landlord', landlordInvitesRouter);
+  
+  // Property Owner routes
+  app.use('/api/property-owner', isAuthenticated, propertyOwnerRouter);
+  
+  // Tenant routes
+  app.use('/api/tenant', tenantRouter);
+
+  // Messaging routes
+  app.use('/api/messaging', messagingRouter);
+
+  // Contractor specialties - Public route for signup
+  app.get('/api/contractor-specialties', async (req, res) => {
+    try {
+      const specialties = await db.query.contractorSpecialties.findMany({
+        where: eq((await import('@shared/schema')).contractorSpecialties.isActive, true),
+        orderBy: (specialties, { asc }) => [asc(specialties.tier), asc(specialties.displayOrder), asc(specialties.name)],
+      });
+      res.json(specialties);
+    } catch (error) {
+      console.error('Error fetching contractor specialties:', error);
+      res.status(500).json({ message: 'Failed to fetch specialties' });
+    }
+  });
+
+  // Current user endpoint - supports both session-based and legacy Replit Auth
+  app.get('/api/auth/user', async (req: any, res) => {
+    try {
+      // Try session-based auth first (new multi-user system)
+      let userId = req.session?.userId;
+      
+      // Fallback to legacy Replit Auth if no session
+      if (!userId && req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+      }
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // New multi-user system: return user with primaryRole from users table
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Organization routes
+  app.get('/api/organizations/current', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let org = await storage.getUserOrganization(userId);
+      
+      if (!org) {
+        // Create default organization for user
+        const user = await storage.getUser(userId);
+        if (user) {
+          org = await storage.createOrganization({
+            name: `${user.firstName || user.email || 'User'}'s Properties`,
+            ownerId: userId,
+          });
+        }
+      }
+      
+      res.json(org);
+    } catch (error) {
+      console.error("Error fetching organization:", error);
+      res.status(500).json({ message: "Failed to fetch organization" });
+    }
+  });
+
+  // Helper function to create renewal reminder for an entity
+  const createEntityRenewalReminder = async (entity: any, orgId: string) => {
+    if (!entity.renewalMonth || entity.renewalMonth < 1 || entity.renewalMonth > 12) {
+      return false;
+    }
+
+    const currentYear = new Date().getFullYear();
+    let renewalYear = currentYear;
+    
+    // If renewal month has passed this year, set for next year
+    const currentMonth = new Date().getMonth() + 1;
+    if (entity.renewalMonth < currentMonth) {
+      renewalYear = currentYear + 1;
+    }
+    
+    // Set due date 30 days before renewal (1st of the month)
+    const renewalDate = new Date(renewalYear, entity.renewalMonth - 1, 1);
+    const reminderDate = new Date(renewalDate);
+    reminderDate.setDate(reminderDate.getDate() - 30);
+    
+    const reminderData = {
+      orgId: orgId,
+      scope: "entity" as const,
+      scopeId: entity.id,
+      title: `${entity.name} Registration Renewal`,
+      type: "regulatory" as const,
+      dueAt: reminderDate,
+      leadDays: 30,
+      channel: "inapp" as const,
+      status: "Pending" as const,
+      isRecurring: false,
+      recurringInterval: 1,
+      isBulkEntry: false,
+    };
+    
+    await storage.createReminder(reminderData);
+    console.log(`Created renewal reminder for entity: ${entity.name}`);
+    return true;
+  };
+
+  // Backfill reminders for existing entities
+  app.post('/api/entities/backfill-reminders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const entities = await storage.getOwnershipEntities(org.id);
+      const existingReminders = await storage.getReminders(org.id);
+      
+      let created = 0;
+      for (const entity of entities) {
+        if (entity.renewalMonth) {
+          // Check if reminder already exists
+          const hasRenewalReminder = existingReminders.some(r => 
+            r.scope === "entity" && 
+            r.scopeId === entity.id && 
+            r.type === "regulatory" && 
+            r.title.includes("Registration Renewal")
+          );
+          
+          if (!hasRenewalReminder) {
+            await createEntityRenewalReminder(entity, org.id);
+            created++;
+          }
+        }
+      }
+      
+      res.json({ message: `Created ${created} renewal reminders` });
+    } catch (error) {
+      console.error("Error backfilling reminders:", error);
+      res.status(500).json({ message: "Failed to backfill reminders" });
+    }
+  });
+
+  // Ownership entity routes
+  app.get('/api/entities', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      let entities = await storage.getOwnershipEntities(org.id);
+      
+      // Auto-create default entity for new users with zero entities
+      if (entities.length === 0) {
+        console.log("🏢 Creating default entity for new user");
+        const user = await storage.getUser(userId);
+        const defaultEntityName = user?.firstName 
+          ? `${user.firstName} - Personal` 
+          : "Personal Portfolio";
+        
+        const defaultEntity = await storage.createOwnershipEntity({
+          orgId: org.id,
+          name: defaultEntityName,
+          type: "Individual",
+          status: "Active",
+        });
+        
+        entities = [defaultEntity];
+        console.log("✅ Default entity created:", defaultEntityName);
+      }
+      
+      res.json(entities);
+    } catch (error) {
+      console.error("Error fetching entities:", error);
+      res.status(500).json({ message: "Failed to fetch entities" });
+    }
+  });
+
+  app.post('/api/entities', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const validatedData = insertOwnershipEntitySchema.parse({
+        ...req.body,
+        orgId: org.id,
+      });
+      
+      const entity = await storage.createOwnershipEntity(validatedData);
+      
+      // Auto-create renewal reminder if entity has renewal month
+      await createEntityRenewalReminder(entity, org.id);
+      
+      res.json(entity);
+    } catch (error) {
+      console.error("Error creating entity:", error);
+      res.status(500).json({ message: "Failed to create entity" });
+    }
+  });
+
+  app.patch('/api/entities/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const validatedData = insertOwnershipEntitySchema.partial().parse(req.body);
+      const entity = await storage.updateOwnershipEntity(req.params.id, validatedData);
+      
+      // Auto-create/update renewal reminder if renewal month was changed
+      if (validatedData.renewalMonth !== undefined && entity.renewalMonth && entity.renewalMonth >= 1 && entity.renewalMonth <= 12) {
+        // Check if there's already a renewal reminder for this entity
+        const existingReminders = await storage.getReminders(org.id);
+        const existingRenewalReminder = existingReminders.find(r => 
+          r.scope === "entity" && 
+          r.scopeId === entity.id && 
+          r.type === "regulatory" && 
+          r.title.includes("Registration Renewal")
+        );
+        
+        const currentYear = new Date().getFullYear();
+        let renewalYear = currentYear;
+        
+        // If renewal month has passed this year, set for next year
+        const currentMonth = new Date().getMonth() + 1;
+        if (entity.renewalMonth < currentMonth) {
+          renewalYear = currentYear + 1;
+        }
+        
+        // Set due date 30 days before renewal (1st of the month)
+        const renewalDate = new Date(renewalYear, entity.renewalMonth - 1, 1);
+        const reminderDate = new Date(renewalDate);
+        reminderDate.setDate(reminderDate.getDate() - 30);
+        
+        if (existingRenewalReminder) {
+          // Update existing reminder
+          await storage.updateReminder(existingRenewalReminder.id, {
+            title: `${entity.name} Registration Renewal`,
+            dueAt: reminderDate,
+          });
+          console.log(`Updated renewal reminder for entity: ${entity.name}`);
+        } else {
+          // Create new reminder
+          const reminderData = {
+            orgId: org.id,
+            scope: "entity" as const,
+            scopeId: entity.id,
+            title: `${entity.name} Registration Renewal`,
+            type: "regulatory" as const,
+            dueAt: reminderDate,
+            leadDays: 30,
+            channel: "inapp" as const,
+            status: "Pending" as const,
+            isRecurring: false,
+            recurringInterval: 1,
+            isBulkEntry: false,
+          };
+          
+          await storage.createReminder(reminderData);
+          console.log(`Created renewal reminder for entity: ${entity.name}`);
+        }
+      }
+      
+      res.json(entity);
+    } catch (error) {
+      console.error("Error updating entity:", error);
+      res.status(500).json({ message: "Failed to update entity" });
+    }
+  });
+
+  // Archive an entity (set status to "Archived")  
+  app.patch('/api/entities/:id/archive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // SECURITY: Check if entity exists and belongs to organization
+      const entities = await storage.getOwnershipEntities(org.id);
+      const entity = entities.find(e => e.id === req.params.id);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      // ARCHIVE PREVENTION: Check if entity owns any properties
+      const propertyCheck = await storage.getEntityPropertyCount(req.params.id, org.id);
+      if (propertyCheck.count > 0) {
+        return res.status(400).json({ 
+          message: "Cannot archive entity - owns properties",
+          error: "ENTITY_OWNS_PROPERTIES",
+          count: propertyCheck.count,
+          properties: propertyCheck.properties,
+          details: `${entity.name} owns ${propertyCheck.count} propert${propertyCheck.count === 1 ? 'y' : 'ies'}. Please reassign ownership before archiving.`
+        });
+      }
+      
+      const archivedEntity = await storage.updateOwnershipEntity(req.params.id, { status: "Archived" });
+      res.json({ message: "Entity archived successfully", entity: archivedEntity });
+    } catch (error) {
+      console.error("Error archiving entity:", error);
+      res.status(500).json({ message: "Failed to archive entity" });
+    }
+  });
+
+  // Unarchive an entity (set status to "Active")
+  app.patch('/api/entities/:id/unarchive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // SECURITY: Check if entity exists and belongs to organization
+      const entities = await storage.getOwnershipEntities(org.id);
+      const entity = entities.find(e => e.id === req.params.id);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      const unarchivedEntity = await storage.updateOwnershipEntity(req.params.id, { status: "Active" });
+      res.json({ message: "Entity unarchived successfully", entity: unarchivedEntity });
+    } catch (error) {
+      console.error("Error unarchiving entity:", error);
+      res.status(500).json({ message: "Failed to unarchive entity" });
+    }
+  });
+
+  // Permanently delete an entity
+  app.delete('/api/entities/:id/permanent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Check if entity exists and belongs to organization
+      const entities = await storage.getOwnershipEntities(org.id);
+      const entity = entities.find(e => e.id === req.params.id);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      await storage.deleteOwnershipEntity(req.params.id);
+      res.json({ message: "Entity deleted permanently" });
+    } catch (error) {
+      console.error("Error deleting entity:", error);
+      res.status(500).json({ message: "Failed to delete entity" });
+    }
+  });
+
+  app.get('/api/entities/:id/performance', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const performance = await storage.getEntityPerformance(req.params.id, org.id);
+      if (!performance) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching entity performance:", error);
+      res.status(500).json({ message: "Failed to fetch entity performance" });
+    }
+  });
+
+  // Get entity property ownership count
+  app.get('/api/entities/:id/property-count', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // SECURITY: Check if entity exists and belongs to organization
+      const entities = await storage.getOwnershipEntities(org.id);
+      const entity = entities.find(e => e.id === req.params.id);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      const propertyCount = await storage.getEntityPropertyCount(req.params.id, org.id);
+      res.json(propertyCount);
+    } catch (error) {
+      console.error("Error fetching entity property count:", error);
+      res.status(500).json({ message: "Failed to fetch entity property count" });
+    }
+  });
+
+  // Property routes
+  app.get('/api/properties/:id/performance', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const performance = await storage.getPropertyPerformance(req.params.id, org.id);
+      if (!performance) return res.status(404).json({ message: "Property not found" });
+
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching property performance:", error);
+      res.status(500).json({ message: "Failed to fetch property performance" });
+    }
+  });
+  app.get('/api/properties', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Disable caching for this endpoint
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Expires', '0');
+      res.set('Pragma', 'no-cache');
+      res.set('Surrogate-Control', 'no-store');
+      
+      const properties = await storage.getProperties(org.id);
+      
+      console.log("🏠 GET /api/properties response sample:", JSON.stringify(properties[0], null, 2));
+      
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching properties:", error);
+      res.status(500).json({ message: "Failed to fetch properties" });
+    }
+  });
+
+  app.get('/api/properties/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const property = await storage.getProperty(req.params.id);
+      if (!property) return res.status(404).json({ message: "Property not found" });
+      
+      res.json(property);
+    } catch (error) {
+      console.error("Error fetching property:", error);
+      res.status(500).json({ message: "Failed to fetch property" });
+    }
+  });
+
+  app.post('/api/properties', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { ownerships, createDefaultUnit, defaultUnit, units, ...propertyData } = req.body;
+      
+      // Transform date strings to Date objects for validation
+      const dataWithDates = {
+        ...propertyData,
+        orgId: org.id,
+        acquisitionDate: propertyData.acquisitionDate ? new Date(propertyData.acquisitionDate) : undefined,
+        mortgageStartDate: propertyData.mortgageStartDate ? new Date(propertyData.mortgageStartDate) : undefined,
+        mortgageStartDate2: propertyData.mortgageStartDate2 ? new Date(propertyData.mortgageStartDate2) : undefined,
+        saleDate: propertyData.saleDate ? new Date(propertyData.saleDate) : undefined,
+      };
+      
+      const validatedData = insertPropertySchema.parse(dataWithDates);
+      
+      // Check if we have multiple units (for buildings)
+      if (units && Array.isArray(units) && units.length > 0) {
+        console.log(`🏢 Creating building with ${units.length} units`);
+        const result = await storage.createPropertyWithOwnershipsAndUnits(
+          validatedData, 
+          ownerships, 
+          units
+        );
+        
+        // Auto-create primary mortgage expense if mortgage details provided
+        if (validatedData.monthlyMortgage) {
+          await createMortgageExpense({
+            org,
+            property: result.property,
+            monthlyMortgage: validatedData.monthlyMortgage,
+            mortgageStartDate: validatedData.mortgageStartDate || undefined,
+            mortgageType: "Primary",
+            storage
+          });
+        }
+
+        // Auto-create secondary mortgage expense if provided
+        if (validatedData.monthlyMortgage2) {
+          await createMortgageExpense({
+            org,
+            property: result.property,
+            monthlyMortgage: validatedData.monthlyMortgage2,
+            mortgageStartDate: validatedData.mortgageStartDate2 || undefined,
+            mortgageType: "Secondary",
+            storage
+          });
+        }
+        
+        res.json({ property: result.property, units: result.units });
+      }
+      // Check if we should create a single default unit
+      else if (createDefaultUnit && defaultUnit) {
+        console.log("🏠 Creating single property with default unit");
+        const result = await storage.createPropertyWithOwnershipsAndUnit(
+          validatedData, 
+          ownerships, 
+          defaultUnit
+        );
+        
+        // Auto-create primary mortgage expense if mortgage details provided
+        if (validatedData.monthlyMortgage) {
+          await createMortgageExpense({
+            org,
+            property: result.property,
+            monthlyMortgage: validatedData.monthlyMortgage,
+            mortgageStartDate: validatedData.mortgageStartDate || undefined,
+            mortgageType: "Primary",
+            storage
+          });
+        }
+
+        // Auto-create secondary mortgage expense if provided
+        if (validatedData.monthlyMortgage2) {
+          await createMortgageExpense({
+            org,
+            property: result.property,
+            monthlyMortgage: validatedData.monthlyMortgage2,
+            mortgageStartDate: validatedData.mortgageStartDate2 || undefined,
+            mortgageType: "Secondary",
+            storage
+          });
+        }
+        
+        res.json({ property: result.property, unit: result.unit });
+      } else {
+        console.log("🏗️ Creating property without units");
+        // Use the old method for just property creation
+        const property = await storage.createPropertyWithOwnerships(validatedData, ownerships);
+        
+        // Auto-create mortgage expense if mortgage details provided
+        if (validatedData.monthlyMortgage) {
+          await createMortgageExpense({
+            org,
+            property,
+            monthlyMortgage: validatedData.monthlyMortgage,
+            mortgageStartDate: validatedData.mortgageStartDate || undefined,
+            mortgageType: "Primary",
+            storage
+          });
+        }
+
+        // Auto-create secondary mortgage expense if provided
+        if (validatedData.monthlyMortgage2) {
+          await createMortgageExpense({
+            org,
+            property,
+            monthlyMortgage: validatedData.monthlyMortgage2,
+            mortgageStartDate: validatedData.mortgageStartDate2 || undefined,
+            mortgageType: "Secondary",
+            storage
+          });
+        }
+        
+        res.json({ property, unit: null });
+      }
+    } catch (error) {
+      console.error("Error creating property:", error);
+      res.status(500).json({ message: "Failed to create property" });
+    }
+  });
+
+  app.patch('/api/properties/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { ownerships, defaultUnit, units, ...propertyData } = req.body;
+      
+      console.log("🏠 Updating property ID:", req.params.id);
+      console.log("🔧 Has unit data:", !!defaultUnit);
+      console.log("🏢 Has multiple units data:", !!(units && Array.isArray(units) && units.length > 0));
+      if (defaultUnit) {
+        console.log("📋 Unit details:", {
+          hasId: !!defaultUnit.id,
+          hvacBrand: defaultUnit.hvacBrand,
+          hvacModel: defaultUnit.hvacModel,
+          label: defaultUnit.label
+        });
+      }
+      if (units && Array.isArray(units)) {
+        console.log("📋 Multiple units count:", units.length);
+      }
+      
+      // Validate the property data (excluding required fields for updates)
+      const updatePropertySchema = insertPropertySchema.partial().omit({ orgId: true });
+      
+      console.log("🔍 Raw property data:", JSON.stringify(propertyData, null, 2));
+      console.log("🔍 Property value fields:", {
+        propertyValue: propertyData.propertyValue,
+        autoAppreciation: propertyData.autoAppreciation,
+        appreciationRate: propertyData.appreciationRate
+      });
+      
+      // Transform date strings to Date objects for validation
+      const propertyDataWithDates = {
+        ...propertyData,
+        acquisitionDate: propertyData.acquisitionDate ? new Date(propertyData.acquisitionDate) : undefined,
+        mortgageStartDate: propertyData.mortgageStartDate ? new Date(propertyData.mortgageStartDate) : undefined,
+        mortgageStartDate2: propertyData.mortgageStartDate2 ? new Date(propertyData.mortgageStartDate2) : undefined,
+        saleDate: propertyData.saleDate ? new Date(propertyData.saleDate) : undefined,
+      };
+      
+      const validatedData = updatePropertySchema.parse(propertyDataWithDates);
+      
+      console.log("✅ Validated data:", JSON.stringify(validatedData, null, 2));
+      console.log("✅ Validated value fields:", {
+        propertyValue: validatedData.propertyValue,
+        autoAppreciation: validatedData.autoAppreciation,
+        appreciationRate: validatedData.appreciationRate
+      });
+      
+      // Update property and ownerships
+      const property = await storage.updatePropertyWithOwnerships(req.params.id, validatedData, ownerships);
+      
+      // Handle multiple units update for buildings
+      if (units && Array.isArray(units) && units.length > 0) {
+        console.log("🏢 Updating building with multiple units");
+        
+        // Get existing units
+        const existingUnits = await storage.getUnits(req.params.id);
+        console.log("🔍 Existing units count:", existingUnits.length);
+        
+        // Delete all existing units
+        for (const existingUnit of existingUnits) {
+          console.log("🗑️ Deleting existing unit:", existingUnit.id);
+          await storage.deleteUnit(existingUnit.id);
+        }
+        
+        // Create new units
+        const createdUnits = [];
+        for (const unitData of units) {
+          console.log("➕ Creating new unit:", unitData.label);
+          const unitInsertData = {
+            propertyId: req.params.id,
+            label: unitData.label || 'Unit',
+            bedrooms: unitData.bedrooms,
+            bathrooms: unitData.bathrooms,
+            sqft: unitData.sqft,
+            rentAmount: unitData.rentAmount ? String(unitData.rentAmount) : undefined,
+            deposit: unitData.deposit ? String(unitData.deposit) : undefined,
+            notes: unitData.notes,
+            hvacBrand: unitData.hvacBrand,
+            hvacModel: unitData.hvacModel,
+            hvacYear: unitData.hvacYear,
+            hvacLifetime: unitData.hvacLifetime,
+            hvacReminder: unitData.hvacReminder,
+            waterHeaterBrand: unitData.waterHeaterBrand,
+            waterHeaterModel: unitData.waterHeaterModel,
+            waterHeaterYear: unitData.waterHeaterYear,
+            waterHeaterLifetime: unitData.waterHeaterLifetime,
+            waterHeaterReminder: unitData.waterHeaterReminder,
+            applianceNotes: unitData.applianceNotes,
+          };
+          
+          const newUnit = await storage.createUnit(unitInsertData);
+          createdUnits.push(newUnit);
+          
+          // Handle custom appliances for this unit
+          if (unitData.appliances && unitData.appliances.length > 0) {
+            for (const appliance of unitData.appliances) {
+              await storage.createUnitAppliance({
+                unitId: newUnit.id,
+                name: appliance.name,
+                manufacturer: appliance.manufacturer,
+                model: appliance.model,
+                year: appliance.year,
+                expectedLifetime: appliance.expectedLifetime,
+                alertBeforeExpiry: appliance.alertBeforeExpiry,
+                notes: appliance.notes,
+              });
+            }
+          }
+        }
+        
+        console.log("✅ Successfully updated building with", createdUnits.length, "units");
+        res.json({ property, units: createdUnits });
+        return;
+      }
+      
+      // Handle single unit update if provided  
+      let updatedUnit = null;
+      if (defaultUnit) {
+        // Check if we have an explicit unit ID or if there are existing units for this property
+        const existingUnits = await storage.getUnits(req.params.id);
+        console.log("🔍 Existing units count:", existingUnits.length);
+        console.log("🔍 Existing unit IDs:", existingUnits.map(u => u.id));
+        
+        if (existingUnits.length > 0) {
+          // Always update the first existing unit
+          const targetUnitId = defaultUnit.id || existingUnits[0].id;
+          console.log("✏️ Updating existing unit ID:", targetUnitId);
+          // Update existing unit with appliance data
+          const unitData = {
+          label: defaultUnit.label,
+          bedrooms: defaultUnit.bedrooms || undefined,
+          bathrooms: defaultUnit.bathrooms ? defaultUnit.bathrooms.toString() : undefined,
+          sqft: defaultUnit.sqft || undefined,
+          rentAmount: defaultUnit.rentAmount || undefined,
+          deposit: defaultUnit.deposit || undefined,
+          notes: defaultUnit.notes,
+          hvacBrand: defaultUnit.hvacBrand,
+          hvacModel: defaultUnit.hvacModel,
+          hvacYear: defaultUnit.hvacYear || undefined,
+          hvacLifetime: defaultUnit.hvacLifetime || undefined,
+          hvacReminder: defaultUnit.hvacReminder,
+          waterHeaterBrand: defaultUnit.waterHeaterBrand,
+          waterHeaterModel: defaultUnit.waterHeaterModel,
+          waterHeaterYear: defaultUnit.waterHeaterYear || undefined,
+          waterHeaterLifetime: defaultUnit.waterHeaterLifetime || undefined,
+          waterHeaterReminder: defaultUnit.waterHeaterReminder,
+          applianceNotes: defaultUnit.applianceNotes,
+        };
+        
+        updatedUnit = await storage.updateUnit(targetUnitId, unitData);
+        
+        // Update custom appliances
+        if (defaultUnit.appliances) {
+          // Delete existing appliances and recreate
+          await storage.deleteUnitAppliances(targetUnitId);
+          
+          for (const appliance of defaultUnit.appliances) {
+            await storage.createUnitAppliance({
+              unitId: targetUnitId,
+              name: appliance.name,
+              manufacturer: appliance.manufacturer,
+              model: appliance.model,
+              year: appliance.year,
+              expectedLifetime: appliance.expectedLifetime,
+              alertBeforeExpiry: appliance.alertBeforeExpiry,
+              notes: appliance.notes,
+            });
+          }
+        }
+        } else {
+          // Create new unit with equipment data if none exists  
+          console.log("📦 Creating new unit for property:", req.params.id);
+          const unitData = {
+            propertyId: req.params.id,
+            label: defaultUnit.label || "Unit 1", // Default label if not provided
+            bedrooms: defaultUnit.bedrooms || undefined,
+            bathrooms: defaultUnit.bathrooms ? defaultUnit.bathrooms.toString() : undefined,
+            sqft: defaultUnit.sqft || undefined,
+            rentAmount: defaultUnit.rentAmount || undefined,
+            deposit: defaultUnit.deposit || undefined,
+            notes: defaultUnit.notes,
+            hvacBrand: defaultUnit.hvacBrand,
+            hvacModel: defaultUnit.hvacModel,
+            hvacYear: defaultUnit.hvacYear || undefined,
+            hvacLifetime: defaultUnit.hvacLifetime || undefined,
+            hvacReminder: defaultUnit.hvacReminder,
+            waterHeaterBrand: defaultUnit.waterHeaterBrand,
+            waterHeaterModel: defaultUnit.waterHeaterModel,
+            waterHeaterYear: defaultUnit.waterHeaterYear || undefined,
+            waterHeaterLifetime: defaultUnit.waterHeaterLifetime || undefined,
+            waterHeaterReminder: defaultUnit.waterHeaterReminder,
+            applianceNotes: defaultUnit.applianceNotes,
+          };
+          
+          updatedUnit = await storage.createUnit(unitData);
+          
+          // Add custom appliances to new unit
+          if (defaultUnit.appliances && defaultUnit.appliances.length > 0) {
+            for (const appliance of defaultUnit.appliances) {
+              await storage.createUnitAppliance({
+                unitId: updatedUnit.id,
+                name: appliance.name,
+                manufacturer: appliance.manufacturer,
+                model: appliance.model,
+                year: appliance.year,
+                expectedLifetime: appliance.expectedLifetime,
+                alertBeforeExpiry: appliance.alertBeforeExpiry,
+                notes: appliance.notes,
+              });
+            }
+          }
+        }
+        
+        // Create equipment reminders if requested
+        await createEquipmentReminders({
+          org,
+          property,
+          unit: updatedUnit,
+          unitData: defaultUnit,
+          storage
+        });
+      }
+
+      // Auto-create primary mortgage expense if mortgage details provided in update
+      if (validatedData.monthlyMortgage) {
+        await createMortgageExpense({
+          org,
+          property,
+          monthlyMortgage: validatedData.monthlyMortgage,
+          mortgageStartDate: validatedData.mortgageStartDate || undefined,
+          mortgageType: "Primary",
+          storage
+        });
+      }
+
+      // Auto-create secondary mortgage expense if provided in update
+      if (validatedData.monthlyMortgage2) {
+        await createMortgageExpense({
+          org,
+          property,
+          monthlyMortgage: validatedData.monthlyMortgage2,
+          mortgageStartDate: validatedData.mortgageStartDate2 || undefined,
+          mortgageType: "Secondary",
+          storage
+        });
+      }
+      
+      res.json({ property, unit: updatedUnit });
+    } catch (error) {
+      console.error("Error updating property:", error);
+      res.status(500).json({ message: "Failed to update property" });
+    }
+  });
+
+  // Archive a property (set status to "Archived")
+  app.patch('/api/properties/:id/archive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // SECURITY: Check if property exists and belongs to organization  
+      const property = await storage.getProperty(req.params.id);
+      if (!property || property.orgId !== org.id) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      const archivedProperty = await storage.updateProperty(req.params.id, { status: "Archived" });
+      res.json({ message: "Property archived successfully", property: archivedProperty });
+    } catch (error) {
+      console.error("Error archiving property:", error);
+      res.status(500).json({ message: "Failed to archive property" });
+    }
+  });
+
+  // Unarchive a property (set status back to "Active")
+  app.patch('/api/properties/:id/unarchive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Verify property exists and user owns it
+      const property = await storage.getProperty(req.params.id);
+      if (!property || property.orgId !== org.id) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      const unarchivedProperty = await storage.updateProperty(req.params.id, { status: "Active" });
+      res.json({ message: "Property unarchived successfully", property: unarchivedProperty });
+    } catch (error) {
+      console.error("Error unarchiving property:", error);
+      res.status(500).json({ message: "Failed to unarchive property" });
+    }
+  });
+
+  // Permanently delete a property
+  app.delete('/api/properties/:id/permanent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Check if property exists and belongs to organization
+      const property = await storage.getProperty(req.params.id);
+      if (!property || property.orgId !== org.id) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      await storage.deleteProperty(req.params.id);
+      res.json({ message: "Property deleted permanently" });
+    } catch (error) {
+      console.error("Error deleting property:", error);
+      res.status(500).json({ message: "Failed to delete property" });
+    }
+  });
+
+  // Unit routes
+  app.get('/api/units', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const units = await storage.getAllUnits(org.id);
+      res.json(units);
+    } catch (error) {
+      console.error("Error fetching all units:", error);
+      res.status(500).json({ message: "Failed to fetch units" });
+    }
+  });
+
+  // Get appliances for a specific unit
+  app.get('/api/units/:id/appliances', isAuthenticated, async (req: any, res) => {
+    try {
+      const appliances = await storage.getUnitAppliances(req.params.id);
+      res.json(appliances);
+    } catch (error) {
+      console.error("Error fetching unit appliances:", error);
+      res.status(500).json({ message: "Failed to fetch appliances" });
+    }
+  });
+
+  app.get('/api/properties/:propertyId/units', isAuthenticated, async (req: any, res) => {
+    try {
+      const units = await storage.getUnits(req.params.propertyId);
+      res.json(units);
+    } catch (error) {
+      console.error("Error fetching units:", error);
+      res.status(500).json({ message: "Failed to fetch units" });
+    }
+  });
+
+  app.post('/api/units', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertUnitSchema.parse(req.body);
+      const unit = await storage.createUnit(validatedData);
+      res.json(unit);
+    } catch (error) {
+      console.error("Error creating unit:", error);
+      res.status(500).json({ message: "Failed to create unit" });
+    }
+  });
+
+  // Tenant routes
+  app.get('/api/tenants', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const tenantGroups = await storage.getTenantGroups(org.id);
+      res.json(tenantGroups);
+    } catch (error) {
+      console.error("Error fetching tenants:", error);
+      res.status(500).json({ message: "Failed to fetch tenants" });
+    }
+  });
+
+  // Get tenants for a specific group
+  app.get('/api/tenants/:groupId/members', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { groupId } = req.params;
+      const tenants = await storage.getTenantsInGroup(groupId);
+      res.json(tenants);
+    } catch (error) {
+      console.error("Error fetching tenants for group:", error);
+      res.status(500).json({ message: "Failed to fetch tenants for group" });
+    }
+  });
+
+  app.post('/api/tenants', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { tenantGroup, tenants } = req.body;
+      const { unitId, ...tenantGroupData } = tenantGroup; // Extract unitId for lease creation
+      
+      const validatedGroup = insertTenantGroupSchema.parse({
+        ...tenantGroupData,
+        orgId: org.id,
+      });
+      
+      const group = await storage.createTenantGroup(validatedGroup);
+      
+      if (tenants && tenants.length > 0) {
+        for (const tenant of tenants) {
+          const validatedTenant = insertTenantSchema.parse({
+            ...tenant,
+            groupId: group.id,
+          });
+          await storage.createTenant(validatedTenant);
+        }
+      }
+
+      // If unitId is provided (for buildings), automatically create a lease
+      if (unitId) {
+        console.log(`🏢 Creating lease for tenant group ${group.id} in unit ${unitId}`);
+        
+        // Create a basic lease with default values
+        // The user can edit lease details later if needed
+        const today = new Date();
+        const oneYearFromToday = new Date(today);
+        oneYearFromToday.setFullYear(today.getFullYear() + 1);
+        
+        const defaultLease = {
+          unitId: unitId,
+          tenantGroupId: group.id,
+          startDate: today, // Use Date object directly
+          endDate: oneYearFromToday, // Use Date object directly
+          rent: "0", // Default rent - user can update later
+          deposit: "0", // Default deposit - user can update later
+          dueDay: 1,
+          status: "Active" as const,
+          // New renewal and reminder options with sensible defaults
+          autoRenewEnabled: false, // Default: no automatic renewal
+          expirationReminderMonths: 3, // Default: 3 months before expiration
+          renewalReminderEnabled: false, // Default: no renewal notifications
+        };
+        
+        try {
+          const validatedLease = insertLeaseSchema.parse(defaultLease);
+          const createdLease = await storage.createLease(validatedLease);
+          
+          // Create lease reminders for automatic leases too
+          await createLeaseReminders(org.id, createdLease);
+          
+          console.log(`✅ Successfully created lease for unit ${unitId}`);
+        } catch (leaseError) {
+          console.error("Error creating lease:", leaseError);
+          // Don't fail the entire tenant creation if lease creation fails
+          // The user can create the lease manually later
+        }
+      }
+      
+      res.json(group);
+    } catch (error) {
+      console.error("Error creating tenant:", error);
+      res.status(500).json({ message: "Failed to create tenant" });
+    }
+  });
+
+  app.put('/api/tenants/:groupId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { groupId } = req.params;
+      const { tenantGroup, tenants } = req.body;
+      
+      // Update tenant group
+      const validatedGroup = insertTenantGroupSchema.partial().parse(tenantGroup);
+      const updatedGroup = await storage.updateTenantGroup(groupId, validatedGroup);
+      
+      // Update individual tenants if provided
+      if (tenants && tenants.length > 0) {
+        for (const tenant of tenants) {
+          if (tenant.id) {
+            // Update existing tenant
+            const validatedTenant = insertTenantSchema.partial().parse(tenant);
+            await storage.updateTenant(tenant.id, validatedTenant);
+          } else {
+            // Create new tenant
+            const validatedTenant = insertTenantSchema.parse({
+              ...tenant,
+              groupId: groupId,
+            });
+            await storage.createTenant(validatedTenant);
+          }
+        }
+      }
+      
+      res.json(updatedGroup);
+    } catch (error) {
+      console.error("Error updating tenant:", error);
+      res.status(500).json({ message: "Failed to update tenant" });
+    }
+  });
+
+  // Archive a tenant group
+  app.patch('/api/tenants/:groupId/archive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { groupId } = req.params;
+      
+      // SECURITY: Check if tenant group exists and belongs to organization
+      const tenantGroup = await storage.getTenantGroup(groupId);
+      if (!tenantGroup || tenantGroup.orgId !== org.id) {
+        return res.status(404).json({ message: "Tenant group not found" });
+      }
+      
+      // Archive the tenant group
+      const archivedTenant = await storage.archiveTenantGroup(groupId);
+      
+      res.json({ message: "Tenant archived successfully", tenant: archivedTenant });
+    } catch (error) {
+      console.error("Error archiving tenant:", error);
+      res.status(500).json({ message: "Failed to archive tenant" });
+    }
+  });
+
+  // Unarchive a tenant group  
+  app.patch('/api/tenants/:groupId/unarchive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { groupId } = req.params;
+      
+      // SECURITY: Check if tenant group exists and belongs to organization
+      const tenantGroup = await storage.getTenantGroup(groupId);
+      if (!tenantGroup || tenantGroup.orgId !== org.id) {
+        return res.status(404).json({ message: "Tenant group not found" });
+      }
+      
+      // Unarchive the tenant group (set status to "Active")
+      const unarchivedTenant = await storage.unarchiveTenantGroup(groupId);
+      
+      res.json({ message: "Tenant unarchived successfully", tenant: unarchivedTenant });
+    } catch (error) {
+      console.error("Error unarchiving tenant:", error);
+      res.status(500).json({ message: "Failed to unarchive tenant" });
+    }
+  });
+
+  app.delete('/api/tenants/:groupId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { groupId } = req.params;
+      
+      // Archive the tenant group instead of deleting
+      const archivedTenant = await storage.archiveTenantGroup(groupId);
+      
+      res.json({ message: "Tenant archived successfully", tenant: archivedTenant });
+    } catch (error) {
+      console.error("Error archiving tenant:", error);
+      res.status(500).json({ message: "Failed to archive tenant" });
+    }
+  });
+
+  // Permanently delete a tenant group
+  app.delete('/api/tenant-groups/:id/permanent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      
+      // SECURITY: Check if tenant group exists and belongs to organization
+      const tenantGroup = await storage.getTenantGroup(id);
+      if (!tenantGroup || tenantGroup.orgId !== org.id) {
+        return res.status(404).json({ message: "Tenant group not found" });
+      }
+      
+      await storage.deleteTenantGroup(id);
+      res.json({ message: "Tenant group deleted permanently" });
+    } catch (error) {
+      console.error("Error deleting tenant group:", error);
+      res.status(500).json({ message: "Failed to delete tenant group" });
+    }
+  });
+
+  // Individual Tenant Archive/Unarchive endpoints (separate from tenant groups)
+  // Archive a tenant (set status to "Archived")
+  app.patch('/api/tenants/:id/archive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // SECURITY: Verify tenant exists and belongs to organization by checking relationships
+      // This also validates the tenant exists and belongs to the org
+      try {
+        await storage.getTenantRelationshipCount(req.params.id, org.id);
+      } catch (error) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      const archivedTenant = await storage.archiveTenant(req.params.id);
+      res.json({ message: "Tenant archived successfully", tenant: archivedTenant });
+    } catch (error) {
+      console.error("Error archiving tenant:", error);
+      res.status(500).json({ message: "Failed to archive tenant" });
+    }
+  });
+
+  // Unarchive a tenant (set status to "Active")
+  app.patch('/api/tenants/:id/unarchive', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // SECURITY: Verify tenant exists and belongs to organization by checking relationships
+      // This also validates the tenant exists and belongs to the org
+      try {
+        await storage.getTenantRelationshipCount(req.params.id, org.id);
+      } catch (error) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      const unarchivedTenant = await storage.unarchiveTenant(req.params.id);
+      res.json({ message: "Tenant unarchived successfully", tenant: unarchivedTenant });
+    } catch (error) {
+      console.error("Error unarchiving tenant:", error);
+      res.status(500).json({ message: "Failed to unarchive tenant" });
+    }
+  });
+
+  // Get tenant relationship count for delete safety check
+  app.get('/api/tenants/:id/relationship-count', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const count = await storage.getTenantRelationshipCount(req.params.id, org.id);
+      res.json(count);
+    } catch (error) {
+      console.error("Error getting tenant relationship count:", error);
+      res.status(500).json({ message: "Failed to get tenant relationships" });
+    }
+  });
+
+  // Permanently delete a tenant (only if no relationships)
+  app.delete('/api/tenants/:id/permanent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // DELETE PREVENTION: Check if tenant has any relationships (also validates tenant exists and belongs to org)
+      const relationshipCheck = await storage.getTenantRelationshipCount(req.params.id, org.id);
+      if (relationshipCheck.count > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete tenant - has relationships",
+          error: "TENANT_HAS_RELATIONSHIPS",
+          count: relationshipCheck.count,
+          relationships: relationshipCheck.relationships,
+          details: `Tenant has ${relationshipCheck.count} relationship${relationshipCheck.count === 1 ? '' : 's'}. Please archive instead of deleting.`
+        });
+      }
+      
+      await storage.permanentDeleteTenant(req.params.id);
+      res.json({ message: "Tenant deleted permanently" });
+    } catch (error) {
+      console.error("Error deleting tenant:", error);
+      res.status(500).json({ message: "Failed to delete tenant" });
+    }
+  });
+
+  // Lease routes
+  app.get('/api/leases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const leases = await storage.getLeases(org.id);
+      res.json(leases);
+    } catch (error) {
+      console.error("Error fetching leases:", error);
+      res.status(500).json({ message: "Failed to fetch leases" });
+    }
+  });
+
+  app.post('/api/leases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Convert date strings to Date objects before validation
+      const requestData = {
+        ...req.body,
+        startDate: new Date(req.body.startDate),
+        endDate: new Date(req.body.endDate),
+      };
+      
+      // Handle missing unitId for single-family properties
+      if (!requestData.unitId) {
+        // Get tenant group to find property
+        const tenantGroup = await storage.getTenantGroup(requestData.tenantGroupId);
+        if (!tenantGroup?.propertyId) {
+          return res.status(400).json({ message: "Tenant group has no associated property" });
+        }
+
+        // Get property to check type
+        const property = await storage.getProperty(tenantGroup.propertyId);
+        if (!property || property.orgId !== org.id) {
+          return res.status(400).json({ message: "Property not found or access denied" });
+        }
+
+        // Check if property already has units
+        const existingUnits = await storage.getUnits(property.id);
+        
+        if (existingUnits.length === 0) {
+          // For single-family properties (non-buildings), auto-create a default unit
+          const isBuilding = property.type === "Residential Building" || property.type === "Commercial Building";
+          
+          if (!isBuilding) {
+            console.log("🏠 Auto-creating default unit for single-family property:", property.id);
+            // Create a default unit for the property
+            const defaultUnitData = {
+              propertyId: property.id,
+              label: "Main Unit",
+              sqft: property.sqft || undefined,
+            };
+            
+            const unit = await storage.createUnit(defaultUnitData);
+            requestData.unitId = unit.id;
+          } else {
+            return res.status(400).json({ message: "Building property requires specific unit selection" });
+          }
+        } else {
+          // Use the first available unit for single-family properties
+          requestData.unitId = existingUnits[0].id;
+          console.log("🏠 Auto-selecting existing unit for property:", existingUnits[0].id);
+        }
+      }
+      
+      const validatedData = insertLeaseSchema.parse(requestData);
+      const lease = await storage.createLease(validatedData);
+      
+      // Create lease reminder(s) if enabled
+      await createLeaseReminders(org.id, lease);
+      
+      // CRITICAL: Create recurring rent revenue transaction
+      await createLeaseRentRevenue(org.id, lease);
+      
+      res.json(lease);
+    } catch (error) {
+      console.error("Error creating lease:", error);
+      res.status(500).json({ message: "Failed to create lease" });
+    }
+  });
+
+  // Update existing lease
+  app.put('/api/leases/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const leaseId = req.params.id;
+      
+      // Get existing lease for comparison
+      const existingLease = await storage.getLease(leaseId);
+      if (!existingLease) {
+        return res.status(404).json({ message: "Lease not found" });
+      }
+      
+      // Verify existing lease belongs to user's organization
+      const existingUnit = await storage.getUnit(existingLease.unitId);
+      if (!existingUnit) {
+        return res.status(404).json({ message: "Unit not found for lease" });
+      }
+      const existingProperty = await storage.getProperty(existingUnit.propertyId);
+      if (!existingProperty || existingProperty.orgId !== org.id) {
+        return res.status(403).json({ message: "Access denied to existing lease" });
+      }
+      
+      // SECURITY: Validate new unitId belongs to same organization if provided
+      if (req.body.unitId && req.body.unitId !== existingLease.unitId) {
+        const newUnit = await storage.getUnit(req.body.unitId);
+        if (!newUnit) {
+          return res.status(400).json({ message: "New unit not found" });
+        }
+        const newProperty = await storage.getProperty(newUnit.propertyId);
+        if (!newProperty || newProperty.orgId !== org.id) {
+          console.warn(`🚨 SECURITY: User ${userId} attempted to move lease ${leaseId} to unit ${req.body.unitId} from different organization`);
+          return res.status(403).json({ message: "Access denied - new unit belongs to different organization" });
+        }
+      }
+      
+      // SECURITY: Validate new tenantGroupId belongs to same organization if provided
+      if (req.body.tenantGroupId && req.body.tenantGroupId !== existingLease.tenantGroupId) {
+        const tenantGroups = await storage.getTenantGroups(org.id);
+        const newTenantGroup = tenantGroups.find(tg => tg.id === req.body.tenantGroupId);
+        if (!newTenantGroup) {
+          console.warn(`🚨 SECURITY: User ${userId} attempted to move lease ${leaseId} to tenant group ${req.body.tenantGroupId} from different organization`);
+          return res.status(403).json({ message: "Access denied - tenant group belongs to different organization" });
+        }
+      }
+      
+      // Convert date strings to Date objects before validation - only when present
+      const requestData = { ...req.body };
+      
+      // Only convert startDate if provided and validate it
+      if (req.body.startDate) {
+        requestData.startDate = new Date(req.body.startDate);
+        if (isNaN(requestData.startDate.getTime())) {
+          return res.status(400).json({ message: "Invalid start date format" });
+        }
+      }
+      
+      // Only convert endDate if provided and validate it
+      if (req.body.endDate) {
+        requestData.endDate = new Date(req.body.endDate);
+        if (isNaN(requestData.endDate.getTime())) {
+          return res.status(400).json({ message: "Invalid end date format" });
+        }
+      }
+      
+      // SECURITY: Override orgId from request body with validated org.id to prevent tampering
+      delete requestData.orgId;
+      
+      // Use partial validation schema for updates instead of full insert schema
+      const partialLeaseSchema = insertLeaseSchema.partial();
+      const validatedData = partialLeaseSchema.parse(requestData);
+      
+      // Update the lease
+      const updatedLease = await storage.updateLease(leaseId, validatedData);
+      
+      // Handle side effects of lease modifications
+      await handleLeaseModificationSideEffects(org.id, existingLease, updatedLease);
+      
+      console.log(`✅ SECURITY: User ${userId} successfully updated lease ${leaseId} in org ${org.id}`);
+      res.json(updatedLease);
+    } catch (error) {
+      console.error("Error updating lease:", error);
+      res.status(500).json({ message: "Failed to update lease" });
+    }
+  });
+
+  // Helper function to handle side effects when lease is modified
+  async function handleLeaseModificationSideEffects(orgId: string, oldLease: any, newLease: any) {
+    try {
+      // CRITICAL: Handle manual lease termination with comprehensive financial cleanup
+      if (oldLease.status !== "Terminated" && newLease.status === "Terminated") {
+        console.log(`🏠 Manual lease termination detected - performing comprehensive financial cleanup for lease ${newLease.id}`);
+        
+        // Use our comprehensive cleanup functions from storage
+        await storage.cancelLeaseRecurringRevenue(newLease.id);
+        await storage.cancelLeaseReminders(newLease.id);
+        
+        console.log(`✅ Manual lease termination completed with full financial side-effects cleanup for lease ${newLease.id}`);
+        return; // Skip other side effects since lease is now terminated
+      }
+      
+      // Only process other side effects if lease is not terminated
+      if (newLease.status === "Terminated") {
+        console.log(`ℹ️ Skipping lease modification side effects for terminated lease ${newLease.id}`);
+        return;
+      }
+      
+      // 1. Handle rent changes - update recurring revenue
+      if (oldLease.rent !== newLease.rent || 
+          oldLease.dueDay !== newLease.dueDay ||
+          new Date(oldLease.endDate).getTime() !== new Date(newLease.endDate).getTime()) {
+        
+        console.log(`🔄 Lease modification detected - updating recurring revenue for lease ${newLease.id}`);
+        await updateLeaseRecurringRevenue(orgId, oldLease, newLease);
+      }
+      
+      // 2. Handle reminder changes - update lease reminders
+      if (oldLease.expirationReminderMonths !== newLease.expirationReminderMonths ||
+          oldLease.renewalReminderEnabled !== newLease.renewalReminderEnabled ||
+          new Date(oldLease.endDate).getTime() !== new Date(newLease.endDate).getTime()) {
+        
+        console.log(`🔔 Lease dates/reminder settings changed - updating reminders for lease ${newLease.id}`);
+        await updateLeaseReminders(orgId, oldLease, newLease);
+      }
+      
+    } catch (error) {
+      console.error("Error handling lease modification side effects:", error);
+      // Don't fail the lease update if side effects fail
+    }
+  }
+
+  // Helper function to update recurring revenue when lease is modified
+  async function updateLeaseRecurringRevenue(orgId: string, oldLease: any, newLease: any) {
+    try {
+      // Find existing recurring revenue transactions for this lease using robust matching
+      const transactions = await storage.getTransactions(orgId);
+      
+      // Use multiple criteria to find lease-related transactions more reliably
+      const existingRentTransactions = transactions.filter(t => {
+        // Primary matching criteria
+        const basicMatch = t.type === "Income" && 
+                           t.category === "Rental Income" && 
+                           t.isRecurring;
+        
+        // Enhanced matching with multiple patterns for robustness
+        const leaseIdPatterns = [
+          `lease ${newLease.id}`,  // Current format
+          `lease ${oldLease.id}`,  // In case ID changed (shouldn't happen but safer)
+          `leaseId: ${newLease.id}`, // Alternative format
+          `lease-${newLease.id}`,   // Alternative format
+        ];
+        
+        const notesMatch = leaseIdPatterns.some(pattern => 
+          t.notes?.toLowerCase().includes(pattern.toLowerCase())
+        );
+        
+        // Additional validation criteria
+        const unitMatch = t.unitId === newLease.unitId || t.unitId === oldLease.unitId;
+        const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(oldLease.rent)) < 0.01; // Allow for rounding differences
+        
+        return basicMatch && (notesMatch || (unitMatch && amountMatch));
+      });
+      
+      // Log matching results for debugging
+      console.log(`🔍 Found ${existingRentTransactions.length} existing rent transactions for lease ${newLease.id}`);
+      if (existingRentTransactions.length > 1) {
+        console.warn(`⚠️ Multiple recurring rent transactions found for lease ${newLease.id}. Using the first one.`);
+      }
+      
+      // Update or recreate recurring revenue based on changes
+      if (existingRentTransactions.length > 0) {
+        const primaryTransaction = existingRentTransactions[0];
+        
+        // Calculate new first rent date if due day changed
+        const startDate = new Date(newLease.startDate);
+        const dueDay = Math.min(newLease.dueDay || 1, 28);
+        const firstRentDate = new Date(startDate.getFullYear(), startDate.getMonth(), dueDay);
+        
+        if (firstRentDate < startDate) {
+          firstRentDate.setMonth(firstRentDate.getMonth() + 1);
+        }
+        
+        // Update the primary recurring transaction
+        const updatedTransactionData = {
+          amount: newLease.rent.toString(),
+          date: firstRentDate,
+          recurringEndDate: new Date(newLease.endDate),
+          notes: `Recurring rent for lease ${newLease.id} (updated ${new Date().toLocaleDateString()})`,
+        };
+        
+        await storage.updateTransaction(primaryTransaction.id, updatedTransactionData);
+        console.log(`✅ Updated recurring rent revenue for lease ${newLease.id}: $${newLease.rent}/month`);
+        
+        // Update future transactions in the series if rent amount changed
+        if (oldLease.rent !== newLease.rent) {
+          const futureTransactions = existingRentTransactions.filter(t => 
+            t.id !== primaryTransaction.id && 
+            new Date(t.date) > new Date()
+          );
+          
+          for (const transaction of futureTransactions) {
+            await storage.updateTransaction(transaction.id, {
+              amount: newLease.rent.toString()
+            });
+          }
+          console.log(`✅ Updated ${futureTransactions.length} future rent transactions with new amount`);
+        }
+      } else {
+        // No existing recurring revenue found, create it
+        console.log(`🆕 No existing recurring revenue found, creating new one for lease ${newLease.id}`);
+        await createLeaseRentRevenue(orgId, newLease);
+      }
+      
+    } catch (error) {
+      console.error("Error updating lease recurring revenue:", error);
+    }
+  }
+
+  // Helper function to update lease reminders when lease is modified
+  async function updateLeaseReminders(orgId: string, oldLease: any, newLease: any) {
+    try {
+      // Get all existing reminders for this lease
+      const reminders = await storage.getReminders(orgId);
+      const existingLeaseReminders = reminders.filter(r => 
+        r.scope === "lease" && 
+        r.scopeId === newLease.id
+      );
+      
+      // Remove old reminders
+      for (const reminder of existingLeaseReminders) {
+        await storage.deleteReminder(reminder.id);
+      }
+      
+      // Create new reminders with updated lease data
+      await createLeaseReminders(orgId, newLease);
+      console.log(`✅ Updated lease reminders for lease ${newLease.id}`);
+      
+    } catch (error) {
+      console.error("Error updating lease reminders:", error);
+    }
+  }
+
+  // Helper function to create lease reminders
+  async function createLeaseReminders(orgId: string, lease: any) {
+    const reminders = [];
+    
+    // Create expiration reminder if configured
+    if (lease.expirationReminderMonths && lease.expirationReminderMonths > 0) {
+      const reminderDate = new Date(lease.endDate);
+      reminderDate.setMonth(reminderDate.getMonth() - lease.expirationReminderMonths);
+      
+      reminders.push({
+        orgId,
+        scope: "lease" as const,
+        scopeId: lease.id,
+        title: `Lease expires in ${lease.expirationReminderMonths} month${lease.expirationReminderMonths > 1 ? 's' : ''}`,
+        type: "lease" as const,
+        dueAt: reminderDate,
+        leadDays: 0,
+        channel: "inapp" as const,
+        status: "Pending" as const,
+        isRecurring: false,
+        recurringInterval: 1,
+        isBulkEntry: false,
+        payloadJson: {
+          leaseId: lease.id,
+          unitId: lease.unitId,
+          tenantGroupId: lease.tenantGroupId,
+          reminderType: "expiration",
+          monthsBeforeExpiry: lease.expirationReminderMonths
+        }
+      });
+    }
+    
+    // Create renewal reminder if enabled
+    if (lease.renewalReminderEnabled) {
+      const renewalReminderDate = new Date(lease.endDate);
+      renewalReminderDate.setMonth(renewalReminderDate.getMonth() - 1); // 1 month before
+      
+      reminders.push({
+        orgId,
+        scope: "lease" as const,
+        scopeId: lease.id,
+        title: "Send lease renewal notification to tenant",
+        type: "lease" as const,
+        dueAt: renewalReminderDate,
+        leadDays: 0,
+        channel: "inapp" as const,
+        status: "Pending" as const,
+        isRecurring: false,
+        recurringInterval: 1,
+        isBulkEntry: false,
+        payloadJson: {
+          leaseId: lease.id,
+          unitId: lease.unitId,
+          tenantGroupId: lease.tenantGroupId,
+          reminderType: "renewal",
+          action: "notify_tenant"
+        }
+      });
+    }
+    
+    // Create all reminders
+    for (const reminder of reminders) {
+      try {
+        await storage.createReminder(reminder);
+      } catch (error) {
+        console.error("Error creating lease reminder:", error);
+        // Don't fail the entire lease creation if reminder creation fails
+      }
+    }
+  }
+
+  // Helper function to create recurring rent revenue when lease is created
+  async function createLeaseRentRevenue(orgId: string, lease: any) {
+    try {
+      // Get unit details to find the property ID
+      const unit = await storage.getUnit(lease.unitId);
+      if (!unit) {
+        console.error(`Unit not found for lease ${lease.id}`);
+        return;
+      }
+
+      // Calculate first rent due date based on lease start and due day
+      const startDate = new Date(lease.startDate);
+      const dueDay = Math.min(lease.dueDay || 1, 28); // Clamp to safe day to avoid month overflow
+      const firstRentDate = new Date(startDate.getFullYear(), startDate.getMonth(), dueDay);
+      
+      // If the due day has already passed in the start month, move to next month
+      if (firstRentDate < startDate) {
+        firstRentDate.setMonth(firstRentDate.getMonth() + 1);
+      }
+
+      // Generate clear month/year description
+      const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"];
+      const rentMonth = monthNames[firstRentDate.getMonth()];
+      const rentYear = firstRentDate.getFullYear();
+      const clearDescription = `${rentMonth} ${rentYear} Rent`;
+
+      // Get property details for user-friendly notes
+      const property = await storage.getProperty(unit.propertyId);
+      if (!property) {
+        console.error(`Property not found for unit ${unit.id}`);
+        return;
+      }
+
+      // Create user-friendly location description
+      const propertyName = property.name || `${property.street}, ${property.city}`;
+      let locationDescription = propertyName;
+      
+      // Check if this property has multiple units
+      const propertyUnits = await storage.getUnits(unit.propertyId);
+      const isMultiUnit = propertyUnits.length > 1;
+      
+      // Add unit information only for buildings with multiple units
+      if (isMultiUnit && unit.label && unit.label.trim()) {
+        locationDescription += `, Unit ${unit.label}`;
+      }
+
+      // Prepare rent revenue data matching existing schema patterns
+      const rentRevenueData = {
+        orgId: orgId,
+        propertyId: unit.propertyId,
+        unitId: lease.unitId,
+        type: "Income" as const,
+        scope: "property" as const,
+        amount: lease.rent.toString(),
+        description: clearDescription,
+        category: "Rental Income",
+        date: firstRentDate,
+        isRecurring: true,
+        recurringFrequency: "months" as const, // Use "months" to match cron expectations
+        recurringInterval: 1,
+        recurringEndDate: new Date(lease.endDate), // Ensure proper date normalization
+        taxDeductible: false, // Rental income is taxable, not deductible
+        notes: `Recurring rent for ${locationDescription}`,
+        paymentStatus: "Unpaid" as const, // Rent starts as unpaid until payment received
+      };
+
+      // Validate using proper schema before creating
+      const validatedData = insertTransactionSchema.parse(rentRevenueData);
+      
+      // Create the revenue transaction using the correct storage method
+      await storage.createTransaction(validatedData);
+      
+      console.log(`✅ Created recurring rent revenue for lease ${lease.id}: $${lease.rent}/month starting ${firstRentDate.toDateString()}`);
+      
+    } catch (error) {
+      console.error("Error creating lease rent revenue:", error);
+      // Don't fail the entire lease creation if revenue creation fails
+    }
+  }
+
+  // Smart case routes
+  app.get('/api/media/:mediaId', async (req: any, res) => {
+    try {
+      const { mediaId } = req.params;
+      const [mediaItem] = await db.select().from(caseMedia).where(eq(caseMedia.id, mediaId));
+      if (!mediaItem) return res.status(404).json({ message: "Media not found" });
+      
+      const url = mediaItem.url;
+      if (url.startsWith('data:')) {
+        const matches = url.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], 'base64');
+          res.set('Content-Type', mimeType);
+          res.set('Cache-Control', 'public, max-age=86400');
+          return res.send(buffer);
+        }
+      }
+      res.redirect(url);
+    } catch (error) {
+      console.error("Error serving media:", error);
+      res.status(500).json({ message: "Failed to serve media" });
+    }
+  });
+
+  app.get('/api/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const cases = await storage.getSmartCases(org.id);
+      
+      // Include scheduled jobs and reporter info for each case
+      const casesWithExtras = await Promise.all(cases.map(async (smartCase) => {
+        // Get scheduled jobs with team info
+        const jobs = await storage.getScheduledJobs(org.id, { caseId: smartCase.id });
+        
+        // Get reporter (tenant) info if available
+        let reporter = null;
+        if (smartCase.reporterUserId) {
+          try {
+            const user = await storage.getUser(smartCase.reporterUserId);
+            if (user) {
+              reporter = {
+                id: user.id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email
+              };
+            }
+          } catch (error) {
+            console.error(`Error fetching reporter for case ${smartCase.id}:`, error);
+          }
+        }
+        
+        const caseMediaItems = await db.select({
+          id: caseMedia.id,
+          caseId: caseMedia.caseId,
+          type: caseMedia.type,
+          caption: caseMedia.caption,
+          createdAt: caseMedia.createdAt,
+        }).from(caseMedia).where(eq(caseMedia.caseId, smartCase.id));
+        const mediaWithUrls = caseMediaItems.map(m => ({
+          ...m,
+          url: `/api/media/${m.id}`,
+        }));
+
+        return {
+          ...smartCase,
+          scheduledJobs: jobs,
+          reporter,
+          media: mediaWithUrls
+        };
+      }));
+      
+      res.json(casesWithExtras);
+    } catch (error) {
+      console.error("Error fetching cases:", error);
+      res.status(500).json({ message: "Failed to fetch cases" });
+    }
+  });
+
+  // Tenant-specific cases endpoint - returns only cases created by the logged-in tenant
+  app.get('/api/tenant/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get tenant's org from tenants table
+      const tenantRecord = await db
+        .select({ orgId: tenants.orgId })
+        .from(tenants)
+        .where(eq(tenants.userId, userId))
+        .limit(1);
+      
+      if (!tenantRecord.length || !tenantRecord[0].orgId) {
+        return res.status(404).json({ message: "Tenant not linked to an organization" });
+      }
+      
+      const orgId = tenantRecord[0].orgId;
+      
+      // Get all cases for the organization
+      const allCases = await storage.getSmartCases(orgId);
+      
+      // Filter to only cases where this user is the reporter
+      const tenantCases = allCases.filter(c => c.reporterUserId === userId);
+      
+      const casesWithMedia = await Promise.all(tenantCases.map(async (c) => {
+        const mediaItems = await db.select({
+          id: caseMedia.id,
+          caseId: caseMedia.caseId,
+          type: caseMedia.type,
+          caption: caseMedia.caption,
+          createdAt: caseMedia.createdAt,
+        }).from(caseMedia).where(eq(caseMedia.caseId, c.id));
+        const mediaWithUrls = mediaItems.map(m => ({ ...m, url: `/api/media/${m.id}` }));
+        return { ...c, media: mediaWithUrls };
+      }));
+      
+      res.json(casesWithMedia);
+    } catch (error) {
+      console.error("Error fetching tenant cases:", error);
+      res.status(500).json({ message: "Failed to fetch tenant cases" });
+    }
+  });
+  
+  // Tenant-specific case creation endpoint
+  app.post('/api/tenant/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.primaryRole !== 'tenant') {
+        return res.status(403).json({ message: "Access denied - tenant role required" });
+      }
+      
+      // Get tenant's org and unit from tenants table
+      const tenantRecord = await db.query.tenants.findFirst({
+        where: eq(tenants.userId, userId),
+        with: {
+          unit: {
+            with: {
+              property: true,
+            },
+          },
+        },
+      });
+      
+      if (!tenantRecord || !tenantRecord.orgId) {
+        return res.status(404).json({ message: "Tenant not linked to an organization" });
+      }
+      
+      const orgId = tenantRecord.orgId;
+      
+      // Determine property and unit from tenant record or request body
+      let propertyId = req.body.propertyId;
+      let unitId = req.body.unitId;
+      
+      // If tenant has a unit assigned and no override provided, use their unit
+      if (tenantRecord.unit && tenantRecord.unit.property) {
+        if (!propertyId) propertyId = tenantRecord.unit.property.id;
+        if (!unitId) unitId = tenantRecord.unitId;
+      }
+      
+      // Normalize priority
+      const priorityMap: Record<string, string> = {
+        'normal': 'Normal',
+        'medium': 'Normal',
+        'low': 'Normal', 
+        'high': 'High',
+        'urgent': 'Urgent',
+        'critical': 'Urgent'
+      };
+      const normalizedPriority = req.body.priority 
+        ? priorityMap[req.body.priority.toLowerCase()] || req.body.priority 
+        : 'Normal';
+
+      // Build case data
+      const caseData = {
+        title: req.body.title,
+        description: req.body.description || null,
+        orgId: orgId,
+        reporterUserId: userId,
+        propertyId: propertyId || null,
+        unitId: unitId || null,
+        priority: normalizedPriority,
+        category: req.body.category || null,
+        status: 'Open',
+        aiTriageJson: req.body.aiTriageJson || null,
+      };
+      
+      const { insertSmartCaseSchema } = await import("@shared/schema");
+      const validatedData = insertSmartCaseSchema.parse(caseData);
+      
+      const smartCase = await storage.createSmartCase(validatedData);
+      
+      // Handle media uploads if present
+      if (req.body.mediaIds && Array.isArray(req.body.mediaIds)) {
+        for (const mediaId of req.body.mediaIds) {
+          await storage.updateCaseMedia(mediaId, { caseId: smartCase.id });
+        }
+      }
+      
+      res.status(201).json(smartCase);
+    } catch (error) {
+      console.error("Error creating tenant case:", error);
+      res.status(500).json({ message: "Failed to create case" });
+    }
+  });
+
+  // Tenant-specific contacts endpoint - returns landlord/property manager contacts for messaging
+  app.get('/api/tenant/contacts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.primaryRole !== 'tenant') {
+        return res.status(403).json({ message: "Access denied - tenant role required" });
+      }
+      
+      // Find the tenant record for this user to get their org
+      const tenantRecord = await db
+        .select()
+        .from(tenants)
+        .where(eq(tenants.userId, userId))
+        .limit(1);
+      
+      if (!tenantRecord.length || !tenantRecord[0].orgId) {
+        return res.status(404).json({ message: "Tenant not linked to an organization" });
+      }
+      
+      const orgId = tenantRecord[0].orgId;
+      
+      // Get all org admins and property owners from this organization
+      const contacts = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          primaryRole: users.primaryRole,
+        })
+        .from(organizationMembers)
+        .innerJoin(users, eq(organizationMembers.userId, users.id))
+        .where(
+          and(
+            eq(organizationMembers.orgId, orgId),
+            or(
+              eq(users.primaryRole, 'org_admin'),
+              eq(users.primaryRole, 'property_owner')
+            )
+          )
+        );
+      
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching tenant contacts:", error);
+      res.status(500).json({ message: "Failed to fetch tenant contacts" });
+    }
+  });
+
+  app.post('/api/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Normalize priority to match schema enum (Normal, High, Urgent)
+      const priorityMap: Record<string, string> = {
+        'normal': 'Normal',
+        'medium': 'Normal', // Legacy support for Medium → Normal
+        'low': 'Normal', // Legacy support for Low → Normal
+        'high': 'High',
+        'urgent': 'Urgent',
+        'critical': 'Urgent'
+      };
+      const normalizedPriority = req.body.priority 
+        ? priorityMap[req.body.priority.toLowerCase()] || req.body.priority 
+        : req.body.priority;
+
+      // Clean the data: convert empty strings to null for optional fields
+      const cleanedData = {
+        ...req.body,
+        orgId: org.id,
+        reporterUserId: userId, // Track who created this case
+        unitId: req.body.unitId === "" ? null : req.body.unitId,
+        propertyId: req.body.propertyId === "" ? null : req.body.propertyId,
+        description: req.body.description === "" ? null : req.body.description,
+        category: req.body.category === "" ? null : req.body.category,
+        teamId: req.body.teamId === "" ? null : req.body.teamId,
+        scheduledStartAt: req.body.scheduledStartAt === "" ? null : req.body.scheduledStartAt,
+        priority: normalizedPriority,
+      };
+      
+      const validatedData = insertSmartCaseSchema.parse(cleanedData);
+      
+      const smartCase = await storage.createSmartCase(validatedData);
+      
+      // Create a scheduled job ONLY when both teamId and scheduledStartAt are provided
+      if (req.body.teamId && req.body.scheduledStartAt) {
+        try {
+          const { insertScheduledJobSchema } = await import("@shared/schema");
+          const { zonedTimeToUtc } = await import('date-fns-tz');
+          
+          // Get timezone from org or property
+          const property = req.body.propertyId ? await storage.getProperty(req.body.propertyId) : null;
+          const timezone = property?.timezone || org.timezone || 'America/New_York';
+          
+          // Frontend sends local datetime as "yyyy-MM-dd'T'HH:mm" format
+          // Parse it as a local time in the org/property timezone, then convert to UTC
+          const localDateTimeStr = req.body.scheduledStartAt; // e.g., "2025-11-15T14:30"
+          const [datePart, timePart] = localDateTimeStr.split('T');
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hours, minutes] = timePart.split(':').map(Number);
+          
+          // Create a local date object
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          
+          // Convert local time to UTC using the org/property timezone
+          const scheduledStartAt = zonedTimeToUtc(localDate, timezone);
+          
+          // Map case priority to job urgency (Low/High/Emergent)
+          const urgencyMap: Record<string, string> = {
+            'Normal': 'Low',
+            'High': 'High',
+            'Urgent': 'Emergent'
+          };
+          const jobUrgency = urgencyMap[smartCase.priority || 'Normal'] || 'Low';
+          
+          const scheduledJobData = insertScheduledJobSchema.parse({
+            orgId: org.id,
+            teamId: req.body.teamId,
+            title: smartCase.title,
+            description: smartCase.description || `Maintenance request: ${smartCase.title}`,
+            status: 'Scheduled',
+            urgency: jobUrgency,
+            caseId: smartCase.id,
+            propertyId: smartCase.propertyId,
+            unitId: smartCase.unitId,
+            scheduledStartAt: scheduledStartAt,
+          });
+          
+          const scheduledJob = await storage.createScheduledJob(scheduledJobData);
+          console.log(`📅 Created scheduled job ${scheduledJob.id} for case ${smartCase.id} with team ${req.body.teamId} at ${scheduledStartAt}`);
+        } catch (error) {
+          console.error('Error creating scheduled job:', error);
+          // Don't fail the case creation if job creation fails
+        }
+      }
+      
+      // Create media records if photos/videos were uploaded
+      const mediaUrls = req.body.mediaUrls || [];
+      if (mediaUrls.length > 0) {
+        for (const url of mediaUrls) {
+          try {
+            await storage.db.insert(storage.schema.caseMedia).values({
+              caseId: smartCase.id,
+              url,
+              type: url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : 'video'
+            });
+          } catch (error) {
+            console.error('Error creating case media:', error);
+          }
+        }
+        console.log(`📎 Attached ${mediaUrls.length} media file(s) to case ${smartCase.id}`);
+      }
+
+      // Get admin approval policy to check involvement mode
+      const { notificationService } = await import('./notificationService');
+      const policies = await storage.getApprovalPolicies(org.id);
+      const adminPolicy = policies.find(p => p.isActive);
+      const involvementMode = adminPolicy?.involvementMode || 'hands-on';
+      
+      // Notify admin at case creation if:
+      // - Involvement mode is hands-on or balanced (not hands-off), OR
+      // - Case is Urgent priority (always notify for urgent cases regardless of mode)
+      const isUrgent = smartCase.priority === 'Urgent';
+      if (involvementMode !== 'hands-off' || isUrgent) {
+        await notificationService.notifyAdmins({
+          message: isUrgent 
+            ? `🚨 URGENT - New critical maintenance request: ${smartCase.title}`
+            : `Action Required - New maintenance request: ${smartCase.title}`,
+          type: 'case_created',
+          title: isUrgent ? '🚨 Urgent Maintenance Case' : 'Action Required: New Maintenance Case',
+          subject: isUrgent ? 'URGENT: Critical Maintenance Case Created' : 'Action Required: New Maintenance Case Created',
+          caseId: smartCase.id,
+          caseNumber: smartCase.id,
+          priority: smartCase.priority || 'Normal'
+        }, org.id);
+        console.log(`✅ Notified admins of new ${isUrgent ? 'URGENT' : ''} case ${smartCase.id} (involvement_mode: ${involvementMode})`);
+      } else {
+        console.log(`⏭️ Skipped admin notification for case ${smartCase.id} (involvement_mode: ${involvementMode}, priority: ${smartCase.priority})`);
+      }
+
+      // If creator has user account (tenant), notify them their request was received
+      const creator = await storage.getUser(userId);
+      if (creator && creator.email) {
+        await notificationService.notifyTenant({
+          message: `Your maintenance request "${smartCase.title}" has been received and will be reviewed shortly.`,
+          type: 'case_created',
+          title: 'Request Received',
+          subject: 'Maintenance Request Received',
+          caseId: smartCase.id
+        }, creator.email, userId, org.id);
+      }
+      
+      // Trigger AI triage and contractor assignment in the background
+      (async () => {
+        try {
+          console.log(`🤖 Starting AI triage for case ${smartCase.id} (priority: ${smartCase.priority})...`);
+          
+          // Step 1: AI Triage Analysis
+          const { aiTriageService } = await import('./aiTriage');
+          const triageResult = await aiTriageService.analyzeMaintenanceRequest({
+            title: smartCase.title,
+            description: smartCase.description || '',
+            category: smartCase.category || undefined,
+            priority: smartCase.priority || undefined,
+            propertyId: smartCase.propertyId || undefined,
+            unitId: smartCase.unitId || undefined,
+            orgId: smartCase.orgId
+          });
+          
+          console.log(`🤖 Triage complete: ${triageResult.urgency} urgency, ${triageResult.category} category`);
+          
+          // Step 2: Find optimal contractor
+          const { aiCoordinatorService } = await import('./aiCoordinator');
+          const vendors = await storage.getVendors(org.id);
+          
+          const availableContractors = vendors
+            .filter(v => v.isActiveContractor)
+            .map(v => ({
+              id: v.id,
+              name: v.name,
+              category: v.category || undefined,
+              specializations: v.specializations || [],
+              availabilityPattern: v.availabilityPattern || 'weekdays_9to5',
+              responseTimeHours: v.responseTimeHours || 24,
+              estimatedHourlyRate: v.estimatedHourlyRate ? Number(v.estimatedHourlyRate) : undefined,
+              rating: v.rating ? Number(v.rating) : undefined,
+              maxJobsPerDay: v.maxJobsPerDay || 3,
+              currentWorkload: 0,
+              emergencyAvailable: v.emergencyAvailable || false,
+              isActiveContractor: true
+            }));
+          
+          const recommendations = await aiCoordinatorService.findOptimalContractor({
+            caseData: {
+              id: smartCase.id,
+              category: triageResult.category,
+              priority: triageResult.urgency,
+              description: smartCase.description || smartCase.title,
+              urgency: triageResult.urgency,
+              estimatedDuration: triageResult.estimatedDuration,
+              safetyRisk: triageResult.safetyRisk,
+              contractorType: triageResult.contractorType
+            },
+            availableContractors
+          });
+          
+          if (recommendations.length > 0) {
+            const bestContractor = recommendations[0];
+            console.log(`🎯 Assigned to contractor: ${bestContractor.contractorName} (${bestContractor.matchScore}% match)`);
+            
+            // Step 3: Update case with triage and assignment
+            // Keep status as 'New' so contractor can accept it
+            // Only prepend category if not already present to avoid "Plumbing: Plumbing: Leak"
+            const updatedTitle = smartCase.title.startsWith(`${triageResult.category}:`) 
+              ? smartCase.title 
+              : `${triageResult.category}: ${smartCase.title}`;
+            
+            // Normalize priority: map AI values to database enum (Normal, High, Urgent)
+            const priorityMap: Record<string, string> = {
+              'Low': 'Normal',
+              'Medium': 'Normal',
+              'High': 'High',
+              'Urgent': 'Urgent',
+              'Critical': 'Urgent',  // AI sometimes returns "Critical" - map to Urgent
+              'Emergent': 'Urgent'   // Map emergent to urgent as well
+            };
+            const normalizedPriority = priorityMap[triageResult.urgency] || 'Normal';
+            
+            await storage.updateSmartCase(smartCase.id, {
+              assignedContractorId: bestContractor.contractorId,
+              aiTriageResult: triageResult,
+              priority: normalizedPriority,
+              category: triageResult.category,
+              title: updatedTitle
+            });
+            
+            // Step 3.5: Update linked scheduled job with AI suggestions and contractor
+            try {
+              const jobs = await storage.getScheduledJobs(org.id, { caseId: smartCase.id });
+              if (jobs.length > 0) {
+                const linkedJob = jobs[0];
+                // Map case priority to job urgency (Low/High/Emergent)
+                const urgencyMap: Record<string, string> = {
+                  'Normal': 'Low',
+                  'High': 'High',
+                  'Urgent': 'Emergent',
+                  'Critical': 'Emergent',  // AI may return Critical
+                  'Emergent': 'Emergent'
+                };
+                
+                await storage.updateScheduledJob(linkedJob.id, {
+                  contractorId: bestContractor.contractorId,
+                  urgency: urgencyMap[triageResult.urgency] || 'Low',
+                  durationDays: triageResult.estimatedDuration || 1,
+                  title: updatedTitle,
+                  notes: triageResult.estimatedTime ? `AI Estimate: ${triageResult.estimatedTime}` : linkedJob.notes
+                });
+                console.log(`📅 Updated scheduled job ${linkedJob.id} with AI suggestions`);
+              }
+            } catch (error) {
+              console.error('Error updating scheduled job with AI data:', error);
+            }
+            
+            // Step 4: Notify contractor
+            console.log(`📧 Notifying contractor ${bestContractor.contractorId} of new case assignment...`);
+            const { notificationService } = await import('./notificationService');
+            await notificationService.notifyContractor({
+              message: `New ${triageResult.urgency} priority maintenance request assigned to you: ${smartCase.title}`,
+              type: 'case_assigned',
+              title: 'New Case Assigned',
+              caseId: smartCase.id,
+              orgId: smartCase.orgId
+            }, bestContractor.contractorId, smartCase.orgId);
+            
+            console.log(`✅ Contractor ${bestContractor.contractorId} notified of case ${smartCase.id} assignment`);
+            console.log(`✅ Case ${smartCase.id} fully processed and assigned`);
+          } else {
+            console.log(`⚠️ No contractors available for case ${smartCase.id}`);
+            // Only prepend category if not already present to avoid "Plumbing: Plumbing: Leak"
+            const updatedTitle = smartCase.title.startsWith(`${triageResult.category}:`) 
+              ? smartCase.title 
+              : `${triageResult.category}: ${smartCase.title}`;
+            
+            // Normalize priority: map AI values to database enum (Normal, High, Urgent)
+            const priorityMap: Record<string, string> = {
+              'Low': 'Normal',
+              'Medium': 'Normal',
+              'High': 'High',
+              'Urgent': 'Urgent',
+              'Critical': 'Urgent',  // AI sometimes returns "Critical" - map to Urgent
+              'Emergent': 'Urgent'   // Map emergent to urgent as well
+            };
+            const normalizedPriority = priorityMap[triageResult.urgency] || 'Normal';
+            
+            await storage.updateSmartCase(smartCase.id, {
+              aiTriageResult: triageResult,
+              status: 'In Review',
+              priority: normalizedPriority,
+              category: triageResult.category,
+              title: updatedTitle
+            });
+            
+            // Update linked scheduled job with AI suggestions (without contractor)
+            try {
+              const jobs = await storage.getScheduledJobs(org.id, { caseId: smartCase.id });
+              if (jobs.length > 0) {
+                const linkedJob = jobs[0];
+                // Map case priority to job urgency (Low/High/Emergent)
+                const urgencyMap: Record<string, string> = {
+                  'Normal': 'Low',
+                  'High': 'High',
+                  'Urgent': 'Emergent',
+                  'Critical': 'Emergent',  // AI may return Critical
+                  'Emergent': 'Emergent'
+                };
+                
+                await storage.updateScheduledJob(linkedJob.id, {
+                  urgency: urgencyMap[triageResult.urgency] || 'Low',
+                  durationDays: triageResult.estimatedDuration || 1,
+                  title: updatedTitle,
+                  notes: triageResult.estimatedTime ? `AI Estimate: ${triageResult.estimatedTime}` : linkedJob.notes
+                });
+                console.log(`📅 Updated scheduled job ${linkedJob.id} with AI suggestions (no contractor)`);
+              }
+            } catch (error) {
+              console.error('Error updating scheduled job with AI data:', error);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Error in AI triage pipeline for case ${smartCase.id}:`, error);
+          
+          // If AI triage fails and case is urgent, notify admin immediately
+          if (smartCase.priority === 'Urgent') {
+            try {
+              const { notificationService } = await import('./notificationService');
+              await notificationService.notifyAdmins({
+                message: `⚠️ AI triage failed for URGENT case "${smartCase.title}". Manual contractor assignment required.`,
+                type: 'case_created',
+                title: '⚠️ Urgent Case Needs Manual Assignment',
+                subject: 'URGENT: AI Triage Failed - Manual Action Required',
+                caseId: smartCase.id,
+                priority: 'Urgent'
+              }, org.id);
+              console.log(`✅ Sent fallback notification to admins about failed triage for urgent case ${smartCase.id}`);
+            } catch (notifError) {
+              console.error(`❌ Failed to send fallback notification:`, notifError);
+            }
+          }
+          // Don't fail the request - case is still created
+        }
+      })();
+      
+      res.json(smartCase);
+    } catch (error) {
+      console.error("Error creating case:", error);
+      res.status(500).json({ message: "Failed to create case" });
+    }
+  });
+
+  app.patch('/api/cases/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const oldCase = await storage.getSmartCase(req.params.id);
+      
+      // Debug logging
+      console.log('📥 PATCH request body:', req.body);
+      
+      // Convert date strings to Date objects (or keep null values)
+      const updateData = { ...req.body };
+      if ('scheduledStartAt' in updateData) {
+        updateData.scheduledStartAt = updateData.scheduledStartAt ? new Date(updateData.scheduledStartAt) : null;
+      }
+      if ('scheduledEndAt' in updateData) {
+        updateData.scheduledEndAt = updateData.scheduledEndAt ? new Date(updateData.scheduledEndAt) : null;
+      }
+      
+      // Auto-determine status based on schedule changes (unless explicitly set in request)
+      if ('scheduledStartAt' in updateData && !('status' in req.body)) {
+        const wasScheduled = oldCase && oldCase.scheduledStartAt;
+        const isNowScheduled = updateData.scheduledStartAt !== null;
+        
+        // Unscheduling: set to "On Hold"
+        if (wasScheduled && !isNowScheduled) {
+          updateData.status = 'On Hold';
+          console.log('🔄 Auto-setting status to "On Hold" (unscheduled)');
+        }
+        // Rescheduling from unscheduled: set to "In Review"
+        else if (!wasScheduled && isNowScheduled) {
+          updateData.status = 'In Review';
+          console.log('🔄 Auto-setting status to "In Review" (rescheduled from unscheduled)');
+        }
+      }
+      
+      console.log('📤 Update data after conversion:', { scheduledStartAt: updateData.scheduledStartAt, scheduledEndAt: updateData.scheduledEndAt, status: updateData.status });
+      
+      const smartCase = await storage.updateSmartCase(req.params.id, updateData);
+      
+      // Notify if status changed (check updateData.status which includes auto-determined status)
+      if (oldCase && updateData.status && oldCase.status !== updateData.status) {
+        const { notificationService } = await import('./notificationService');
+        
+        // Special handling for different status types
+        const isCompleted = updateData.status === 'Resolved' || updateData.status === 'Closed';
+        const isOnHold = updateData.status === 'On Hold';
+        const isInReview = updateData.status === 'In Review';
+        const notificationType = isCompleted ? 'case_completed' : 'case_updated';
+        
+        // Get approval policy to check involvement mode
+        const policies = await storage.getApprovalPolicies(smartCase.orgId);
+        const adminPolicy = policies.find(p => p.isActive);
+        const involvementMode = adminPolicy?.involvementMode || 'hands-on';
+        
+        // Notification rules:
+        // - hands-off: only notify for completion, On Hold, and In Review transitions
+        // - hands-on/balanced: notify for all status changes
+        const isHighSignalEvent = isCompleted || isOnHold || isInReview;
+        const shouldNotifyAdmin = involvementMode !== 'hands-off' || isHighSignalEvent;
+        
+        if (shouldNotifyAdmin) {
+          let adminMessage = `Case "${smartCase.title}" status changed from ${oldCase.status} to ${updateData.status}`;
+          if (isCompleted) {
+            adminMessage = `Maintenance case "${smartCase.title}" has been completed!`;
+          } else if (isOnHold) {
+            adminMessage = `Work order "${smartCase.title}" has been placed on hold (unscheduled).`;
+          } else if (isInReview) {
+            adminMessage = `Work order "${smartCase.title}" has been rescheduled and is now in review.`;
+          }
+          
+          await notificationService.notifyAdmins({
+            message: adminMessage,
+            type: notificationType,
+            title: isCompleted ? 'Case Completed' : isOnHold ? 'Case On Hold' : isInReview ? 'Case Rescheduled' : 'Case Status Updated',
+            subject: isCompleted ? 'Maintenance Case Completed' : isOnHold ? 'Work Order On Hold' : isInReview ? 'Work Order Rescheduled' : 'Maintenance Case Status Updated',
+            caseId: smartCase.id,
+            orgId: smartCase.orgId
+          }, smartCase.orgId);
+        }
+
+        // Always notify tenant for all status changes
+        if (smartCase.reporterUserId) {
+          const reporterUser = await storage.getUser(smartCase.reporterUserId);
+          if (reporterUser?.email) {
+            // Customize message based on status
+            let tenantMessage = `Your maintenance request "${smartCase.title}" status changed to: ${updateData.status}`;
+            if (isCompleted) {
+              tenantMessage = `Great news! Your maintenance request "${smartCase.title}" has been completed.`;
+            } else if (updateData.status === 'In Progress') {
+              tenantMessage = `Good news! The contractor has started working on your maintenance request "${smartCase.title}".`;
+            } else if (isOnHold) {
+              tenantMessage = `Your maintenance request "${smartCase.title}" is currently on hold. We'll notify you when it's rescheduled.`;
+            } else if (isInReview) {
+              tenantMessage = `Your maintenance request "${smartCase.title}" has been rescheduled and is being reviewed.`;
+            }
+            
+            await notificationService.notifyTenant({
+              message: tenantMessage,
+              type: notificationType,
+              title: isCompleted ? 'Work Completed' : isOnHold ? 'Work On Hold' : isInReview ? 'Work Rescheduled' : 'Request Updated',
+              subject: isCompleted ? 'Maintenance Request Completed' : isOnHold ? 'Maintenance Request On Hold' : isInReview ? 'Maintenance Request Rescheduled' : 'Maintenance Request Status Update',
+              caseId: smartCase.id,
+              orgId: smartCase.orgId
+            }, reporterUser.email, smartCase.reporterUserId, smartCase.orgId);
+          }
+        }
+      }
+      
+      // Notify if schedule changed (rescheduled or unscheduled)
+      const scheduleChanged = oldCase && (
+        (oldCase.scheduledStartAt !== smartCase.scheduledStartAt) ||
+        (oldCase.scheduledEndAt !== smartCase.scheduledEndAt)
+      );
+      
+      if (scheduleChanged) {
+        const { notificationService } = await import('./notificationService');
+        const { format } = await import('date-fns');
+        
+        // Get scheduled jobs to notify assigned contractors
+        const scheduledJobs = await storage.getScheduledJobs(smartCase.orgId, { caseId: smartCase.id });
+        
+        // Notify each assigned contractor about the schedule change
+        for (const job of scheduledJobs) {
+          if (job.contractorId) {
+            const contractor = await storage.getContractor(job.contractorId);
+            if (contractor?.userId) {
+              const contractorUser = await storage.getUser(contractor.userId);
+              if (contractorUser?.email) {
+                let scheduleMessage = '';
+                if (!smartCase.scheduledStartAt) {
+                  scheduleMessage = `Work order "${smartCase.title}" has been unscheduled.`;
+                } else if (!oldCase.scheduledStartAt) {
+                  const scheduledDate = format(new Date(smartCase.scheduledStartAt), 'MMM d, yyyy \'at\' h:mm a');
+                  scheduleMessage = `Work order "${smartCase.title}" has been scheduled for ${scheduledDate}.`;
+                } else {
+                  const newDate = format(new Date(smartCase.scheduledStartAt), 'MMM d, yyyy \'at\' h:mm a');
+                  scheduleMessage = `Work order "${smartCase.title}" has been rescheduled to ${newDate}.`;
+                }
+                
+                await notificationService.notifyContractor({
+                  message: scheduleMessage,
+                  type: 'case_updated',
+                  title: 'Schedule Updated',
+                  subject: 'Work Order Schedule Changed',
+                  caseId: smartCase.id,
+                  orgId: smartCase.orgId
+                }, contractorUser.email, contractor.userId, smartCase.orgId);
+              }
+            }
+          }
+        }
+        
+        // Notify tenant about schedule change
+        if (smartCase.reporterUserId) {
+          const reporterUser = await storage.getUser(smartCase.reporterUserId);
+          if (reporterUser?.email) {
+            let tenantScheduleMessage = '';
+            if (!smartCase.scheduledStartAt) {
+              tenantScheduleMessage = `The scheduled date for your maintenance request "${smartCase.title}" has been removed. We'll notify you when it's rescheduled.`;
+            } else if (!oldCase.scheduledStartAt) {
+              const scheduledDate = format(new Date(smartCase.scheduledStartAt), 'EEEE, MMMM d \'at\' h:mm a');
+              tenantScheduleMessage = `Great news! Your maintenance request "${smartCase.title}" has been scheduled for ${scheduledDate}.`;
+            } else {
+              const newDate = format(new Date(smartCase.scheduledStartAt), 'EEEE, MMMM d \'at\' h:mm a');
+              tenantScheduleMessage = `Your maintenance request "${smartCase.title}" has been rescheduled to ${newDate}.`;
+            }
+            
+            await notificationService.notifyTenant({
+              message: tenantScheduleMessage,
+              type: 'case_updated',
+              title: 'Schedule Updated',
+              subject: 'Maintenance Request Schedule Changed',
+              caseId: smartCase.id,
+              orgId: smartCase.orgId
+            }, reporterUser.email, smartCase.reporterUserId, smartCase.orgId);
+          }
+        }
+      }
+      
+      // Debug logging
+      console.log('📅 Case update response:', { id: smartCase.id, scheduledStartAt: smartCase.scheduledStartAt, scheduledEndAt: smartCase.scheduledEndAt });
+      
+      res.json(smartCase);
+    } catch (error) {
+      console.error("Error updating case:", error);
+      res.status(500).json({ message: "Failed to update case" });
+    }
+  });
+
+  app.delete('/api/cases/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteSmartCase(req.params.id);
+      res.json({ message: "Case deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting case:", error);
+      res.status(500).json({ message: "Failed to delete case" });
+    }
+  });
+
+  // Marketplace routes
+  app.get('/api/favorites', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const user = await storage.getUser(userId);
+      if (!user || !['org_admin', 'admin', 'property_owner', 'platform_super_admin'].includes(user.primaryRole)) {
+        return res.status(403).json({ message: "Only organization members can manage favorites" });
+      }
+      
+      const favorites = await storage.getFavoriteContractors(org.id);
+      res.json(favorites);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ message: "Failed to fetch favorites" });
+    }
+  });
+
+  app.post('/api/favorites', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const user = await storage.getUser(userId);
+      if (!user || !['org_admin', 'admin', 'property_owner', 'platform_super_admin'].includes(user.primaryRole)) {
+        return res.status(403).json({ message: "Only organization members can manage favorites" });
+      }
+      
+      const { contractorUserId, notes } = req.body;
+      if (!contractorUserId) {
+        return res.status(400).json({ message: "Contractor user ID required" });
+      }
+
+      const favorite = await storage.addFavoriteContractor(org.id, contractorUserId, userId, notes);
+      res.json(favorite);
+    } catch (error) {
+      console.error("Error adding favorite:", error);
+      res.status(500).json({ message: "Failed to add favorite contractor" });
+    }
+  });
+
+  app.delete('/api/favorites/:contractorUserId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const user = await storage.getUser(userId);
+      if (!user || !['org_admin', 'admin', 'property_owner', 'platform_super_admin'].includes(user.primaryRole)) {
+        return res.status(403).json({ message: "Only organization members can manage favorites" });
+      }
+      
+      await storage.removeFavoriteContractor(org.id, req.params.contractorUserId);
+      res.json({ message: "Favorite removed successfully" });
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ message: "Failed to remove favorite" });
+    }
+  });
+
+  app.get('/api/marketplace/contractors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const user = await storage.getUser(userId);
+      if (!user || !['org_admin', 'admin', 'property_owner', 'platform_super_admin'].includes(user.primaryRole)) {
+        return res.status(403).json({ message: "Only organization members can view contractor marketplace" });
+      }
+      
+      const contractors = await storage.getAllContractorUsers();
+      const favorites = await storage.getFavoriteContractors(org.id);
+      const favoriteIds = new Set(favorites.map(f => f.contractorUserId));
+      
+      const contractorsWithFavoriteStatus = contractors.map(contractor => ({
+        ...contractor,
+        isFavorite: favoriteIds.has(contractor.id),
+      }));
+      
+      res.json(contractorsWithFavoriteStatus);
+    } catch (error) {
+      console.error("Error fetching contractors:", error);
+      res.status(500).json({ message: "Failed to fetch contractors" });
+    }
+  });
+
+  app.post('/api/cases/:id/post-to-marketplace', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const user = await storage.getUser(userId);
+      if (!user || !['org_admin', 'platform_super_admin'].includes(user.primaryRole)) {
+        return res.status(403).json({ message: "Only organization admins can post cases to marketplace" });
+      }
+      
+      const { restrictToFavorites = false, isUrgent = false } = req.body;
+      
+      const smartCase = await storage.getSmartCase(req.params.id);
+      if (!smartCase) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+      if (smartCase.orgId !== org.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updatedCase = await storage.postCaseToMarketplace(req.params.id, restrictToFavorites, isUrgent);
+      res.json(updatedCase);
+    } catch (error) {
+      console.error("Error posting case to marketplace:", error);
+      res.status(500).json({ message: "Failed to post case to marketplace" });
+    }
+  });
+
+  app.get('/api/marketplace/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.primaryRole !== 'contractor') {
+        return res.status(403).json({ message: "Only contractors can view marketplace jobs" });
+      }
+      
+      const cases = await storage.getAvailableMarketplaceCases(userId);
+      res.json(cases);
+    } catch (error) {
+      console.error("Error fetching marketplace cases:", error);
+      res.status(500).json({ message: "Failed to fetch marketplace cases" });
+    }
+  });
+
+  app.post('/api/marketplace/cases/:id/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.primaryRole !== 'contractor') {
+        return res.status(403).json({ message: "Only contractors can accept marketplace jobs" });
+      }
+      
+      const smartCase = await storage.getSmartCase(req.params.id);
+      if (!smartCase) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+      
+      if (smartCase.assignedContractorId) {
+        return res.status(400).json({ message: "Case already assigned to another contractor" });
+      }
+      
+      const updatedCase = await storage.acceptMarketplaceCase(req.params.id, userId);
+      res.json(updatedCase);
+    } catch (error) {
+      console.error("Error accepting marketplace case:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to accept marketplace case" });
+    }
+  });
+
+  // Vendor routes
+  app.get('/api/vendors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const vendors = await storage.getVendors(org.id);
+      res.json(vendors);
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+      res.status(500).json({ message: "Failed to fetch vendors" });
+    }
+  });
+
+  app.post('/api/vendors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const validatedData = insertVendorSchema.parse({
+        ...req.body,
+        orgId: org.id,
+      });
+      
+      const vendor = await storage.createVendor(validatedData);
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error creating vendor:", error);
+      res.status(500).json({ message: "Failed to create vendor" });
+    }
+  });
+
+  app.patch('/api/vendors/:id/w9', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const [updated] = await db.update(vendors)
+        .set({ w9OnFile: req.body.w9OnFile })
+        .where(and(eq(vendors.id, req.params.id), eq(vendors.orgId, org.id)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ message: "Vendor not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating vendor W-9 status:", error);
+      res.status(500).json({ message: "Failed to update vendor W-9 status" });
+    }
+  });
+
+  app.patch('/api/vendors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const existing = await storage.getVendor(req.params.id);
+      if (!existing || existing.orgId !== org.id) return res.status(404).json({ message: "Vendor not found" });
+
+      const validatedData = insertVendorSchema.partial().parse(req.body);
+      const updated = await storage.updateVendor(req.params.id, { ...validatedData, orgId: org.id });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating vendor:", error);
+      res.status(500).json({ message: "Failed to update vendor" });
+    }
+  });
+
+  app.delete('/api/vendors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const existing = await storage.getVendor(req.params.id);
+      if (!existing || existing.orgId !== org.id) return res.status(404).json({ message: "Vendor not found" });
+
+      await storage.deleteVendor(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      res.status(500).json({ message: "Failed to delete vendor" });
+    }
+  });
+
+  app.get('/api/tax/1099-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const allVendors = await storage.getVendors(org.id);
+      const allTransactions = await storage.getTransactions(org.id, "Expense");
+
+      const yearTransactions = allTransactions.filter((t: any) => {
+        const txYear = t.taxYear || new Date(t.date).getFullYear();
+        return txYear === year;
+      });
+
+      const paymentsByVendor: Record<string, number> = {};
+      for (const t of yearTransactions) {
+        if (t.vendorId) {
+          paymentsByVendor[t.vendorId] = (paymentsByVendor[t.vendorId] || 0) + parseFloat(t.amount);
+        }
+      }
+
+      const report = allVendors
+        .filter((v: any) => !v.taxExempt)
+        .map((v: any) => ({
+          vendor: v,
+          totalPayments: paymentsByVendor[v.id] || 0,
+          qualifiesFor1099: v.vendorType === "individual" && (paymentsByVendor[v.id] || 0) >= 600,
+          w9OnFile: v.w9OnFile || false,
+        }));
+
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating 1099 report:", error);
+      res.status(500).json({ message: "Failed to generate 1099 report" });
+    }
+  });
+
+  // Depreciation assets routes
+  app.get('/api/depreciation-assets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // TODO: Implement storage.getDepreciationAssets(org.id) when ready
+      // For now, return empty array to prevent Tax Center query errors
+      const depreciationAssets: any[] = [];
+      res.json(depreciationAssets);
+    } catch (error) {
+      console.error("Error fetching depreciation assets:", error);
+      res.status(500).json({ message: "Failed to fetch depreciation assets" });
+    }
+  });
+
+  // Transaction routes
+  app.get('/api/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const type = req.query.type as "Income" | "Expense" | undefined;
+      const transactions = await storage.getTransactions(org.id, type);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
+  app.post('/api/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const validatedData = insertTransactionSchema.parse({
+        ...req.body,
+        orgId: org.id,
+      });
+      
+      const transaction = await storage.createTransaction(validatedData);
+      res.json(transaction);
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      res.status(500).json({ message: "Failed to create transaction" });
+    }
+  });
+
+  app.post('/api/expenses', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Handle custom category logic
+      let finalCategory = req.body.category;
+      if (req.body.category === "custom" && req.body.customCategory) {
+        finalCategory = req.body.customCategory;
+      } else if (req.body.category === "none") {
+        finalCategory = "";
+      }
+      
+      // Clean up the data to match schema expectations
+      const cleanedData = {
+        orgId: org.id,
+        type: "Expense" as const,
+        propertyId: req.body.propertyId === "none" ? undefined : req.body.propertyId,
+        unitId: req.body.unitId === "none" || req.body.unitId === "" ? undefined : req.body.unitId,
+        entityId: req.body.entityId || undefined,
+        scope: req.body.scope || "property",
+        amount: (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== "") ? String(req.body.amount) : "0",
+        description: req.body.description || "",
+        category: finalCategory,
+        date: typeof req.body.date === 'string' ? new Date(req.body.date) : req.body.date,
+        isDateRange: req.body.isDateRange || false,
+        endDate: req.body.endDate ? (typeof req.body.endDate === 'string' ? new Date(req.body.endDate) : req.body.endDate) : undefined,
+        receiptUrl: req.body.receiptUrl,
+        notes: req.body.notes,
+        isRecurring: req.body.isRecurring || false,
+        recurringFrequency: req.body.recurringFrequency,
+        recurringInterval: req.body.recurringInterval || 1,
+        recurringEndDate: req.body.recurringEndDate,
+        taxDeductible: req.body.taxDeductible !== undefined ? req.body.taxDeductible : true,
+        isBulkEntry: req.body.isBulkEntry || false,
+        isAmortized: req.body.isAmortized || false,
+        amortizationYears: req.body.amortizationYears,
+        amortizationStartDate: req.body.amortizationStartDate,
+        amortizationMethod: req.body.amortizationMethod,
+        // Tax categorization fields
+        scheduleECategory: req.body.scheduleECategory,
+      };
+      
+      const validatedData = insertExpenseSchema.parse(cleanedData);
+      
+      const expense = await storage.createExpense(validatedData as any);
+      res.json(expense);
+    } catch (error) {
+      console.error("Error creating expense:", error);
+      res.status(500).json({ message: "Failed to create expense" });
+    }
+  });
+
+  // Update an expense
+  app.put("/api/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      console.log("Updating expense ID:", req.params.id);
+      console.log("Update request body:", JSON.stringify(req.body, null, 2));
+
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const { category, customCategory, scope, ...requestBody } = req.body;
+
+      let finalCategory = category;
+      if (category === "custom" && customCategory) {
+        finalCategory = customCategory;
+      }
+
+      const cleanedData = {
+        id: req.params.id,
+        orgId: org.id,
+        type: "Expense",
+        amount: (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== "") ? String(req.body.amount) : "0",
+        description: req.body.description || "",
+        category: finalCategory,
+        date: typeof req.body.date === 'string' ? new Date(req.body.date) : req.body.date,
+        isDateRange: req.body.isDateRange || false,
+        endDate: req.body.endDate ? (typeof req.body.endDate === 'string' ? new Date(req.body.endDate) : req.body.endDate) : undefined,
+        receiptUrl: req.body.receiptUrl,
+        notes: req.body.notes,
+        isRecurring: req.body.isRecurring || false,
+        recurringFrequency: req.body.recurringFrequency || undefined,
+        recurringInterval: req.body.recurringInterval || 1,
+        recurringEndDate: req.body.recurringEndDate,
+        propertyId: scope === "property" ? req.body.propertyId : undefined,
+        unitId: req.body.unitId === "none" || req.body.unitId === "" ? undefined : req.body.unitId,
+        entityId: scope === "operational" ? req.body.entityId : undefined,
+        vendorId: req.body.vendorId,
+        userId: (req.user as any).claims.sub,
+        scope: req.body.scope || "property",
+        taxDeductible: req.body.taxDeductible !== undefined ? req.body.taxDeductible : true,
+        isBulkEntry: req.body.isBulkEntry || false,
+        isAmortized: req.body.isAmortized || false,
+        amortizationYears: req.body.amortizationYears,
+        amortizationStartDate: req.body.amortizationStartDate,
+        amortizationMethod: req.body.amortizationMethod,
+        // Tax categorization fields
+        scheduleECategory: req.body.scheduleECategory,
+      };
+
+      console.log("DEBUG: Data being sent to storage.updateTransaction:", JSON.stringify(cleanedData, null, 2));
+
+      // Validate the data using the expense schema
+      const validatedData = insertExpenseSchema.parse(cleanedData);
+      console.log("DEBUG: Data after Zod validation:", JSON.stringify(validatedData, null, 2));
+
+      const updatedExpense = await storage.updateTransaction(req.params.id, validatedData as any);
+      res.json(updatedExpense);
+    } catch (error) {
+      console.error("Error updating expense:", error);
+      res.status(500).json({ message: "Failed to update expense" });
+    }
+  });
+
+  // Delete an expense
+  app.delete("/api/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      // Check if the expense exists and belongs to the user's organization
+      const expense = await storage.getTransactionById(req.params.id);
+      if (!expense) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+
+      if (expense.orgId !== org.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteTransaction(req.params.id);
+      res.json({ message: "Expense deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      res.status(500).json({ message: "Failed to delete expense" });
+    }
+  });
+
+  // Delete recurring expense series with mode support
+  app.delete("/api/expenses/:id/recurring", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      const mode = req.query.mode as string; // Get mode from query params
+      
+      // Validate mode parameter if provided
+      if (mode && !['future', 'all'].includes(mode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be 'future' or 'all'" });
+      }
+      
+      // Check if this is a recurring operation
+      if (mode && ['future', 'all'].includes(mode)) {
+        // Check if the expense exists and belongs to the user's organization
+        const expense = await storage.getTransactionById(id);
+        if (!expense) {
+          return res.status(404).json({ message: "Expense not found" });
+        }
+
+        if (expense.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Verify this is actually a recurring transaction
+        if (!expense.isRecurring && !expense.parentRecurringId) {
+          return res.status(400).json({ message: "This is not a recurring expense" });
+        }
+
+        await storage.deleteRecurringTransaction(id, mode as "future" | "all");
+        res.json({ message: `Recurring expense series deleted successfully (mode: ${mode})` });
+      } else {
+        // Single expense deletion
+        const expense = await storage.getTransactionById(id);
+        if (!expense) {
+          return res.status(404).json({ message: "Expense not found" });
+        }
+        
+        if (expense.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        await storage.deleteTransaction(id);
+        res.json({ message: "Expense deleted successfully" });
+      }
+    } catch (error) {
+      console.error("Error deleting recurring expense series:", error);
+      res.status(500).json({ message: "Failed to delete recurring expense series" });
+    }
+  });
+
+  // Update recurring expense series with mode support
+  app.put("/api/expenses/:id/recurring", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      const { mode, ...updateData } = req.body; // Extract mode from request body
+      const queryMode = req.query.mode as string; // Also check query params
+      const finalMode = mode || queryMode;
+      
+      // Validate mode parameter if provided
+      if (finalMode && !['future', 'all'].includes(finalMode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be 'future' or 'all'" });
+      }
+      
+      // Check if this is a recurring operation
+      if (finalMode && ['future', 'all'].includes(finalMode)) {
+        // Check if the expense exists and belongs to the user's organization
+        const expense = await storage.getTransactionById(id);
+        if (!expense) {
+          return res.status(404).json({ message: "Expense not found" });
+        }
+
+        if (expense.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Verify this is actually a recurring transaction
+        if (!expense.isRecurring && !expense.parentRecurringId) {
+          return res.status(400).json({ message: "This is not a recurring expense" });
+        }
+
+        await storage.updateRecurringTransaction(id, updateData, finalMode as "future" | "all");
+        res.json({ message: `Recurring expense series updated successfully (mode: ${finalMode})` });
+      } else {
+        // Single expense update
+        const expense = await storage.getTransactionById(id);
+        if (!expense) {
+          return res.status(404).json({ message: "Expense not found" });
+        }
+        
+        if (expense.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        const updated = await storage.updateTransaction(id, updateData);
+        res.json(updated);
+      }
+    } catch (error) {
+      console.error("Error updating recurring expense series:", error);
+      res.status(500).json({ message: "Failed to update recurring expense series" });
+    }
+  });
+
+  // Mortgage interest adjustment endpoint
+  app.post("/api/expenses/mortgage-adjustment", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const { propertyId, year, actualInterestPaid } = req.body;
+
+      // Validate input
+      if (!propertyId || !year || actualInterestPaid === undefined) {
+        return res.status(400).json({ message: "Property ID, year, and actual interest paid are required" });
+      }
+
+      // Get property details
+      const property = await storage.getProperty(propertyId);
+      if (!property) return res.status(404).json({ message: "Property not found" });
+      
+      if (!property.monthlyMortgage || (!property.acquisitionDate && !property.mortgageStartDate)) {
+        return res.status(400).json({ message: "Property must have mortgage details (monthly payment and acquisition or mortgage start date)" });
+      }
+
+      // Find all "Mortgage" category expenses for this property in the specified year
+      const allTransactions = await storage.getTransactions(org.id);
+      const mortgageExpenses = allTransactions.filter((transaction: any) => 
+        transaction.propertyId === propertyId &&
+        transaction.category === "Mortgage" &&
+        new Date(transaction.date).getFullYear() === year
+      );
+
+      if (mortgageExpenses.length === 0) {
+        return res.status(404).json({ message: `No mortgage expenses found for ${year}` });
+      }
+
+      // Use the property's mortgage start date field
+      const actualMortgageStartDate = new Date(property.mortgageStartDate || property.acquisitionDate || Date.now());
+      
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year, 11, 31);
+      
+      const mortgageActiveStart = actualMortgageStartDate > yearStart ? actualMortgageStartDate : yearStart;
+      // Use sale date as end of mortgage payments if property was sold during the year
+      const saleDate = property.saleDate ? new Date(property.saleDate) : null;
+      const mortgageActiveEnd = (saleDate && saleDate.getFullYear() === year && saleDate < yearEnd) ? saleDate : yearEnd;
+      const mortgageActiveDays = Math.ceil((mortgageActiveEnd.getTime() - mortgageActiveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const yearDays = new Date(year, 11, 31).getDate() === 31 && new Date(year, 1, 29).getDate() === 29 ? 366 : 365;
+
+      // Calculate expected total mortgage payments for the year based on monthly amount and ownership period
+      const monthlyPrimary = Number(property.monthlyMortgage) || 0;
+      const monthlySecondary = Number(property.monthlyMortgage2) || 0;
+      const totalMonthlyMortgage = monthlyPrimary + monthlySecondary;
+      
+      // Calculate months of mortgage payments in the year
+      let mortgageActiveMonths = 12;
+      
+      // Adjust for partial year if mortgage started during the year
+      if (actualMortgageStartDate.getFullYear() === year) {
+        mortgageActiveMonths = 12 - actualMortgageStartDate.getMonth(); // Months from mortgage start to end of year
+      }
+      
+      // Adjust for partial year if sold during the year
+      if (saleDate && saleDate.getFullYear() === year) {
+        if (actualMortgageStartDate.getFullYear() === year) {
+          // Both mortgage start and sale in same year
+          mortgageActiveMonths = Math.max(0, saleDate.getMonth() - actualMortgageStartDate.getMonth() + 1);
+        } else {
+          // Mortgage started before this year, sold during year
+          mortgageActiveMonths = saleDate.getMonth() + 1; // Months from start of year to sale
+        }
+      }
+      
+      const expectedTotalPayments = totalMonthlyMortgage * mortgageActiveMonths;
+      
+      // Use expected payments for validation (this represents what should have been paid)
+      const actualMortgagePayments = mortgageExpenses.reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
+      
+      console.log(`🏦 Mortgage calculation debug:`, {
+        monthlyPrimary,
+        monthlySecondary,
+        totalMonthlyMortgage,
+        mortgageActiveMonths,
+        expectedTotalPayments,
+        actualMortgagePayments,
+        propertyMortgageStartDate: property.mortgageStartDate,
+        actualMortgageStartYear: actualMortgageStartDate.getFullYear(),
+        actualMortgageStartMonth: actualMortgageStartDate.getMonth() + 1,
+        targetYear: year
+      });
+      
+      // Use expected payments for validation
+      const totalMortgagePayments = expectedTotalPayments;
+      
+      // Calculate interest vs principal split
+      const totalPrincipal = totalMortgagePayments - actualInterestPaid;
+      
+      if (totalPrincipal < 0) {
+        return res.status(400).json({ 
+          message: `Interest paid ($${actualInterestPaid}) exceeds expected total mortgage payments ($${totalMortgagePayments.toFixed(2)}) for ${year}` 
+        });
+      }
+
+      console.log(`🏦 Processing mortgage adjustment for ${property.name || property.street}:`, {
+        year,
+        totalPayments: totalMortgagePayments,
+        actualInterest: actualInterestPaid,
+        calculatedPrincipal: totalPrincipal,
+        mortgageActiveDays,
+        yearDays,
+        expenseCount: mortgageExpenses.length
+      });
+
+      // Process each mortgage expense
+      let adjustedCount = 0;
+      for (const expense of mortgageExpenses) {
+        const paymentAmount = Number(expense.amount);
+        const interestPortion = (paymentAmount / totalMortgagePayments) * actualInterestPaid;
+        const principalPortion = paymentAmount - interestPortion;
+
+        // Delete the original "Mortgage" expense
+        await storage.deleteTransaction(expense.id);
+
+        // Create interest expense (tax deductible)
+        if (interestPortion > 0) {
+          const interestExpenseData = {
+            orgId: org.id,
+            type: "Expense" as const,
+            propertyId: expense.propertyId,
+            scope: expense.scope,
+            amount: interestPortion.toFixed(2),
+            description: `Mortgage interest - ${property.name || `${property.street}, ${property.city}`} (adjusted from full payment)`,
+            category: "Mortgage Interest Paid to Banks",
+            date: expense.date,
+            isRecurring: false,
+            taxDeductible: true,
+            isBulkEntry: false,
+            scheduleECategory: "mortgage_interest" as "mortgage_interest",
+            notes: `Split from original mortgage payment of $${paymentAmount.toFixed(2)} - Interest: $${interestPortion.toFixed(2)}, Principal: $${principalPortion.toFixed(2)}`
+          };
+          await storage.createTransaction(interestExpenseData);
+        }
+
+        // Create principal expense (non-tax deductible)
+        if (principalPortion > 0) {
+          const principalExpenseData = {
+            orgId: org.id,
+            type: "Expense" as const,
+            propertyId: expense.propertyId,
+            scope: expense.scope,
+            amount: principalPortion.toFixed(2),
+            description: `Mortgage principal - ${property.name || `${property.street}, ${property.city}`} (adjusted from full payment)`,
+            category: "Mortgage Principal Payment",
+            date: expense.date,
+            isRecurring: false,
+            taxDeductible: false,
+            isBulkEntry: false,
+            notes: `Split from original mortgage payment of $${paymentAmount.toFixed(2)} - Interest: $${interestPortion.toFixed(2)}, Principal: $${principalPortion.toFixed(2)}`
+          };
+          await storage.createTransaction(principalExpenseData);
+        }
+
+        adjustedCount++;
+      }
+
+      res.json({ 
+        message: "Mortgage adjustment completed successfully",
+        adjustedCount,
+        totalInterest: actualInterestPaid,
+        totalPrincipal: totalPrincipal,
+        mortgageInfo: mortgageActiveDays < yearDays ? 
+          `Partial year: ${mortgageActiveDays} days of ${yearDays}` : 
+          "Full year mortgage payments"
+      });
+
+    } catch (error) {
+      console.error("Error processing mortgage adjustment:", error);
+      res.status(500).json({ message: "Failed to process mortgage adjustment" });
+    }
+  });
+
+  // Revenue routes
+  app.post("/api/revenues", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const { category, customCategory, scope, ...requestBody } = req.body;
+
+      let finalCategory = category;
+      if (category === "custom" && customCategory) {
+        finalCategory = customCategory;
+      }
+
+      const cleanedData = {
+        orgId: org.id,
+        type: "Income" as const,
+        propertyId: req.body.propertyId === "none" ? undefined : req.body.propertyId,
+        entityId: req.body.entityId || undefined,
+        scope: req.body.scope || "property",
+        amount: (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== "") ? String(req.body.amount) : "0",
+        description: req.body.description || "",
+        category: finalCategory,
+        date: typeof req.body.date === 'string' ? new Date(req.body.date) : req.body.date,
+        isDateRange: req.body.isDateRange || false,
+        endDate: req.body.endDate ? (typeof req.body.endDate === 'string' ? new Date(req.body.endDate) : req.body.endDate) : undefined,
+        notes: req.body.notes,
+        isRecurring: req.body.isRecurring || false,
+        recurringFrequency: req.body.recurringFrequency,
+        recurringInterval: req.body.recurringInterval || 1,
+        recurringEndDate: req.body.recurringEndDate,
+        taxDeductible: req.body.taxDeductible !== undefined ? req.body.taxDeductible : true,
+      };
+      
+      const validatedData = insertRevenueSchema.parse(cleanedData);
+      
+      const revenue = await storage.createRevenue(validatedData as any);
+      res.json(revenue);
+    } catch (error) {
+      console.error("Error creating revenue:", error);
+      res.status(500).json({ message: "Failed to create revenue" });
+    }
+  });
+
+  app.put("/api/revenues/:id", isAuthenticated, async (req, res) => {
+    try {
+      console.log("Updating revenue ID:", req.params.id);
+      console.log("Update request body:", JSON.stringify(req.body, null, 2));
+
+      const { category, customCategory, scope, ...requestBody } = req.body;
+
+      let finalCategory = category;
+      if (category === "custom" && customCategory) {
+        finalCategory = customCategory;
+      }
+
+      const cleanedData = {
+        id: req.params.id,
+        type: "Income",
+        amount: (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== "") ? String(req.body.amount) : "0",
+        description: req.body.description || "",
+        category: finalCategory,
+        date: typeof req.body.date === 'string' ? new Date(req.body.date) : req.body.date,
+        isDateRange: req.body.isDateRange || false,
+        endDate: req.body.endDate ? (typeof req.body.endDate === 'string' ? new Date(req.body.endDate) : req.body.endDate) : undefined,
+        notes: req.body.notes,
+        isRecurring: req.body.isRecurring || false,
+        recurringFrequency: req.body.recurringFrequency,
+        recurringInterval: req.body.recurringInterval || 1,
+        recurringEndDate: req.body.recurringEndDate,
+        propertyId: scope === "property" ? req.body.propertyId : undefined,
+        entityId: scope === "operational" ? req.body.entityId : undefined,
+        userId: (req.user as any).claims.sub,
+        scope: req.body.scope || "property",
+        taxDeductible: req.body.taxDeductible !== undefined ? req.body.taxDeductible : true,
+      };
+
+      const updatedRevenue = await storage.updateTransaction(req.params.id, cleanedData as any);
+      res.json(updatedRevenue);
+    } catch (error) {
+      console.error("Error updating revenue:", error);
+      res.status(500).json({ message: "Failed to update revenue" });
+    }
+  });
+
+  app.delete("/api/revenues/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      // Check if the revenue exists and belongs to the user's organization
+      const revenue = await storage.getTransactionById(req.params.id);
+      if (!revenue) {
+        return res.status(404).json({ message: "Revenue not found" });
+      }
+
+      if (revenue.orgId !== org.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteTransaction(req.params.id);
+      res.json({ message: "Revenue deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting revenue:", error);
+      res.status(500).json({ message: "Failed to delete revenue" });
+    }
+  });
+
+  // Delete recurring revenue series with mode support
+  app.delete("/api/revenues/:id/recurring", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      const mode = req.query.mode as string; // Get mode from query params
+      
+      // Validate mode parameter if provided
+      if (mode && !['future', 'all'].includes(mode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be 'future' or 'all'" });
+      }
+      
+      // Check if this is a recurring operation
+      if (mode && ['future', 'all'].includes(mode)) {
+        // Check if the revenue exists and belongs to the user's organization
+        const revenue = await storage.getTransactionById(id);
+        if (!revenue) {
+          return res.status(404).json({ message: "Revenue not found" });
+        }
+
+        if (revenue.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Verify this is actually a recurring transaction
+        if (!revenue.isRecurring && !revenue.parentRecurringId) {
+          return res.status(400).json({ message: "This is not a recurring revenue" });
+        }
+
+        await storage.deleteRecurringTransaction(id, mode as "future" | "all");
+        res.json({ message: `Recurring revenue series deleted successfully (mode: ${mode})` });
+      } else {
+        // Single revenue deletion
+        const revenue = await storage.getTransactionById(id);
+        if (!revenue) {
+          return res.status(404).json({ message: "Revenue not found" });
+        }
+        
+        if (revenue.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        await storage.deleteTransaction(id);
+        res.json({ message: "Revenue deleted successfully" });
+      }
+    } catch (error) {
+      console.error("Error deleting recurring revenue series:", error);
+      res.status(500).json({ message: "Failed to delete recurring revenue series" });
+    }
+  });
+
+  // Update recurring revenue series with mode support
+  app.put("/api/revenues/:id/recurring", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      const { mode, ...updateData } = req.body; // Extract mode from request body
+      const queryMode = req.query.mode as string; // Also check query params
+      const finalMode = mode || queryMode;
+      
+      // Validate mode parameter if provided
+      if (finalMode && !['future', 'all'].includes(finalMode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be 'future' or 'all'" });
+      }
+      
+      // Check if this is a recurring operation
+      if (finalMode && ['future', 'all'].includes(finalMode)) {
+        // Check if the revenue exists and belongs to the user's organization
+        const revenue = await storage.getTransactionById(id);
+        if (!revenue) {
+          return res.status(404).json({ message: "Revenue not found" });
+        }
+
+        if (revenue.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Verify this is actually a recurring transaction
+        if (!revenue.isRecurring && !revenue.parentRecurringId) {
+          return res.status(400).json({ message: "This is not a recurring revenue" });
+        }
+
+        await storage.updateRecurringTransaction(id, updateData, finalMode as "future" | "all");
+        res.json({ message: `Recurring revenue series updated successfully (mode: ${finalMode})` });
+      } else {
+        // Single revenue update
+        const revenue = await storage.getTransactionById(id);
+        if (!revenue) {
+          return res.status(404).json({ message: "Revenue not found" });
+        }
+        
+        if (revenue.orgId !== org.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        const updated = await storage.updateTransaction(id, updateData);
+        res.json(updated);
+      }
+    } catch (error) {
+      console.error("Error updating recurring revenue series:", error);
+      res.status(500).json({ message: "Failed to update recurring revenue series" });
+    }
+  });
+
+  // Object Storage routes
+  app.post('/api/objects/upload', isAuthenticated, async (req: any, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ message: "Failed to get upload URL" });
+    }
+  });
+
+  // Reminder routes
+  app.get('/api/reminders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Check if user is a contractor (vendor) - they don't use reminders
+      const contractorCheck = await db.execute(sql`
+        SELECT id FROM vendors WHERE user_id = ${userId} LIMIT 1
+      `);
+      const contractorRows = (contractorCheck.rows || contractorCheck) as any[];
+      
+      if (contractorRows.length > 0) {
+        return res.json([]);
+      }
+      
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.json([]);
+      }
+      
+      // Get user's role in the organization
+      const userRoleResult = await db.execute(sql`
+        SELECT role FROM organization_members WHERE user_id = ${userId} AND org_id = ${org.id} LIMIT 1
+      `);
+      const userRoleRows = (userRoleResult.rows || userRoleResult) as any[];
+      const role = userRoleRows[0]?.role;
+      
+      const effectiveRole = role || (org.ownerId === userId ? 'admin' : null);
+      
+      if (!effectiveRole) {
+        return res.json([]);
+      }
+
+      if (effectiveRole === 'vendor' || effectiveRole === 'tenant') {
+        return res.json([]);
+      }
+      
+      const reminders = await storage.getReminders(org.id);
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching reminders:", error);
+      res.status(500).json({ message: "Failed to fetch reminders" });
+    }
+  });
+
+  app.post('/api/reminders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      // Clean the data: convert empty strings to null for optional fields
+      const cleanedData = {
+        ...req.body,
+        orgId: org.id,
+        dueAt: req.body.dueAt ? new Date(req.body.dueAt) : undefined,
+        recurringEndDate: req.body.recurringEndDate ? new Date(req.body.recurringEndDate) : undefined,
+        // Convert empty strings to null for optional fields
+        type: req.body.type === "" ? null : req.body.type,
+        scope: req.body.scope === "" ? null : req.body.scope,
+        scopeId: req.body.scopeId === "" ? null : req.body.scopeId,
+        entityId: req.body.entityId === "" ? null : req.body.entityId,
+        recurringFrequency: req.body.recurringFrequency === "" ? null : req.body.recurringFrequency,
+      };
+      
+      const validatedData = insertReminderSchema.parse(cleanedData);
+      
+      // storage.createReminder already handles recurring reminder creation
+      const reminder = await storage.createReminder(validatedData);
+      res.json(reminder);
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+      res.status(500).json({ message: "Failed to create reminder" });
+    }
+  });
+
+  // Handle both PATCH and PUT for reminder updates
+  const updateReminderHandler = async (req: any, res: any) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      const { mode, ...updateData } = req.body; // Extract mode from request body
+      const queryMode = req.query.mode as string; // Also check query params
+      const finalMode = mode || queryMode;
+      
+      // Convert date strings to Date objects if provided
+      if (updateData.completedAt) {
+        updateData.completedAt = new Date(updateData.completedAt);
+      }
+      if (updateData.dueAt) {
+        updateData.dueAt = new Date(updateData.dueAt);
+      }
+      if (updateData.recurringEndDate) {
+        updateData.recurringEndDate = new Date(updateData.recurringEndDate);
+      }
+      
+      // Validate mode parameter if provided
+      if (finalMode && !['future', 'all'].includes(finalMode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be 'future' or 'all'" });
+      }
+      
+      // Skip validation for now due to ZodEffects complexity
+      const validatedUpdateData = updateData;
+      
+      // Check if this is a recurring operation
+      if (finalMode && ['future', 'all'].includes(finalMode)) {
+        // Check if the reminder exists and belongs to the user's organization
+        const reminder = await storage.getReminders(org.id);
+        const targetReminder = reminder.find(r => r.id === id);
+        if (!targetReminder) {
+          return res.status(404).json({ message: "Reminder not found" });
+        }
+        
+        // Verify this is actually a recurring reminder
+        if (!targetReminder.isRecurring && !targetReminder.parentRecurringId) {
+          return res.status(400).json({ message: "This is not a recurring reminder" });
+        }
+        
+        await storage.updateRecurringReminder(id, validatedUpdateData, finalMode as "future" | "all");
+        res.json({ message: `Recurring reminder series updated successfully (mode: ${finalMode})` });
+      } else {
+        // Single reminder update - SECURITY FIX: Verify org ownership
+        const reminders = await storage.getReminders(org.id);
+        const targetReminder = reminders.find(r => r.id === id);
+        if (!targetReminder) {
+          return res.status(404).json({ message: "Reminder not found" });
+        }
+        
+        const reminder = await storage.updateReminder(id, validatedUpdateData);
+        res.json(reminder);
+      }
+    } catch (error) {
+      console.error("Error updating reminder:", error);
+      res.status(500).json({ message: "Failed to update reminder" });
+    }
+  };
+  
+  app.patch('/api/reminders/:id', isAuthenticated, updateReminderHandler);
+  app.put('/api/reminders/:id', isAuthenticated, updateReminderHandler);
+
+  app.delete('/api/reminders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const { id } = req.params;
+      const mode = req.query.mode as string; // Get mode from query params
+      
+      // Validate mode parameter if provided
+      if (mode && !['future', 'all'].includes(mode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be 'future' or 'all'" });
+      }
+      
+      // Check if this is a recurring operation
+      if (mode && ['future', 'all'].includes(mode)) {
+        // Check if the reminder exists and belongs to the user's organization
+        const reminders = await storage.getReminders(org.id);
+        const targetReminder = reminders.find(r => r.id === id);
+        if (!targetReminder) {
+          return res.status(404).json({ message: "Reminder not found" });
+        }
+        
+        // Verify this is actually a recurring reminder
+        if (!targetReminder.isRecurring && !targetReminder.parentRecurringId) {
+          return res.status(400).json({ message: "This is not a recurring reminder" });
+        }
+        
+        await storage.deleteRecurringReminder(id, mode as "future" | "all");
+        res.json({ message: `Recurring reminder series deleted successfully (mode: ${mode})` });
+      } else {
+        // Single reminder deletion - SECURITY FIX: Verify org ownership
+        const reminders = await storage.getReminders(org.id);
+        const targetReminder = reminders.find(r => r.id === id);
+        if (!targetReminder) {
+          return res.status(404).json({ message: "Reminder not found" });
+        }
+        
+        await storage.deleteReminder(id);
+        res.json({ message: "Reminder deleted successfully" });
+      }
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+      res.status(500).json({ message: "Failed to delete reminder" });
+    }
+  });
+
+  // Dashboard routes
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const stats = await storage.getDashboardStats(org.id);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  app.get('/api/dashboard/rent-collection', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const rentCollection = await storage.getRentCollectionStatus(org.id);
+      res.json(rentCollection);
+    } catch (error) {
+      console.error("Error fetching rent collection:", error);
+      res.status(500).json({ message: "Failed to fetch rent collection" });
+    }
+  });
+
+  // Notification routes
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const notifications = await storage.getUserNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.patch('/api/notifications/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.delete('/api/notifications/clear-read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const deletedCount = await storage.deleteReadNotifications(userId);
+      res.json({ success: true, deletedCount });
+    } catch (error) {
+      console.error("Error clearing read notifications:", error);
+      res.status(500).json({ message: "Failed to clear read notifications" });
+    }
+  });
+
+  // Test endpoint to create a notification
+  app.post('/api/notifications/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { notificationService } = await import('./notificationService.js');
+      
+      // Get user info for target fields
+      const user = await storage.getUser(userId);
+      
+      // Create a test notification in the database
+      const notification = await storage.createNotification(
+        userId,
+        "Test Notification",
+        "This is a test notification to verify the notification system is working correctly.",
+        "maintenance_test",
+        "test",
+        user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Test User' : 'Test User'
+      );
+
+      // Send real-time WebSocket notification (this method is private, so we'll skip it for now)
+      console.log(`✅ Test notification created for user ${userId}`);
+      res.json(notification);
+    } catch (error) {
+      console.error("Error creating test notification:", error);
+      res.status(500).json({ message: "Failed to create test notification" });
+    }
+  });
+
+  // Payment status update endpoint
+  app.patch('/api/transactions/:id/payment-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentStatus, paidAmount } = req.body;
+      
+      if (!['Paid', 'Unpaid', 'Partial', 'Skipped'].includes(paymentStatus)) {
+        return res.status(400).json({ message: "Invalid payment status" });
+      }
+
+      await storage.updateTransactionPaymentStatus(id, paymentStatus, paidAmount);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating payment status:", error);
+      res.status(500).json({ message: "Failed to update payment status" });
+    }
+  });
+
+  // Manual trigger for recurring transaction generation (temporary for testing)
+  app.post('/api/admin/generate-recurring', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("Manually triggering recurring transaction generation...");
+      await storage.generateRecurringTransactions();
+      res.json({ 
+        success: true, 
+        message: "Recurring transactions generated successfully" 
+      });
+    } catch (error) {
+      console.error("Error generating recurring transactions:", error);
+      res.status(500).json({ 
+        message: "Failed to generate recurring transactions",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Test endpoint for recurring generation (safer)
+  app.post('/api/test/generate-recurring', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("🔧 TEST: Manually triggering safe recurring transaction generation...");
+      await storage.generateRecurringTransactions();
+      res.json({ 
+        success: true, 
+        message: "TEST: Safe recurring transactions generated successfully",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("🔧 TEST: Error generating recurring transactions:", error);
+      res.status(500).json({ 
+        message: "TEST: Failed to generate recurring transactions",
+        error: (error as Error).message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // AI Property Assistant endpoint
+  app.post('/api/ai/ask', isAuthenticated, async (req: any, res) => {
+    try {
+      const { question, context, conversationHistory = [] } = req.body;
+      const userId = req.user.claims.sub;
+      
+      // Check if user is super admin
+      const currentUser = await storage.getUserById(userId);
+      const isSuperAdmin = currentUser?.primaryRole === 'platform_super_admin' && context === 'super_admin';
+
+      let orgId: string | null = null;
+      
+      // Get user's organization if not super admin
+      if (!isSuperAdmin) {
+        const org = await storage.getUserOrganization(userId);
+        if (!org) {
+          return res.status(404).json({ message: "Organization not found" });
+        }
+        orgId = org.id;
+      }
+
+      if (!question?.trim()) {
+        return res.status(400).json({ message: "Question is required" });
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          message: "AI service not configured" 
+        });
+      }
+
+      // Initialize OpenAI
+      const openai = new OpenAI({ 
+        apiKey: process.env.OPENAI_API_KEY 
+      });
+
+      let properties, units, tenantGroups, cases, reminders, transactions, leases;
+
+      if (isSuperAdmin) {
+        // Gather platform-wide data for super admin
+        [properties, cases] = await Promise.all([
+          db.query.properties.findMany({ limit: 100 }),
+          db.query.smartCases.findMany({ limit: 100 })
+        ]);
+        units = [];
+        tenantGroups = [];
+        reminders = [];
+        transactions = [];
+        leases = [];
+      } else {
+        // Gather org-specific data for regular users
+        [properties, units, tenantGroups, cases, reminders, transactions, leases] = await Promise.all([
+          storage.getProperties(orgId!),
+          storage.getAllUnits(orgId!),
+          storage.getTenantGroups(orgId!),
+          storage.getSmartCases(orgId!),
+          storage.getReminders(orgId!),
+          storage.getTransactions(orgId!),
+          storage.getLeases(orgId!)
+        ]);
+      }
+
+
+      // Filter August 2025 transactions for AI context
+      const augustTransactions = transactions.filter((t: any) => {
+        const transactionDate = new Date(t.date);
+        return t.type === 'Income' && 
+               transactionDate.getMonth() === 7 && // August = month 7 (0-indexed)
+               transactionDate.getFullYear() === 2025;
+      });
+
+      // Build data context for AI
+      const aiData = {
+        properties: properties.map(p => ({
+          name: p.name,
+          type: p.type,
+          city: p.city,
+          state: p.state,
+          value: p.propertyValue,
+          monthlyMortgage: p.monthlyMortgage,
+          interestRate: p.interestRate,
+          purchasePrice: p.purchasePrice,
+          acquisitionDate: p.acquisitionDate
+        })),
+        units: units.map((u: any) => {
+          // Find active lease for this unit to get correct monthly rent
+          const activeLease = leases.find((l: any) => 
+            l.unitId === u.id && 
+            l.status === 'Active' && 
+            new Date(l.startDate) <= new Date() && 
+            (l.endDate ? new Date(l.endDate) >= new Date() : true)
+          );
+          
+          return {
+            propertyName: (u as any).propertyName || 'Unknown',
+            unitNumber: u.label || 'Unknown',
+            bedrooms: u.bedrooms,
+            bathrooms: u.bathrooms,
+            sqft: u.sqft,
+            monthlyRent: Number(activeLease?.rent || u.rentAmount || 0)
+          };
+        }),
+        tenants: tenantGroups.map((tg: any) => ({
+          name: tg.name,
+          propertyName: tg.propertyName,
+          unitNumber: tg.unitNumber,
+          monthlyRent: tg.monthlyRent,
+          leaseStart: tg.leaseStart,
+          leaseEnd: tg.leaseEnd,
+          status: tg.status
+        })),
+        maintenanceCases: cases.map(c => ({
+          title: c.title,
+          status: c.status,
+          priority: c.priority,
+          createdAt: c.createdAt
+        })),
+        reminders: reminders.map((r: any) => ({
+          title: r.title,
+          description: (r as any).description || r.notes || '',
+          type: r.type,
+          status: r.status,
+          priority: (r as any).priority || 'Normal',
+          dueAt: r.dueAt,
+          completed: r.completedAt ? true : false,
+          scope: r.scope,
+          propertyName: (r as any).propertyName || 'Unknown',
+          createdAt: r.createdAt
+        })),
+        financials: {
+          totalRevenue: transactions.filter((t: any) => t.type === 'Income').reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+          totalExpenses: transactions.filter((t: any) => t.type === 'Expense').reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+          monthlyRevenue: transactions.filter((t: any) => {
+            const transactionDate = new Date(t.date);
+            const currentMonth = new Date();
+            return t.type === 'Income' && 
+                   transactionDate.getMonth() === currentMonth.getMonth() && 
+                   transactionDate.getFullYear() === currentMonth.getFullYear();
+          }).reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+          augustCollections: augustTransactions.map((t: any) => ({
+            description: t.description,
+            amount: Number(t.amount),
+            date: t.date,
+            paymentStatus: t.paymentStatus || 'Paid'
+          })),
+          augustTotal: augustTransactions.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
+        }
+      };
+
+      // Create structured, context-aware AI prompt
+      let contextualGuidance = "";
+      let fewShotExample = "";
+      
+      // Detect financial questions for specialized guidance
+      const financialKeywords = ['cash on cash', 'cash-on-cash', 'roi', 'return on investment', 'returns', 'yield', 'down payment', 'investment return', 'cash flow'];
+      const questionText = String(question || '').toLowerCase();
+      const isFinancialQuestion = financialKeywords.some(keyword => 
+        questionText.includes(keyword)
+      );
+      
+      if (context === "super_admin") {
+        contextualGuidance = `
+
+SUPER ADMIN FOCUS: You are answering questions for a platform super administrator who oversees ALL organizations and users on the platform. Provide platform-wide insights, cross-organization analytics, system health metrics, and high-level strategic recommendations.
+
+KEY RESPONSIBILITIES:
+- Monitor platform-wide statistics (total organizations, users, properties, active cases, contractors)
+- Identify trends across multiple organizations
+- Flag system-wide issues or anomalies
+- Provide strategic insights for platform growth
+- Track user engagement and platform adoption metrics
+
+IMPORTANT: You have access to aggregate data across ALL organizations. Do NOT limit your analysis to a single organization. Provide cross-org comparisons and platform-wide insights.`;
+        
+        fewShotExample = `
+
+EXAMPLE OUTPUT for super admin question "How many organizations are actively using the platform?":
+{
+  "tldr": "3 organizations active with 6 total users. Strong engagement across landlords and property owners.",
+  "bullets": [
+    "Organization 1: 2 properties, 3 tenants, 5 active maintenance cases",
+    "Organization 2: 1 property, 1 tenant, 2 active cases", 
+    "Organization 3 (Property Owner): 1 property, 0 tenants (personal home), 2 cases",
+    "Platform health: Good engagement, no critical issues detected"
+  ],
+  "actions": [
+    {"label": "Review Organization 1 for potential upsell opportunities", "due": "This week"},
+    {"label": "Check contractor coverage across all organizations", "due": "Next week"},
+    {"label": "Analyze platform usage patterns for optimization", "due": "This month"}
+  ]
+}`;
+      } else if (isFinancialQuestion) {
+        contextualGuidance = `
+
+FINANCIAL ANALYSIS FOCUS: For return calculations, use "downPayment" field as the primary cash investment. Cash-on-cash return = (Annual Net Cash Flow ÷ Cash Invested) × 100. Net cash flow = rental income - mortgage payments - expenses. If only downPayment is available, use it as Cash Invested; otherwise include closing costs and initial repairs when available.`;
+        
+        fewShotExample = `
+
+EXAMPLE OUTPUT for financial question "What's my cash-on-cash return by property?":
+{
+  "tldr": "Property 1: 12.5% cash-on-cash return, Property 2: 8.2% return. Strong performance on both investments.",
+  "bullets": [
+    "Property 1: $2,400 annual cash flow ÷ $100,000 down payment = 12.5% return",
+    "Property 2: $1,640 annual cash flow ÷ $80,000 down payment = 8.2% return", 
+    "Combined portfolio: 10.8% average cash-on-cash return"
+  ],
+  "actions": [
+    {"label": "Review Property 2 expenses for optimization opportunities", "due": "This month"},
+    {"label": "Research comparable rents for potential increases", "due": "Next quarter"},
+    {"label": "Calculate after-tax returns for tax planning", "due": "Before year-end"}
+  ]
+}`;
+      } else if (context === "dashboard") {
+        contextualGuidance = `
+
+DASHBOARD FOCUS: Provide high-level overview of portfolio performance, key metrics, urgent items needing attention, and strategic insights across all properties.`;
+        
+        fewShotExample = `
+
+EXAMPLE OUTPUT for dashboard question "How are my properties performing?":
+{
+  "tldr": "3 properties generating $3,600/month. 1 maintenance issue, 2 leases expiring soon.",
+  "bullets": [
+    "Monthly revenue: $3,600 across 3 properties",
+    "Property 1 (CA): $2,000/month, fully occupied",
+    "Property 2 (CA): $1,600/month, needs HVAC attention",
+    "2 lease renewals due in next 60 days"
+  ],
+  "actions": [
+    {"label": "Schedule HVAC inspection for Property 2", "due": "This week"},
+    {"label": "Start lease renewal conversations", "due": "Next 2 weeks"},
+    {"label": "Review market rents for potential increases", "due": "This month"}
+  ]
+}`;
+      } else if (context === "maintenance") {
+        contextualGuidance = `
+
+MAINTENANCE FOCUS: Prioritize urgent/overdue repairs, preventive maintenance schedules, contractor management, and cost optimization.
+
+CRITICAL CASE CREATION LOGIC:
+1. **When to create a case**: If the user reports ANY maintenance issue (broken, leaking, not working, damaged, needs repair, etc.)
+2. **Property/Unit matching - USE FUZZY LOGIC**:
+   - Try to match user's property/unit names to actual data (case-insensitive, ignore extra spaces/punctuation)
+   - If user says "Property 1" and you see "Property 1 " (with space) - MATCH IT
+   - If user says "Unit 1" and you see "Unit 1" or "1" - MATCH IT
+   - Look at conversation history to see if property/unit was mentioned earlier
+3. **Always include create_case action when**:
+   - User describes a problem AND provides property/unit info (current or previous message)
+   - Use the CLOSEST MATCHING property/unit names from the data
+   - Set priority based on urgency: no water/heat/safety = Urgent/High, cosmetic = Low/Medium
+4. **Category matching**: Match to these categories: HVAC, Plumbing (Water, Drains, Sewer), Electrical, Appliances, Structural, Exterior, Interior, Landscaping, Pest Control, Other
+
+PROPERTY/UNIT FUZZY MATCHING EXAMPLES:
+- User: "property 1" → Match to "Property 1 " ✓
+- User: "unit 1" → Match to "Unit 1" or "1" ✓  
+- User: "the condo on main st" → Match to property with "Main" in address ✓
+- User: "apartment 2B" → Match to "Unit 2B" or "2B" ✓`;
+        
+        fewShotExample = `
+
+EXAMPLE OUTPUT for maintenance question "What maintenance needs attention?":
+{
+  "tldr": "2 urgent repairs, 1 overdue inspection. HVAC and plumbing issues need immediate action.",
+  "bullets": [
+    "Unit A HVAC system failed - tenant without heat (URGENT)",
+    "Property 2 plumbing leak in basement (needs repair)",
+    "Annual inspection overdue for Property 1 (compliance risk)"
+  ],
+  "actions": [
+    {"label": "Call HVAC contractor for emergency Unit A repair", "due": "Today"},
+    {"label": "Schedule plumber for Property 2 basement leak", "due": "Tomorrow"},
+    {"label": "Book annual inspection for Property 1", "due": "This week"}
+  ]
+}
+
+EXAMPLE for user reporting issue WITHOUT property/unit:
+User: "My bathroom sink is leaking"
+{
+  "tldr": "I'll help you create a maintenance request for the sink leak. Which property and unit are you in?",
+  "bullets": [
+    "Bathroom sink leaks usually come from loose connections, worn washers, or cracked pipes",
+    "Place a bucket under the leak and turn off the water valves under the sink if possible",
+    "Most plumbers can fix this same-day for $150-300"
+  ],
+  "actions": [
+    {"label": "Reply with your property name and unit number so I can create the request", "due": "Now"}
+  ]
+}
+
+EXAMPLE for user providing property/unit WITH fuzzy matching:
+User: "property 1, unit 1"
+Previous context: bathroom sink leaking
+Available properties: ["Property 1 ", "Property 2", "Property Bldg 3"]
+Available units for Property 1: ["Unit 1", "Unit 2"]
+{
+  "tldr": "Creating a maintenance request for the bathroom sink leak at Property 1, Unit 1. A plumber will be assigned automatically.",
+  "bullets": [
+    "Issue: Bathroom sink leaking - likely loose connection or worn washer",
+    "Priority: MEDIUM (not an emergency but needs prompt attention)",
+    "Category: Plumbing - our system will auto-assign the best available plumber",
+    "Typical repair time: 1-2 hours, cost $150-300"
+  ],
+  "actions": [
+    {
+      "label": "Create Maintenance Request",
+      "due": "Now",
+      "type": "create_case",
+      "caseData": {
+        "title": "Bathroom sink leaking",
+        "description": "Tenant reports bathroom sink is leaking. Likely loose connection or worn washer. Tenant should turn off water valves under sink if leak is active.",
+        "property": "Property 1 ",
+        "unit": "Unit 1",
+        "priority": "Medium",
+        "category": "Plumbing (Water, Drains, Sewer)"
+      }
+    }
+  ]
+}`;
+      } else if (context === "expenses") {
+        contextualGuidance = `
+
+EXPENSES FOCUS: Analyze spending patterns, identify cost-saving opportunities, track budget vs actual, and highlight unusual expenses.`;
+        
+        fewShotExample = `
+
+EXAMPLE OUTPUT for expenses question "What are my biggest expenses?":
+{
+  "tldr": "Spent $4,200 this quarter. Maintenance up 30%, mortgage stable, utilities higher than expected.",
+  "bullets": [
+    "Maintenance: $1,800 (30% increase from last quarter)",
+    "Mortgage payments: $2,000 (on schedule)",
+    "Utilities: $400 (15% above normal due to repairs)"
+  ],
+  "actions": [
+    {"label": "Review maintenance contracts for cost optimization", "due": "This month"},
+    {"label": "Check utility bills for billing errors", "due": "This week"},
+    {"label": "Set up quarterly expense budget alerts", "due": "Next month"}
+  ]
+}`;
+      } else if (context === "reminders") {
+        contextualGuidance = `
+
+REMINDERS FOCUS: Prioritize due/overdue counts, top 3 items with dates and urgency, owners/assignees, immediate actions. Use format "... and N more" for overflow.`;
+        
+        fewShotExample = `
+
+EXAMPLE OUTPUT for reminders question "What needs my attention?":
+{
+  "tldr": "3 overdue items, 2 due this week. Focus on Unit A rent collection and B2 maintenance.",
+  "bullets": [
+    "2 rent payments overdue (Unit A: 5 days, Unit C: 2 days)",
+    "Unit B2 HVAC repair due tomorrow",
+    "Lease renewal for Tenant Smith expires in 3 days"
+  ],
+  "actions": [
+    {"label": "Contact Unit A tenant for payment", "due": "Today"},
+    {"label": "Schedule HVAC repair", "due": "Tomorrow"},
+    {"label": "Send lease renewal docs to Smith", "due": "This week"}
+  ]
+}`;
+      }
+
+      const systemPrompt = `You are Maya, a friendly property management assistant. Answer user questions in a conversational, helpful way using their actual property data.
+
+COMMUNICATION STYLE:
+- Be warm, conversational, and supportive (like talking to a friend)
+- Use simple, everyday language (avoid technical jargon)
+- Focus on what matters most to busy landlords
+- Always use the actual transaction data provided, especially augustCollections for August questions
+- For financial calculations, prominently use the "downPayment" field as the cash investment
+- Give specific numbers and actionable advice${contextualGuidance}
+
+RESPONSE FORMAT (JSON):
+{
+  "tldr": "Conversational summary with specific numbers",
+  "bullets": ["Easy-to-understand facts with real data"],
+  "actions": [{"label": "Clear next step", "due": "timeframe"}]
+}
+
+IMPORTANT: 
+- Never include technical caveats or data quality notes. Keep responses clean and user-focused.
+- ALWAYS provide 2-4 actionable items in the "actions" array, even for status questions. Think about logical next steps, follow-ups, or proactive management tasks.
+- Actions should be specific, time-bound, and relevant to the data presented.
+
+EXAMPLE for question "How much rent did I collect in August?":
+{
+  "tldr": "You collected $3,600 in August rent from both properties - that's 100% of what was due!",
+  "bullets": [
+    "Property 1 paid $2,000 (on time)",
+    "Property 2 paid $1,600 (on time)", 
+    "Both tenants are current on rent payments"
+  ],
+  "actions": [
+    {"label": "Send September rent collection notices", "due": "September 1st"},
+    {"label": "Schedule quarterly property inspections", "due": "This month"},
+    {"label": "Review and update rental rates for next year", "due": "October"}
+  ]
+}
+${fewShotExample}
+
+PROPERTY DATA:
+${JSON.stringify(aiData, null, 2)}
+
+Provide helpful analysis based on the actual data. Respond with valid JSON only:`;
+
+      // Build conversation messages including history
+      const messages: Array<{role: string, content: string}> = [
+        { role: 'system', content: systemPrompt }
+      ];
+      
+      // Add conversation history if provided
+      if (conversationHistory && conversationHistory.length > 0) {
+        conversationHistory.forEach((msg: any) => {
+          messages.push({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          });
+        });
+      }
+      
+      // Add current question
+      messages.push({ role: 'user', content: question });
+
+      // Call OpenAI Responses API (GPT-5) with optimized token budget and reasoning
+      const response = await openai.responses.create({
+        model: "gpt-5",
+        input: messages,
+        text: {
+          format: { type: "json_object" }
+        },
+        reasoning: { effort: 'low' },
+        max_output_tokens: 4096,
+        stream: false
+      });
+
+      // Enhanced extraction for GPT-5 Responses API - handle both text and JSON responses
+      let aiResponse = '';
+      let isJsonResponse = false;
+      
+      if ((response as any).output_text?.trim()) {
+        aiResponse = (response as any).output_text.trim();
+      } else {
+        // Extract from response.output array with JSON support
+        const outputs = (response as any).output || [];
+        for (const output of outputs) {
+          if (output.content && Array.isArray(output.content)) {
+            for (const content of output.content) {
+              if (content.type === 'json' && content.json) {
+                // Direct JSON object from API
+                aiResponse = JSON.stringify(content.json);
+                isJsonResponse = true;
+                break;
+              } else if (content.type === 'output_text' && content.text) {
+                aiResponse = content.text.trim();
+                break;
+              } else if (content.type === 'text' && content.text) {
+                aiResponse = content.text.trim();
+                break;
+              }
+            }
+            if (aiResponse) break;
+          }
+        }
+      }
+      
+      
+      console.log("🤖 Raw AI response:", aiResponse);
+
+      if (!aiResponse || aiResponse.trim().length === 0) {
+        console.log("❌ Empty AI response received - attempting retry with simplified prompt");
+        
+        // Retry with simplified prompt and reduced data
+        try {
+          const simplifiedAiData = {
+            ...aiData,
+            properties: aiData.properties?.slice(0, 3) || [],
+            financials: {
+              ...aiData.financials,
+              augustCollections: aiData.financials?.augustCollections?.slice(0, 5) || []
+            },
+            cases: (aiData as any).cases?.slice(0, 5) || [],
+            reminders: (aiData as any).reminders?.slice(0, 5) || []
+          };
+
+          const retryPrompt = `You are Maya, a property management assistant. Answer briefly using actual data.${contextualGuidance}
+
+PROPERTY DATA:
+${JSON.stringify(simplifiedAiData, null, 2)}
+
+Respond with valid JSON: {"tldr": "summary", "bullets": ["facts"], "actions": [{"label": "task", "due": "time"}]}`;
+
+          const retryResponse = await openai.responses.create({
+            model: "gpt-5",
+            input: [
+              { role: 'system', content: retryPrompt },
+              { role: 'user', content: question }
+            ],
+            reasoning: { effort: 'low' },
+            max_output_tokens: 2048,
+            stream: false
+          });
+
+          let retryAiResponse = '';
+          if ((retryResponse as any).output_text?.trim()) {
+            retryAiResponse = (retryResponse as any).output_text.trim();
+            console.log("✅ Retry successful, using simplified response");
+            aiResponse = retryAiResponse;
+          }
+        } catch (retryError) {
+          console.log("❌ Retry failed:", retryError);
+        }
+
+        // Final fallback if retry also failed
+        if (!aiResponse || aiResponse.trim().length === 0) {
+          console.log("❌ Both attempts failed - using fallback response");
+          return res.json({
+            answer: {
+              tldr: "No data available for analysis",
+              bullets: ["Unable to analyze your property data at this time"],
+              actions: [{ label: "Please try your question again", due: "Now" }],
+              caveats: "The AI assistant is temporarily unavailable"
+            },
+            sources: ["Property Database"],
+            confidence: 0.3
+          });
+        }
+      }
+
+      try {
+        // Handle response parsing - direct JSON vs. text
+        let structuredResponse;
+        
+        if (isJsonResponse) {
+          // Already parsed JSON object from API
+          structuredResponse = JSON.parse(aiResponse);
+        } else {
+          // Clean the response by removing potential code fences and whitespace
+          let cleanResponse = aiResponse.trim();
+          if (cleanResponse.startsWith('```json')) {
+            cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+          } else if (cleanResponse.startsWith('```')) {
+            cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
+          }
+          
+          try {
+            structuredResponse = JSON.parse(cleanResponse);
+          } catch (jsonError) {
+            console.log("❌ JSON parsing failed:", jsonError);
+            console.log("Raw response that failed to parse:", cleanResponse);
+            
+            // Robust fallback: create structured response from partial data
+            const fallbackResponse = {
+              tldr: "Unable to parse detailed analysis - raw data shows active properties and transactions",
+              bullets: [
+                `Found ${properties?.length || 0} properties with ${units?.length || 0} units`,
+                `${transactions?.filter((t: any) => t.type === 'Income')?.length || 0} revenue transactions recorded`,
+                `${tenantGroups?.filter((tg: any) => tg.status === 'Active')?.length || 0} active tenant groups`
+              ],
+              actions: [
+                { label: "Review property data for completeness", due: "This week" },
+                { label: "Ensure monthly rent amounts are set correctly", due: "Today" }
+              ],
+              caveats: "Response parsing failed - showing summary from raw data"
+            };
+            
+            return res.json({
+              answer: fallbackResponse,
+              sources: ["Property Database"],
+              confidence: 0.7
+            });
+          }
+        }
+        
+        // Validate required fields and structure
+        const isValidStructure = 
+          structuredResponse &&
+          typeof structuredResponse === 'object' &&
+          typeof structuredResponse.tldr === 'string' &&
+          Array.isArray(structuredResponse.bullets) &&
+          Array.isArray(structuredResponse.actions);
+        
+        if (!isValidStructure) {
+          console.log("❌ Invalid response structure:", structuredResponse);
+          throw new Error("Invalid response structure from AI");
+        }
+        
+        console.log("✅ Parsed AI response:", JSON.stringify(structuredResponse, null, 2));
+        
+        res.json({
+          answer: structuredResponse,
+          sources: ["Property Database"],
+          confidence: 0.9
+        });
+        
+      } catch (parseError) {
+        console.log("❌ Complete parsing failure:", parseError);
+        
+        // Final fallback for any other parsing issues
+        const emergencyFallback = {
+          tldr: "Unable to analyze data due to processing error",
+          bullets: ["Property data is available but analysis failed"],
+          actions: [{ label: "Please try your question again", due: "Now" }],
+          caveats: "AI assistant encountered a processing error"
+        };
+        
+        res.json({
+          answer: emergencyFallback,
+          sources: ["Property Database"],
+          confidence: 0.5
+        });
+      }
+
+    } catch (error) {
+      console.error("AI request failed:", error);
+      res.status(500).json({ 
+        message: "Failed to process AI request",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // AI Triage Prompt Testing endpoint
+  app.post('/api/test-triage-prompts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          message: "AI service not configured - please add OPENAI_API_KEY" 
+        });
+      }
+
+      const { aiTriagePromptTester } = await import('./aiTriagePromptTester');
+      const results = await aiTriagePromptTester.testAllPrompts(req.body);
+      
+      res.json({ 
+        success: true,
+        results,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Prompt testing failed:", error);
+      res.status(500).json({ 
+        message: "Failed to test prompts",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Maya Conversation Testing endpoint
+  app.post('/api/test-maya-conversation', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          message: "AI service not configured - please add OPENAI_API_KEY" 
+        });
+      }
+
+      const { userMessage, conversationHistories } = req.body;
+      
+      if (!userMessage?.trim()) {
+        return res.status(400).json({ message: "User message is required" });
+      }
+
+      // Default to empty histories if not provided
+      const histories = conversationHistories || {
+        empathetic: [],
+        professional: [],
+        deescalating: [],
+        casual: []
+      };
+
+      const { testAllMayaStrategies } = await import('./mayaConversationTester');
+      const results = await testAllMayaStrategies(
+        userMessage,
+        histories,
+        process.env.OPENAI_API_KEY
+      );
+      
+      res.json({ 
+        success: true,
+        results,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Maya conversation testing failed:", error);
+      res.status(500).json({ 
+        message: "Failed to test Maya conversation",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // ========================================
+  // AI TRIAGE & CONTRACTOR ROUTES
+  // ========================================
+
+  // Get current user's contractor profile
+  app.get('/api/contractors/me', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const contractor = await storage.getContractorByUserId(userId);
+      if (!contractor) {
+        return res.status(404).json({ message: "Contractor profile not found" });
+      }
+      res.json(contractor);
+    } catch (error) {
+      console.error("Error fetching contractor profile:", error);
+      res.status(500).json({ message: "Failed to fetch contractor profile" });
+    }
+  });
+
+  // Get cases assigned to current contractor (aggregates across all orgs where contractor works)
+  app.get('/api/contractor/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get ALL vendor records for this contractor (they may work across multiple orgs)
+      const contractorVendors = await storage.getContractorVendorsByUserId(userId);
+      
+      if (contractorVendors.length === 0) {
+        return res.json([]); // Return empty array if not a contractor
+      }
+
+      // Get vendor IDs to filter cases
+      const vendorIds = contractorVendors.map(v => v.id);
+      
+      // Get organization IDs where contractor works
+      const orgIds = [...new Set(contractorVendors.map(v => v.orgId))];
+      
+      // Fetch cases from all organizations where contractor has vendor records
+      const allCasesPromises = orgIds.map(orgId => storage.getSmartCases(orgId));
+      const allCasesArrays = await Promise.all(allCasesPromises);
+      const allCases = allCasesArrays.flat();
+      
+      // Filter to cases assigned to any of this contractor's vendor IDs
+      const contractorCases = allCases.filter((c: any) => vendorIds.includes(c.assignedContractorId));
+
+      // Enrich with property/unit details and scheduled jobs
+      const enrichedCases = await Promise.all(contractorCases.map(async (case_: any) => {
+        const property = case_.propertyId ? await storage.getProperty(case_.propertyId) : null;
+        const unit = case_.unitId ? await storage.getUnit(case_.unitId) : null;
+        
+        const jobs = await storage.getScheduledJobs(case_.orgId, { caseId: case_.id });
+        
+        const mediaItems = await db.select({
+          id: caseMedia.id,
+          caseId: caseMedia.caseId,
+          type: caseMedia.type,
+          caption: caseMedia.caption,
+          createdAt: caseMedia.createdAt,
+        }).from(caseMedia).where(eq(caseMedia.caseId, case_.id));
+        const mediaWithUrls = mediaItems.map(m => ({ ...m, url: `/api/media/${m.id}` }));
+
+        return {
+          ...case_,
+          buildingName: property?.name,
+          roomNumber: unit?.label,
+          locationText: property ? `${property.street}, ${property.city}` : undefined,
+          scheduledJobs: jobs,
+          media: mediaWithUrls
+        };
+      }));
+
+      res.json(enrichedCases);
+    } catch (error) {
+      console.error("Error fetching contractor cases:", error);
+      res.status(500).json({ message: "Failed to fetch contractor cases" });
+    }
+  });
+
+  // Get appointments for current contractor (aggregates across all orgs where contractor works)
+  app.get('/api/contractor/appointments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get ALL vendor records for this contractor (they may work across multiple orgs)
+      const contractorVendors = await storage.getContractorVendorsByUserId(userId);
+      
+      if (contractorVendors.length === 0) {
+        return res.json([]); // Return empty array if not a contractor
+      }
+
+      // Get appointments for ALL vendor IDs
+      const appointmentsPromises = contractorVendors.map(v => storage.getContractorAppointments(v.id));
+      const appointmentsArrays = await Promise.all(appointmentsPromises);
+      const allAppointments = appointmentsArrays.flat();
+      
+      // Remove duplicates (if any) and sort by start time
+      const uniqueAppointments = Array.from(
+        new Map(allAppointments.map(apt => [apt.id, apt])).values()
+      ).sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+
+      res.json(uniqueAppointments);
+    } catch (error) {
+      console.error("Error fetching contractor appointments:", error);
+      res.status(500).json({ message: "Failed to fetch contractor appointments" });
+    }
+  });
+
+  // Get all contractors for org
+  app.get('/api/contractors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractors = await storage.getContractors(org.id);
+      res.json(contractors);
+    } catch (error) {
+      console.error("Error fetching contractors:", error);
+      res.status(500).json({ message: "Failed to fetch contractors" });
+    }
+  });
+
+  // Get contractor by ID
+  app.get('/api/contractors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+      
+      res.json(contractor);
+    } catch (error) {
+      console.error("Error fetching contractor:", error);
+      res.status(500).json({ message: "Failed to fetch contractor" });
+    }
+  });
+
+  // Update contractor
+  app.patch('/api/contractors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const validatedData = insertVendorSchema.partial().parse(req.body);
+      const updated = await storage.updateVendor(req.params.id, { ...validatedData, orgId: org.id });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating contractor:", error);
+      res.status(500).json({ message: "Failed to update contractor", error: (error as Error).message });
+    }
+  });
+
+  // Get contractor availability
+  app.get('/api/contractors/:id/availability', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const availability = await storage.getContractorAvailability(req.params.id);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error fetching contractor availability:", error);
+      res.status(500).json({ message: "Failed to fetch availability" });
+    }
+  });
+
+  // Create contractor availability
+  app.post('/api/contractors/:id/availability', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const validatedData = insertContractorAvailabilitySchema.parse({ ...req.body, contractorId: req.params.id });
+      const created = await storage.createContractorAvailability(validatedData);
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating contractor availability:", error);
+      res.status(500).json({ message: "Failed to create availability", error: (error as Error).message });
+    }
+  });
+
+  // Update contractor availability
+  app.patch('/api/contractors/:contractorId/availability/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.contractorId);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const validatedData = insertContractorAvailabilitySchema.partial().parse(req.body);
+      const updated = await storage.updateContractorAvailability(req.params.id, validatedData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating contractor availability:", error);
+      res.status(500).json({ message: "Failed to update availability", error: (error as Error).message });
+    }
+  });
+
+  // Delete contractor availability
+  app.delete('/api/contractors/:contractorId/availability/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.contractorId);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      await storage.deleteContractorAvailability(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting contractor availability:", error);
+      res.status(500).json({ message: "Failed to delete availability" });
+    }
+  });
+
+  // Get contractor blackouts
+  app.get('/api/contractors/:id/blackouts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const blackouts = await storage.getContractorBlackouts(req.params.id);
+      res.json(blackouts);
+    } catch (error) {
+      console.error("Error fetching contractor blackouts:", error);
+      res.status(500).json({ message: "Failed to fetch blackouts" });
+    }
+  });
+
+  // Create contractor blackout
+  app.post('/api/contractors/:id/blackouts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      // Convert date strings to Date objects
+      const bodyData = { ...req.body, contractorId: req.params.id };
+      if (bodyData.startDate && typeof bodyData.startDate === 'string') {
+        bodyData.startDate = new Date(bodyData.startDate);
+      }
+      if (bodyData.endDate && typeof bodyData.endDate === 'string') {
+        bodyData.endDate = new Date(bodyData.endDate);
+      }
+
+      const validatedData = insertContractorBlackoutSchema.parse(bodyData);
+      const created = await storage.createContractorBlackout(validatedData);
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating contractor blackout:", error);
+      res.status(500).json({ message: "Failed to create blackout", error: (error as Error).message });
+    }
+  });
+
+  // Update contractor blackout
+  app.patch('/api/contractors/:contractorId/blackouts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.contractorId);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      // Convert date strings to Date objects
+      const bodyData = { ...req.body };
+      if (bodyData.startDate && typeof bodyData.startDate === 'string') {
+        bodyData.startDate = new Date(bodyData.startDate);
+      }
+      if (bodyData.endDate && typeof bodyData.endDate === 'string') {
+        bodyData.endDate = new Date(bodyData.endDate);
+      }
+
+      const validatedData = insertContractorBlackoutSchema.partial().parse(bodyData);
+      const updated = await storage.updateContractorBlackout(req.params.id, validatedData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating contractor blackout:", error);
+      res.status(500).json({ message: "Failed to update blackout", error: (error as Error).message });
+    }
+  });
+
+  // Delete contractor blackout
+  app.delete('/api/contractors/:contractorId/blackouts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.contractorId);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      await storage.deleteContractorBlackout(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting contractor blackout:", error);
+      res.status(500).json({ message: "Failed to delete blackout" });
+    }
+  });
+
+  // Get appointments for org
+  app.get('/api/appointments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const appointments = await storage.getAppointments(org.id);
+      res.json(appointments);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      res.status(500).json({ message: "Failed to fetch appointments" });
+    }
+  });
+
+  // Get contractor's appointments
+  app.get('/api/contractors/:id/appointments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const contractor = await storage.getContractor(req.params.id);
+      if (!contractor) return res.status(404).json({ message: "Contractor not found" });
+      if (contractor.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const appointments = await storage.getContractorAppointments(req.params.id);
+      res.json(appointments);
+    } catch (error) {
+      console.error("Error fetching contractor appointments:", error);
+      res.status(500).json({ message: "Failed to fetch appointments" });
+    }
+  });
+
+  // Get appointments for a case
+  app.get('/api/cases/:caseId/appointments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const smartCase = await storage.getSmartCase(req.params.caseId);
+      if (!smartCase) return res.status(404).json({ message: "Case not found" });
+      if (smartCase.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const appointments = await storage.getCaseAppointments(req.params.caseId);
+      
+      // Enrich with contractor info
+      const enrichedAppointments = await Promise.all(
+        appointments.map(async (apt) => {
+          const contractor = await storage.getContractor(apt.contractorId);
+          return {
+            ...apt,
+            contractor: contractor ? {
+              id: contractor.id,
+              name: contractor.name,
+              phone: contractor.phone,
+              email: contractor.email,
+            } : null,
+          };
+        })
+      );
+
+      res.json(enrichedAppointments);
+    } catch (error) {
+      console.error("Error fetching case appointments:", error);
+      res.status(500).json({ message: "Failed to fetch appointments" });
+    }
+  });
+
+  // Create appointment
+  app.post('/api/appointments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const validatedData = insertAppointmentSchema.parse(req.body);
+
+      const smartCase = await storage.getSmartCase(validatedData.caseId);
+      if (!smartCase) return res.status(404).json({ message: "Case not found" });
+      if (smartCase.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const contractor = await storage.getContractor(validatedData.contractorId);
+      if (!contractor || contractor.orgId !== org.id) {
+        return res.status(403).json({ message: "Invalid contractor" });
+      }
+
+      let appointmentData = { ...validatedData };
+      
+      if (validatedData.requiresTenantAccess) {
+        const crypto = await import('crypto');
+        appointmentData.approvalToken = crypto.randomBytes(32).toString('hex');
+        appointmentData.approvalExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        appointmentData.proposedBy = 'contractor';
+      }
+
+      const created = await storage.createAppointment(appointmentData);
+
+      if (validatedData.requiresTenantAccess && created.approvalToken) {
+        const { notificationService } = await import('./notificationService');
+        
+        const tenantEmail = 'tenant@example.com';
+        const approvalLink = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 'http://localhost:5000'}/api/appointments/${created.id}/approve?token=${created.approvalToken}`;
+        
+        await notificationService.sendEmailNotification({
+          type: 'case_scheduled',
+          title: 'Appointment Approval Required',
+          subject: 'Please approve your maintenance appointment',
+          message: `A contractor has proposed a maintenance appointment.\n\nDate: ${new Date(created.scheduledStartAt).toLocaleDateString()}\nTime: ${new Date(created.scheduledStartAt).toLocaleTimeString()} - ${new Date(created.scheduledEndAt).toLocaleTimeString()}\n\nPlease click the link below to approve or decline:\n${approvalLink}`,
+          to: tenantEmail
+        }, tenantEmail);
+      }
+
+      try {
+        const { createCalendarEvent } = await import('./googleCalendar');
+        const property = smartCase.propertyId ? await storage.getProperty(smartCase.propertyId) : null;
+        const unit = smartCase.unitId ? await storage.getUnit(smartCase.unitId) : null;
+        
+        const location = property 
+          ? `${property.street}, ${property.city}, ${property.state} ${property.zipCode}${unit ? ` - Unit ${unit.label}` : ''}`
+          : '';
+        
+        const eventId = await createCalendarEvent(
+          `Maintenance: ${smartCase.title}`,
+          `${smartCase.description || ''}\n\nContractor: ${contractor.name}\nLocation: ${location}`,
+          new Date(created.scheduledStartAt),
+          new Date(created.scheduledEndAt),
+          []
+        );
+
+        if (eventId) {
+          await storage.updateAppointment(created.id, { googleCalendarEventId: eventId });
+        }
+      } catch (calendarError) {
+        console.error("Failed to create Google Calendar event:", calendarError);
+      }
+
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      res.status(500).json({ message: "Failed to create appointment", error: (error as Error).message });
+    }
+  });
+
+  // Update appointment
+  app.patch('/api/appointments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const appointment = await storage.getAppointment(req.params.id);
+      if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+
+      const smartCase = await storage.getSmartCase(appointment.caseId);
+      if (!smartCase || smartCase.orgId !== org.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertAppointmentSchema.partial().parse(req.body);
+      const updated = await storage.updateAppointment(req.params.id, validatedData);
+
+      if (appointment.googleCalendarEventId && (validatedData.scheduledStartAt || validatedData.scheduledEndAt)) {
+        try {
+          const { updateCalendarEvent } = await import('./googleCalendar');
+          const contractor = await storage.getContractor(appointment.contractorId);
+          const property = smartCase.propertyId ? await storage.getProperty(smartCase.propertyId) : null;
+          const unit = smartCase.unitId ? await storage.getUnit(smartCase.unitId) : null;
+          
+          const location = property 
+            ? `${property.street}, ${property.city}, ${property.state} ${property.zipCode}${unit ? ` - Unit ${unit.label}` : ''}`
+            : '';
+          
+          await updateCalendarEvent(
+            appointment.googleCalendarEventId,
+            `Maintenance: ${smartCase.title}`,
+            `${smartCase.description || ''}\n\nContractor: ${contractor?.name || 'Unknown'}\nLocation: ${location}`,
+            new Date(updated.scheduledStartAt),
+            new Date(updated.scheduledEndAt),
+            []
+          );
+        } catch (calendarError) {
+          console.error("Failed to update Google Calendar event:", calendarError);
+        }
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      res.status(500).json({ message: "Failed to update appointment", error: (error as Error).message });
+    }
+  });
+
+  // Check contractor calendar availability
+  app.post('/api/contractors/:id/check-availability', isAuthenticated, async (req: any, res) => {
+    try {
+      const { startDateTime, endDateTime } = req.body;
+      
+      if (!startDateTime || !endDateTime) {
+        return res.status(400).json({ message: "startDateTime and endDateTime are required" });
+      }
+
+      const { checkAvailability, findAvailableSlots } = await import('./googleCalendar');
+      
+      const availability = await checkAvailability(
+        new Date(startDateTime),
+        new Date(endDateTime)
+      );
+
+      if (!availability.available) {
+        const startDate = new Date(startDateTime);
+        const endDate = new Date(startDateTime);
+        endDate.setDate(endDate.getDate() + 7);
+        
+        const alternateSlots = await findAvailableSlots(startDate, endDate, 120);
+        
+        return res.json({
+          available: false,
+          conflicts: availability.conflicts,
+          alternateSlots
+        });
+      }
+
+      res.json({ available: true, conflicts: [] });
+    } catch (error) {
+      console.error("Error checking availability:", error);
+      res.status(503).json({ 
+        message: "Calendar service unavailable. Please try again later.",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Tenant appointment approval endpoints
+  app.post('/api/appointments/:id/tenant-approve', async (req: any, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Approval token is required" });
+      }
+
+      const appointment = await storage.getAppointment(req.params.id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      if (appointment.approvalToken !== token) {
+        return res.status(403).json({ message: "Invalid approval token" });
+      }
+
+      if (appointment.approvalExpiresAt && new Date(appointment.approvalExpiresAt) < new Date()) {
+        return res.status(410).json({ message: "Approval link has expired" });
+      }
+
+      if (appointment.tenantApproved) {
+        return res.status(400).json({ message: "Appointment already approved" });
+      }
+
+      const updated = await storage.updateAppointment(req.params.id, {
+        tenantApproved: true,
+        tenantApprovedAt: new Date(),
+        status: 'Scheduled'
+      });
+
+      const smartCase = await storage.getSmartCase(appointment.caseId);
+      if (smartCase) {
+        await storage.updateSmartCase(smartCase.id, {
+          status: 'Scheduled'
+        });
+
+        const { notificationService } = await import('./notificationService');
+        if (appointment.contractorId) {
+          // Get contractor's user ID from vendor record
+          const vendor = await storage.getVendor(appointment.contractorId);
+          if (vendor?.userId) {
+            await notificationService.notifyContractor(
+              {
+                message: `Tenant approved appointment for case ${smartCase.title}`,
+                type: 'case_scheduled',
+                subject: 'Appointment Approved by Tenant',
+                title: 'Appointment Approved',
+                caseId: smartCase.id,
+                orgId: smartCase.orgId
+              },
+              vendor.userId,
+              smartCase.orgId
+            );
+            console.log(`✅ Contractor notified about approved appointment for case ${smartCase.id}`);
+          }
+        }
+      }
+
+      res.json({ message: "Appointment approved successfully", appointment: updated });
+    } catch (error) {
+      console.error("Error approving appointment:", error);
+      res.status(500).json({ message: "Failed to approve appointment" });
+    }
+  });
+
+  app.post('/api/appointments/:id/tenant-decline', async (req: any, res) => {
+    try {
+      const { token, reason } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Approval token is required" });
+      }
+
+      const appointment = await storage.getAppointment(req.params.id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      if (appointment.approvalToken !== token) {
+        return res.status(403).json({ message: "Invalid approval token" });
+      }
+
+      if (appointment.approvalExpiresAt && new Date(appointment.approvalExpiresAt) < new Date()) {
+        return res.status(410).json({ message: "Approval link has expired" });
+      }
+
+      await storage.updateAppointment(req.params.id, {
+        status: 'Cancelled',
+        notes: `Declined by tenant. Reason: ${reason || 'Not specified'}`
+      });
+
+      const smartCase = await storage.getSmartCase(appointment.caseId);
+      if (smartCase) {
+        await storage.updateSmartCase(smartCase.id, {
+          status: 'In Review'
+        });
+
+        const { notificationService } = await import('./notificationService');
+        if (appointment.contractorId) {
+          // Get contractor's user ID from vendor record
+          const vendor = await storage.getVendor(appointment.contractorId);
+          if (vendor?.userId) {
+            await notificationService.notifyContractor(
+              {
+                message: `Tenant declined appointment for case ${smartCase.title}. Reason: ${reason || 'Not specified'}`,
+                type: 'case_updated',
+                subject: 'Appointment Declined by Tenant',
+                title: 'Appointment Declined',
+                caseId: smartCase.id,
+                orgId: smartCase.orgId
+              },
+              vendor.userId,
+              smartCase.orgId
+            );
+            console.log(`✅ Contractor notified about declined appointment for case ${smartCase.id}`);
+          }
+        }
+      }
+
+      res.json({ message: "Appointment declined successfully" });
+    } catch (error) {
+      console.error("Error declining appointment:", error);
+      res.status(500).json({ message: "Failed to decline appointment" });
+    }
+  });
+
+  // Standalone AI triage endpoint for homeowner/property owner quick analysis
+  app.post('/api/ai/triage', isAuthenticated, async (req: any, res) => {
+    try {
+      const { description, category } = req.body;
+      
+      if (!description || typeof description !== 'string') {
+        return res.status(400).json({ error: 'Description is required' });
+      }
+
+      const { aiTriageService } = await import('./aiTriage');
+      
+      const triageResult = await aiTriageService.analyzeMaintenanceRequest({
+        title: description.substring(0, 100),
+        description: description,
+        category: category || undefined,
+        orgId: req.user?.orgId
+      });
+
+      // Generate reasonable cost estimate based on complexity
+      const costEstimates: Record<string, string> = {
+        'Simple': '$75 - $200',
+        'Moderate': '$200 - $500',
+        'Complex': '$500 - $1,500'
+      };
+      const estimatedCost = costEstimates[triageResult.estimatedComplexity] || '$150 - $400';
+
+      // Map to simpler format for homeowner UI
+      res.json({
+        urgency: triageResult.urgency.toLowerCase(),
+        rootCause: triageResult.preliminaryDiagnosis,
+        estimatedCost: estimatedCost,
+        estimatedTime: triageResult.estimatedDuration || '1-3 hours',
+        suggestedActions: triageResult.troubleshootingSteps || [],
+        category: triageResult.category,
+        contractorType: triageResult.contractorType,
+        safetyRisk: triageResult.safetyRisk
+      });
+    } catch (error) {
+      console.error('AI Triage error:', error);
+      // Return fallback triage for graceful degradation
+      res.json({
+        urgency: 'medium',
+        rootCause: 'Unable to determine - professional inspection recommended',
+        estimatedCost: '$150 - $400',
+        estimatedTime: '1-3 hours',
+        suggestedActions: [
+          'Take photos of the issue',
+          'Note when the problem started',
+          'Contact a professional for inspection'
+        ],
+        category: req.body.category || 'General Maintenance'
+      });
+    }
+  });
+
+  // Maya AI chat endpoint for homeowners - contextual advice about quotes
+  app.post('/api/homeowner/maya-chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message, quotes, requestDescription } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const contractorNames = quotes?.map((q: any) => q.name).join(', ') || 'the contractors';
+      const quoteSummary = quotes?.map((q: any) => 
+        `${q.name}: $${q.quote}, available ${q.availability}, ~${q.estimatedDays} days to complete`
+      ).join('\n') || 'No quotes available yet';
+
+      const systemPrompt = `You are Maya, a friendly and helpful AI assistant for homeowners managing property maintenance requests. You help homeowners:
+1. Compare contractor quotes and make informed decisions
+2. Draft and SEND messages to contractors on behalf of the homeowner
+3. Answer questions about timing, pricing, and contractor selection
+4. Provide practical advice based on their specific situation
+
+Current request: ${requestDescription || 'Home maintenance request'}
+
+Contractor quotes received:
+${quoteSummary}
+
+IMPORTANT - SENDING MESSAGES TO CONTRACTORS:
+When the user asks you to send, ask, message, or contact ALL contractors (or "everyone", "them all", etc.), you MUST respond with a JSON object in this exact format:
+{"action": "broadcast", "message": "YOUR PROFESSIONAL MESSAGE HERE", "confirmation": "YOUR FRIENDLY CONFIRMATION TO THE USER"}
+
+The "message" field should contain the professional message you'll send to each contractor.
+The "confirmation" field should be a friendly message confirming what you did (e.g., "Done! I've sent your question about insurance to Mike's Roofing, Premier Roofing Co, and Budget Roof Repair.")
+
+Examples of broadcast triggers:
+- "send a message to all contractors asking about..."
+- "ask everyone if they have insurance"
+- "message all of them about Thursday availability"
+- "can you text all contractors..."
+- "ask them all about..."
+
+For regular questions or drafting messages (without sending), respond normally with helpful text.
+Keep responses concise and friendly. When recommending contractors, explain your reasoning briefly.`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        max_completion_tokens: 500,
+      });
+
+      const replyContent = response.choices[0]?.message?.content || "I'm here to help you with your contractor quotes. What would you like to know?";
+      
+      // Check if the response contains a broadcast action (JSON format)
+      // Try multiple extraction strategies for robustness
+      try {
+        let jsonToParse = replyContent.trim();
+        
+        // Strategy 1: Direct JSON parsing if it starts with {
+        if (!jsonToParse.startsWith('{')) {
+          // Strategy 2: Extract JSON from markdown code block
+          const codeBlockMatch = replyContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (codeBlockMatch) {
+            jsonToParse = codeBlockMatch[1];
+          } else {
+            // Strategy 3: Find JSON object anywhere in the response
+            const jsonMatch = replyContent.match(/\{[^{}]*"action"\s*:\s*"broadcast"[^{}]*\}/);
+            if (jsonMatch) {
+              jsonToParse = jsonMatch[0];
+            }
+          }
+        }
+        
+        if (jsonToParse.startsWith('{') && jsonToParse.includes('"action"')) {
+          const actionData = JSON.parse(jsonToParse);
+          if (actionData.action === 'broadcast' && actionData.message) {
+            return res.json({ 
+              reply: actionData.confirmation || `Done! I've sent your message to ${contractorNames}.`,
+              action: 'broadcast',
+              broadcastMessage: actionData.message
+            });
+          }
+        }
+      } catch (parseError) {
+        // Not valid JSON, treat as regular reply
+        console.log('Maya response not JSON, treating as regular reply');
+      }
+      
+      res.json({ reply: replyContent });
+    } catch (error) {
+      console.error('Maya chat error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get response',
+        reply: "I'm having trouble connecting right now. Based on your quotes, Mike's Roofing offers good value at $850 with quick availability. How can I help you compare your options?"
+      });
+    }
+  });
+
+  // AI-powered smart case enhancement routes
+  app.post('/api/cases/:id/ai-triage', isAuthenticated, async (req: any, res) => {
+    try {
+      const smartCase = await storage.getSmartCase(req.params.id);
+      if (!smartCase) return res.status(404).json({ message: "Case not found" });
+
+      const { aiTriageService } = await import('./aiTriage');
+      
+      const triageResult = await aiTriageService.analyzeMaintenanceRequest({
+        title: smartCase.title,
+        description: smartCase.description || '',
+        category: smartCase.category || undefined,
+        unitId: smartCase.unitId || undefined,
+        propertyId: smartCase.propertyId || undefined,
+        orgId: smartCase.orgId
+      });
+
+      const priority = triageResult.urgency === 'Critical' ? 'Urgent' : triageResult.urgency;
+      
+      // Calculate AI suggested appointment time based on time window
+      let aiSuggestedTime: Date | undefined;
+      if (triageResult.suggestedTimeWindow) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const currentHour = now.getHours();
+        
+        switch (triageResult.suggestedTimeWindow) {
+          case 'same_day':
+            // Schedule 2 hours from now, rounded to next hour during business hours (8am-6pm)
+            const soonestTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+            const roundedHour = Math.ceil(soonestTime.getHours());
+            
+            // If after business hours, schedule for tomorrow morning
+            if (roundedHour >= 18 || roundedHour < 8) {
+              aiSuggestedTime = new Date(today.getTime() + 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000); // Tomorrow at 9 AM
+            } else {
+              aiSuggestedTime = new Date(today.getTime() + roundedHour * 60 * 60 * 1000);
+            }
+            break;
+          case 'next_business_day':
+            // Skip to next weekday if weekend
+            let daysAhead = 1;
+            const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+            const dayOfWeek = tomorrow.getDay();
+            if (dayOfWeek === 0) daysAhead = 2; // Sunday → Tuesday
+            else if (dayOfWeek === 6) daysAhead = 3; // Saturday → Monday
+            aiSuggestedTime = new Date(today.getTime() + daysAhead * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000); // 9 AM
+            break;
+          case 'morning':
+            aiSuggestedTime = new Date(today.getTime() + 24 * 60 * 60 * 1000 + 10 * 60 * 60 * 1000); // Tomorrow at 10 AM
+            break;
+          case 'afternoon':
+            aiSuggestedTime = new Date(today.getTime() + 24 * 60 * 60 * 1000 + 14 * 60 * 60 * 1000); // Tomorrow at 2 PM
+            break;
+          case 'evening':
+            aiSuggestedTime = new Date(today.getTime() + 24 * 60 * 60 * 1000 + 17 * 60 * 60 * 1000); // Tomorrow at 5 PM
+            break;
+          case 'flexible':
+          default:
+            aiSuggestedTime = new Date(today.getTime() + 24 * 60 * 60 * 1000 + 10 * 60 * 60 * 1000); // Tomorrow at 10 AM (default)
+            break;
+        }
+      }
+      
+      await storage.updateSmartCase(req.params.id, {
+        aiTriageJson: triageResult as any,
+        category: triageResult.category,
+        priority: priority,
+        estimatedDuration: triageResult.estimatedDuration,
+        // Store AI time suggestions
+        aiSuggestedTime: aiSuggestedTime?.toISOString(),
+        aiSuggestedDurationMinutes: triageResult.estimatedDurationMinutes,
+        aiTimeConfidence: triageResult.timeConfidence?.toString(),
+        aiReasoningNotes: triageResult.timeReasoningNotes
+      });
+
+      res.json({ triageResult });
+    } catch (error) {
+      console.error("Error running AI triage:", error);
+      res.status(500).json({ message: "Failed to run AI triage" });
+    }
+  });
+
+  // Conversational Maya AI triage chat endpoint
+  app.post('/api/triage/chat', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+      const orgId = req.user!.orgId;
+      
+      if (!orgId) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const { message, step } = req.body;
+
+      if (!message || !step) {
+        return res.status(400).json({ message: "Message and step are required" });
+      }
+
+      if (step === "analyze_issue") {
+        const { aiTriageService } = await import('./aiTriage');
+        
+        const triageResult = await aiTriageService.analyzeMaintenanceRequest({
+          title: message.substring(0, 100),
+          description: message,
+          orgId: orgId
+        });
+
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+        // For tenants, automatically use their unit/property
+        let propertyMatches = [];
+        let properties = [];
+        
+        // Store tenant info for later use in response
+        let tenantUnitInfo = null;
+        
+        if (userRole === 'tenant') {
+          // Get tenant's unit and property - look for one with a unit assigned first
+          const tenant = await db.query.tenants.findFirst({
+            where: and(
+              eq(tenants.userId, userId),
+              eq(tenants.orgId, orgId)
+            ),
+            with: {
+              unit: {
+                with: {
+                  property: true,
+                },
+              },
+            },
+          });
+
+          if (tenant?.unit?.property) {
+            // Tenant has a unit assigned - use their property
+            tenantUnitInfo = {
+              unitLabel: tenant.unit.label,
+              unitId: tenant.unitId,
+              propertyName: tenant.unit.property.name || tenant.unit.property.street,
+              propertyId: tenant.unit.property.id,
+              propertyStreet: tenant.unit.property.street,
+              propertyCity: tenant.unit.property.city,
+              propertyState: tenant.unit.property.state,
+              propertyZip: tenant.unit.property.zip
+            };
+
+            // Auto-fill the tenant's property
+            propertyMatches = [{
+              id: tenant.unit.property.id,
+              name: tenant.unit.property.name || tenant.unit.property.street || 'Your Property',
+              address: `${tenant.unit.property.street}, ${tenant.unit.property.city}, ${tenant.unit.property.state}`,
+              confidence: 1.0,
+              reasoning: "Your assigned property"
+            }];
+            
+            properties = [tenant.unit.property];
+          } else {
+            // Tenant doesn't have a unit assigned yet - get org's properties
+            properties = await storage.getProperties(orgId);
+            
+            if (properties.length === 0) {
+              return res.status(400).json({ message: "No properties available. Please contact your landlord." });
+            }
+            
+            // Use the first property as default for tenants without unit assignment
+            const defaultProperty = properties[0];
+            propertyMatches = [{
+              id: defaultProperty.id,
+              name: defaultProperty.name || defaultProperty.street || 'Property',
+              address: `${defaultProperty.street || ''}, ${defaultProperty.city || ''}, ${defaultProperty.state || ''}`,
+              confidence: 0.8,
+              reasoning: "Default property for your organization"
+            }];
+          }
+        } else {
+          // For non-tenants, get all properties and do AI matching
+          properties = await storage.getProperties(orgId);
+          
+          const propertyContext = properties.map((p: any) => ({
+            id: p.id,
+            name: p.address || p.name || 'Property',
+            address: p.address || '',
+            type: p.type
+          }));
+
+          const matchPrompt = `Given this maintenance issue: "${message}"
+
+And these properties:
+${propertyContext.map(p => `- ${p.name} (${p.address}) [ID: ${p.id}]`).join('\n')}
+
+Analyze which property this issue most likely relates to. Return a JSON array of property matches with confidence scores (0-1).
+
+Response format:
+{
+  "matches": [
+    {"id": "property_id", "name": "property_name", "address": "address", "confidence": 0.95, "reasoning": "why this match"}
+  ]
+}`;
+
+          try {
+            const matchResponse = await openai.chat.completions.create({
+              model: "gpt-4o",
+              messages: [
+                { role: "system", content: "You are an AI assistant helping match maintenance requests to properties." },
+                { role: "user", content: matchPrompt }
+              ],
+              response_format: { type: "json_object" }
+            });
+
+            const matchContent = matchResponse.choices[0].message.content;
+            if (matchContent) {
+              const matchResult = JSON.parse(matchContent);
+              propertyMatches = matchResult.matches || [];
+            }
+          } catch (error) {
+            console.error("Property matching error:", error);
+            propertyMatches = propertyContext.slice(0, 3).map(p => ({
+              id: p.id,
+              name: p.name,
+              address: p.address,
+              confidence: 0.5
+            }));
+          }
+        }
+
+        // Generate conversational, empathetic response using GPT-4
+        const conversationalPrompt = `You are Maya, a friendly and supportive AI maintenance assistant for tenants. A tenant just reported this issue: "${message}"
+
+Based on the analysis:
+- Category: ${triageResult.category} (${triageResult.subcategory})
+- Urgency: ${triageResult.urgency}
+- Safety Risk: ${triageResult.safetyRisk}
+- Estimated Duration: ${triageResult.estimatedDuration}
+- Preliminary Diagnosis: ${triageResult.preliminaryDiagnosis}
+- Troubleshooting Steps: ${triageResult.troubleshootingSteps.join(', ')}
+
+Write a warm, supportive response (2-3 short paragraphs) that:
+1. Acknowledges their issue empathetically
+2. ${triageResult.safetyRisk !== 'None' ? 'IMMEDIATELY provides safety warnings and damage mitigation tips (e.g., for leaks: turn off water, use towels, place bucket)' : 'Provides helpful immediate damage mitigation tips if relevant'}
+3. ${triageResult.urgency === 'High' || triageResult.urgency === 'Critical' ? 'Emphasizes urgency and reassures them help is coming fast' : 'Reassures them we will get it fixed'}
+4. Mentions photos/videos are optional but helpful - say something like "If you can snap a quick photo or video, that's helpful but totally optional"
+
+Use natural, conversational language. Be warm and supportive. Keep it concise. Don't use ** markdown for emphasis.`;
+
+        let mayaResponse = '';
+        try {
+          console.log("🤖 Generating conversational response with o1...");
+          const conversationalRes = await openai.chat.completions.create({
+            model: "o1",
+            messages: [
+              { role: "user", content: `${conversationalPrompt}\n\nRemember: You are Maya, a warm, empathetic AI assistant who helps tenants with maintenance issues. You speak naturally like a supportive friend who genuinely cares about their comfort and safety.` }
+            ]
+          });
+          mayaResponse = conversationalRes.choices[0].message.content || '';
+          console.log("✅ Conversational response generated:", mayaResponse.substring(0, 100) + "...");
+        } catch (error) {
+          console.error("❌ Conversational response error:", error);
+          mayaResponse = ''; // Ensure fallback
+        }
+
+        // Build the final response
+        let response = mayaResponse || `Oh no, a leaking sink! ${triageResult.urgency === 'High' || triageResult.urgency === 'Critical' ? "I'm marking this as high priority." : "Don't worry, we'll get this taken care of."} ${triageResult.safetyRisk !== 'None' ? 'First things first - if water is actively flowing, turn off the shutoff valves under the sink (turn them clockwise). Grab some towels and a bucket to catch any drips and protect your floors. ' : ''}
+
+I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should take about ${triageResult.estimatedDuration.toLowerCase()} to fix. If you can snap a quick photo or video, that would be really helpful, but it's totally optional.`;
+
+        // For tenants, append confirmation message with full address
+        if (tenantUnitInfo) {
+          response += `\n\nBefore I create your maintenance request, can you confirm this is for your ${tenantUnitInfo.unitLabel.toLowerCase().startsWith('unit') || tenantUnitInfo.unitLabel.toLowerCase().startsWith('apt') ? '' : 'Unit '}${tenantUnitInfo.unitLabel} at ${tenantUnitInfo.propertyStreet}, in ${tenantUnitInfo.propertyCity}?`;
+        } else {
+          response += `\n\nWhich property is this for? Let me know and I'll get the right person on it:`;
+        }
+
+        res.json({
+          response,
+          triage: {
+            category: triageResult.category,
+            subcategory: triageResult.subcategory,
+            urgency: triageResult.urgency,
+            estimatedDuration: triageResult.estimatedDuration,
+            safetyRisk: triageResult.safetyRisk,
+            preliminaryDiagnosis: triageResult.preliminaryDiagnosis,
+            summary: triageResult.preliminaryDiagnosis,
+            suggestedTitle: `${triageResult.category}: ${triageResult.subcategory}`
+          },
+          propertyMatches: propertyMatches.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            address: m.address,
+            confidence: m.confidence
+          })),
+          // Include tenant unit info for confirmation display
+          tenantUnitInfo: tenantUnitInfo ? {
+            unitLabel: tenantUnitInfo.unitLabel,
+            unitId: tenantUnitInfo.unitId,
+            propertyName: tenantUnitInfo.propertyName,
+            propertyId: tenantUnitInfo.propertyId,
+            fullAddress: `${tenantUnitInfo.propertyStreet}, ${tenantUnitInfo.propertyCity}, ${tenantUnitInfo.propertyState}${tenantUnitInfo.propertyZip ? ' ' + tenantUnitInfo.propertyZip : ''}`
+          } : null
+        });
+      } else {
+        res.status(400).json({ message: "Invalid step" });
+      }
+    } catch (error) {
+      console.error("Maya triage chat error:", error);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  app.post('/api/cases/:id/assign-contractor', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const smartCase = await storage.getSmartCase(req.params.id);
+      if (!smartCase) return res.status(404).json({ message: "Case not found" });
+      if (smartCase.orgId !== org.id) return res.status(403).json({ message: "Access denied" });
+
+      const contractors = await storage.getContractors(org.id);
+      
+      const { aiCoordinatorService } = await import('./aiCoordinator');
+      
+      const recommendations = await aiCoordinatorService.findOptimalContractor({
+        caseData: {
+          id: smartCase.id,
+          category: smartCase.category || 'General Maintenance',
+          priority: (smartCase.priority as any) || 'Normal',
+          description: smartCase.description || '',
+          location: '',
+          urgency: (smartCase.priority as any) || 'Normal',
+          estimatedDuration: smartCase.estimatedDuration || '2-4 hours',
+          safetyRisk: 'None',
+          contractorType: smartCase.category || 'General Maintenance'
+        },
+        availableContractors: contractors.map(c => ({
+          id: c.id,
+          name: c.name,
+          category: c.category || undefined,
+          specializations: c.category ? [c.category] : [],
+          availabilityPattern: 'Business hours',
+          responseTimeHours: c.responseTimeHours || 24,
+          estimatedHourlyRate: c.estimatedHourlyRate ? Number(c.estimatedHourlyRate) : undefined,
+          rating: c.rating ? Number(c.rating) : undefined,
+          maxJobsPerDay: c.maxJobsPerDay || 3,
+          currentWorkload: 0,
+          emergencyAvailable: c.emergencyAvailable || false,
+          isActiveContractor: c.isActiveContractor || false
+        }))
+      });
+
+      if (recommendations.length > 0) {
+        const topContractor = recommendations[0];
+        await storage.updateSmartCase(req.params.id, {
+          assignedContractorId: topContractor.contractorId
+        });
+
+        // Notify contractor about assignment
+        const { notificationService } = await import('./notificationService');
+        await notificationService.notifyContractor({
+          message: `New ${smartCase.priority || 'Normal'} priority maintenance request assigned to you: ${smartCase.title}`,
+          type: 'case_assigned',
+          title: 'New Case Assigned',
+          subject: 'New Maintenance Case Assigned',
+          caseId: smartCase.id,
+          orgId: smartCase.orgId
+        }, topContractor.contractorId, smartCase.orgId);
+
+        // Notify admin about assignment
+        await notificationService.notifyAdmins({
+          message: `Contractor ${topContractor.contractorName} has been assigned to case: ${smartCase.title}`,
+          type: 'contractor_assigned',
+          title: 'Contractor Assigned',
+          subject: 'Contractor Assigned to Case',
+          caseId: smartCase.id,
+          orgId: smartCase.orgId
+        }, smartCase.orgId);
+      }
+
+      res.json({ recommendations });
+    } catch (error) {
+      console.error("Error assigning contractor:", error);
+      res.status(500).json({ message: "Failed to assign contractor" });
+    }
+  });
+
+  // Manual trigger for recurring transactions (for testing)
+  app.post('/api/admin/generate-recurring', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      console.log(`🔄 Manually triggering recurring transaction generation for org: ${org.id}...`);
+      await storage.generateRecurringTransactions();
+      res.json({ message: "Recurring transactions generated successfully" });
+    } catch (error) {
+      console.error("Error generating recurring transactions:", error);
+      res.status(500).json({ message: "Failed to generate recurring transactions" });
+    }
+  });
+
+  // Generate missing mortgage expenses for existing properties (admin/debug route)
+  app.post('/api/admin/generate-missing-mortgages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const properties = await storage.getProperties(org.id);
+      let generatedCount = 0;
+      
+      for (const property of properties) {
+        // Check if property has mortgage data but no mortgage expenses
+        if (property.monthlyMortgage) {
+          const existingTransactions = await storage.getTransactionsByProperty(property.id);
+          const hasMortgageExpense = existingTransactions.some(t => 
+            t.category === "Mortgage" && t.type === "Expense" && t.isRecurring
+          );
+          
+          if (!hasMortgageExpense) {
+            console.log(`🏦 Creating missing mortgage expense for property: ${property.name || property.street}`);
+            await createMortgageExpense({
+              org,
+              property,
+              monthlyMortgage: property.monthlyMortgage,
+              mortgageStartDate: property.mortgageStartDate || undefined,
+              mortgageType: "Primary",
+              storage
+            });
+            generatedCount++;
+          }
+          
+          // Check for secondary mortgage
+          if (property.monthlyMortgage2) {
+            const hasSecondaryMortgageExpense = existingTransactions.some(t => 
+              t.category === "Mortgage" && t.type === "Expense" && t.isRecurring && 
+              t.description?.includes("Secondary")
+            );
+            
+            if (!hasSecondaryMortgageExpense) {
+              console.log(`🏦 Creating missing secondary mortgage expense for property: ${property.name || property.street}`);
+              await createMortgageExpense({
+                org,
+                property,
+                monthlyMortgage: property.monthlyMortgage2,
+                mortgageStartDate: property.mortgageStartDate2 || undefined,
+                mortgageType: "Secondary",
+                storage
+              });
+              generatedCount++;
+            }
+          }
+        }
+      }
+      
+      res.json({ 
+        message: `Generated ${generatedCount} missing mortgage expense${generatedCount === 1 ? '' : 's'}`,
+        count: generatedCount
+      });
+    } catch (error) {
+      console.error("Error generating missing mortgage expenses:", error);
+      res.status(500).json({ message: "Failed to generate missing mortgage expenses" });
+    }
+  });
+
+  // Generate missing revenue for existing leases (admin/debug route)
+  app.post('/api/admin/generate-missing-revenues', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      
+      const leases = await storage.getLeases(org.id);
+      const activeLeases = leases.filter(lease => lease.status === "Active");
+      let generatedCount = 0;
+      
+      for (const lease of activeLeases) {
+        // Get unit and property for this lease
+        const unit = await storage.getUnit(lease.unitId);
+        if (!unit) continue;
+        
+        const property = await storage.getProperty(unit.propertyId);
+        if (!property) continue;
+        
+        // Check if lease has revenue transactions
+        const existingTransactions = await storage.getTransactionsByProperty(property.id);
+        const hasRevenue = existingTransactions.some(t => 
+          t.type === "Income" && t.category === "Rental Income" && 
+          t.notes?.includes(lease.id)
+        );
+        
+        if (!hasRevenue) {
+          console.log(`💰 Creating missing rent revenue for lease: ${lease.id} (${property.name || property.street})`);
+          await createLeaseRentRevenue(org.id, lease);
+          generatedCount++;
+        }
+      }
+      
+      res.json({ 
+        message: `Generated ${generatedCount} missing lease revenue${generatedCount === 1 ? '' : 's'}`,
+        count: generatedCount
+      });
+    } catch (error) {
+      console.error("Error generating missing lease revenues:", error);
+      res.status(500).json({ message: "Failed to generate missing lease revenues" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  
+  // WebSocket server setup for real-time notifications
+  const { WebSocketServer } = await import('ws');
+  const { notificationService } = await import('./notificationService.js');
+  
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws',
+    verifyClient: (info, callback) => {
+      // For now, accept all connections - authentication will be handled per message
+      callback(true);
+    }
+  });
+  
+  wss.on('connection', async (ws, req: any) => {
+    try {
+      // Try to get user from session if available
+      let userId = 'anonymous';
+      let userRole = 'user';
+      let orgId = '';
+      
+      // Check if request has authenticated user
+      if (req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+        const userOrg = await storage.getUserOrganization(userId);
+        if (userOrg) {
+          userRole = 'admin'; // Default to admin for now
+          orgId = userOrg.id;
+        }
+      }
+      
+      // Add connection to notification service
+      notificationService.addWebSocketConnection(ws, {
+        userId,
+        role: userRole,
+        orgId
+      });
+      
+      console.log(`✅ WebSocket connected: ${userId} (${userRole}) in org ${orgId || 'none'}`);
+      
+      // Handle disconnection
+      ws.on('close', () => {
+        notificationService.removeWebSocketConnection(ws);
+      });
+      
+      // Handle errors
+      ws.on('error', (error) => {
+        console.error('❌ WebSocket error:', error);
+        notificationService.removeWebSocketConnection(ws);
+      });
+      
+    } catch (error) {
+      console.error('❌ Error setting up WebSocket connection:', error);
+      ws.close(1011, 'Internal server error');
+    }
+  });
+  
+  console.log('✅ WebSocket server initialized on /ws');
+  
+  // Get users in organization
+  app.get('/api/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      // Get all organization members
+      const members = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profilePicture: users.profilePicture,
+        })
+        .from(organizationMembers)
+        .innerJoin(users, eq(organizationMembers.userId, users.id))
+        .where(eq(organizationMembers.orgId, org.id));
+      
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // User Category routes
+  app.get('/api/categories', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const categories = await storage.getUserCategories(org.id);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+  
+  app.post('/api/categories', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const validatedData = insertUserCategorySchema.parse({
+        ...req.body,
+        orgId: org.id
+      });
+      
+      const category = await storage.createUserCategory(validatedData);
+      res.json(category);
+    } catch (error) {
+      console.error("Error creating category:", error);
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+  
+  app.patch('/api/categories/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const category = await storage.updateUserCategory(req.params.id, req.body);
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      res.status(500).json({ message: "Failed to update category" });
+    }
+  });
+  
+  app.delete('/api/categories/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteUserCategory(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+  
+  // Category Member routes
+  app.get('/api/categories/:id/members', isAuthenticated, async (req: any, res) => {
+    try {
+      const members = await storage.getCategoryMembers(req.params.id);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching category members:", error);
+      res.status(500).json({ message: "Failed to fetch category members" });
+    }
+  });
+  
+  app.post('/api/categories/:id/members', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertUserCategoryMemberSchema.parse({
+        ...req.body,
+        categoryId: req.params.id
+      });
+      
+      const member = await storage.addCategoryMember(validatedData);
+      res.json(member);
+    } catch (error) {
+      console.error("Error adding category member:", error);
+      res.status(500).json({ message: "Failed to add category member" });
+    }
+  });
+  
+  app.delete('/api/categories/:categoryId/members/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.removeCategoryMember(req.params.categoryId, req.params.userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing category member:", error);
+      res.status(500).json({ message: "Failed to remove category member" });
+    }
+  });
+  
+  // Get user's category memberships
+  app.get('/api/users/:userId/categories', isAuthenticated, async (req: any, res) => {
+    try {
+      const memberships = await storage.getUserCategoryMemberships(req.params.userId);
+      res.json(memberships);
+    } catch (error) {
+      console.error("Error fetching user categories:", error);
+      res.status(500).json({ message: "Failed to fetch user categories" });
+    }
+  });
+  
+  // Messaging routes
+  app.get('/api/messages/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let orgId: string | null = null;
+      
+      // First try regular organization membership
+      const org = await storage.getUserOrganization(userId);
+      if (org) {
+        orgId = org.id;
+      } else {
+        // Check if user is a tenant - get org from tenants table
+        const tenantRecord = await db
+          .select({ orgId: tenants.orgId })
+          .from(tenants)
+          .where(eq(tenants.userId, userId))
+          .limit(1);
+        
+        if (tenantRecord.length && tenantRecord[0].orgId) {
+          orgId = tenantRecord[0].orgId;
+        }
+      }
+      
+      if (!orgId) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const threads = await storage.getMessageThreads(orgId, userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching message threads:", error);
+      res.status(500).json({ message: "Failed to fetch message threads" });
+    }
+  });
+  
+  app.post('/api/messages/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let orgId: string | null = null;
+      
+      // First try regular organization membership
+      const org = await storage.getUserOrganization(userId);
+      if (org) {
+        orgId = org.id;
+      } else {
+        // Check if user is a tenant - get org from tenants table
+        const tenantRecord = await db
+          .select({ orgId: tenants.orgId })
+          .from(tenants)
+          .where(eq(tenants.userId, userId))
+          .limit(1);
+        
+        if (tenantRecord.length && tenantRecord[0].orgId) {
+          orgId = tenantRecord[0].orgId;
+        }
+      }
+      
+      if (!orgId) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const { participantIds, subject } = req.body;
+      
+      const threadData = insertMessageThreadSchema.parse({
+        orgId: orgId,
+        subject: subject || null,
+        isDirect: participantIds.length === 2
+      });
+      
+      const thread = await storage.createMessageThread(threadData, participantIds);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error creating message thread:", error);
+      res.status(500).json({ message: "Failed to create message thread" });
+    }
+  });
+  
+  app.get('/api/messages/threads/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const messages = await storage.getThreadMessages(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ message: "Failed to fetch thread messages" });
+    }
+  });
+  
+  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validatedData = insertChatMessageSchema.parse({
+        ...req.body,
+        senderId: userId
+      });
+      
+      const message = await storage.sendMessage(validatedData);
+      res.json(message);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+  
+  app.patch('/api/messages/threads/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.markThreadAsRead(req.params.id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking thread as read:", error);
+      res.status(500).json({ message: "Failed to mark thread as read" });
+    }
+  });
+
+  // Approval Policy routes
+  app.get('/api/approval-policies', isAuthenticated, async (req: any, res) => {
+    try {
+      const org = await storage.getUserOrganization(req.user.claims.sub);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const policies = await storage.getApprovalPolicies(org.id);
+      res.json(policies);
+    } catch (error) {
+      console.error("Error fetching approval policies:", error);
+      res.status(500).json({ message: "Failed to fetch approval policies" });
+    }
+  });
+
+  app.post('/api/approval-policies', isAuthenticated, async (req: any, res) => {
+    try {
+      const org = await storage.getUserOrganization(req.user.claims.sub);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const { insertApprovalPolicySchema } = await import("@shared/schema");
+      const validatedData = insertApprovalPolicySchema.parse({
+        ...req.body,
+        orgId: org.id
+      });
+
+      const policy = await storage.createApprovalPolicy(validatedData);
+      res.json(policy);
+    } catch (error) {
+      console.error("Error creating approval policy:", error);
+      res.status(500).json({ message: "Failed to create approval policy" });
+    }
+  });
+
+  app.put('/api/approval-policies/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const org = await storage.getUserOrganization(req.user.claims.sub);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      // Verify policy belongs to user's organization
+      const existingPolicy = await storage.getApprovalPolicy(req.params.id);
+      if (!existingPolicy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      if (existingPolicy.orgId !== org.id) {
+        return res.status(403).json({ message: "Unauthorized to modify this policy" });
+      }
+
+      const { insertApprovalPolicySchema } = await import("@shared/schema");
+      const validatedData = insertApprovalPolicySchema.partial().parse(req.body);
+      
+      // SINGLE-ACTIVE CONSTRAINT: If activating this policy, deactivate all others first
+      if (validatedData.isActive === true) {
+        const allPolicies = await storage.getApprovalPolicies(org.id);
+        for (const otherPolicy of allPolicies) {
+          if (otherPolicy.id !== req.params.id && otherPolicy.isActive) {
+            await storage.updateApprovalPolicy(otherPolicy.id, { isActive: false });
+          }
+        }
+      }
+      
+      const policy = await storage.updateApprovalPolicy(req.params.id, validatedData);
+      res.json(policy);
+    } catch (error: any) {
+      console.error("Error updating approval policy:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      if (error.message === "Policy not found") {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      res.status(500).json({ message: "Failed to update approval policy" });
+    }
+  });
+
+  app.delete('/api/approval-policies/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const org = await storage.getUserOrganization(req.user.claims.sub);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      // Verify policy belongs to user's organization
+      const existingPolicy = await storage.getApprovalPolicy(req.params.id);
+      if (!existingPolicy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      if (existingPolicy.orgId !== org.id) {
+        return res.status(403).json({ message: "Unauthorized to delete this policy" });
+      }
+
+      await storage.deleteApprovalPolicy(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting approval policy:", error);
+      if (error.message === "Policy not found") {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      res.status(500).json({ message: "Failed to delete approval policy" });
+    }
+  });
+
+  // Appointment Proposal routes
+  app.get('/api/cases/:caseId/proposals', isAuthenticated, async (req: any, res) => {
+    try {
+      const proposals = await storage.getAppointmentProposals(req.params.caseId);
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching appointment proposals:", error);
+      res.status(500).json({ message: "Failed to fetch appointment proposals" });
+    }
+  });
+
+  // Get AI cost and duration guidance for a case
+  app.get('/api/cases/:caseId/ai-guidance', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const smartCase = await storage.getSmartCase(req.params.caseId);
+      if (!smartCase) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      // Authorization check: case must belong to user's organization
+      if (smartCase.orgId !== org.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get AI triage data if available
+      const aiTriage = smartCase.aiTriageJson as any;
+      const category = smartCase.category || aiTriage?.category || 'General Maintenance';
+      const subcategory = aiTriage?.subcategory || '';
+      const estimatedDurationMinutes = aiTriage?.estimatedDurationMinutes || 120;
+      const timeReasoningNotes = aiTriage?.timeReasoningNotes || '';
+      
+      // Get property details for location-based pricing
+      let locationInfo = '';
+      if (smartCase.propertyId) {
+        const property = await storage.getProperty(smartCase.propertyId);
+        if (property) {
+          locationInfo = `${property.city}, ${property.state}`;
+        }
+      }
+
+      // Use GPT-5 (o1) to estimate market cost
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const costPrompt = `You are a construction cost estimator. Provide a realistic market-rate cost estimate for this maintenance job:
+
+**Job Details:**
+- Category: ${category}${subcategory ? ` (${subcategory})` : ''}
+- Description: ${smartCase.description || smartCase.title}
+- Estimated Duration: ${estimatedDurationMinutes} minutes
+- Location: ${locationInfo || 'General US market'}
+
+Provide a JSON response with:
+{
+  "estimatedCostLow": <number>,
+  "estimatedCostHigh": <number>,
+  "estimatedCostAverage": <number>,
+  "reasoning": "Brief explanation of why this cost range makes sense (include typical hourly rates for this type of contractor and any material costs)"
+}
+
+Consider:
+- Typical hourly rates for ${category} contractors
+- Materials/parts typically needed
+- Travel/service call fees if applicable
+- Regional market rates`;
+
+      let costGuidance = {
+        estimatedCostLow: 75,
+        estimatedCostHigh: 200,
+        estimatedCostAverage: 125,
+        reasoning: "Standard service call with materials"
+      };
+
+      try {
+        console.log("💰 Generating cost estimate with gpt-4o...");
+        const costResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: "You are a construction cost estimator. Provide realistic market-rate cost estimates." },
+            { role: "user", content: costPrompt }
+          ],
+          response_format: { type: "json_object" }
+        });
+
+        const costContent = costResponse.choices[0].message.content || '';
+        costGuidance = JSON.parse(costContent);
+        console.log("✅ Cost estimate generated:", costGuidance);
+      } catch (error) {
+        console.error("❌ Cost estimation error:", error);
+        // Use fallback values - contractor will see default estimates
+      }
+
+      res.json({
+        duration: {
+          estimatedMinutes: estimatedDurationMinutes,
+          reasoning: timeReasoningNotes || `Based on typical ${category.toLowerCase()} jobs`
+        },
+        cost: costGuidance
+      });
+    } catch (error) {
+      console.error("Error getting AI guidance:", error);
+      res.status(500).json({ message: "Failed to get AI guidance" });
+    }
+  });
+
+  app.post('/api/cases/:caseId/proposals', isAuthenticated, async (req: any, res) => {
+    try {
+      const { insertAppointmentProposalSchema } = await import("@shared/schema");
+      const validatedData = insertAppointmentProposalSchema.parse({
+        ...req.body,
+        caseId: req.params.caseId
+      });
+
+      const proposal = await storage.createAppointmentProposal(validatedData);
+
+      // Get case and contractor info for notifications
+      const smartCase = await storage.getSmartCase(req.params.caseId);
+      if (smartCase) {
+        const contractor = await storage.getContractors(smartCase.orgId).then(
+          contractors => contractors.find((c: any) => c.id === proposal.contractorId)
+        );
+        
+        const { notificationService } = await import('./notificationService');
+        
+        // Get approval policy to check involvement mode
+        const policies = await storage.getApprovalPolicies(smartCase.orgId);
+        const adminPolicy = policies.find(p => p.isActive);
+        const involvementMode = adminPolicy?.involvementMode || 'hands-on';
+        
+        // Always notify tenant to select time slot
+        if (smartCase.reporterUserId) {
+          const reporterUser = await storage.getUser(smartCase.reporterUserId);
+          const tenantEmail = reporterUser?.email || '';
+          await notificationService.notifyTenant({
+            message: `A contractor has submitted a proposal for your maintenance request "${smartCase.title}". Please review and select a time slot.`,
+            type: 'case_scheduled',
+            subject: 'Action Required: Select Time Slot',
+            title: 'Proposal Received',
+            caseId: smartCase.id,
+            orgId: smartCase.orgId
+          }, tenantEmail, smartCase.reporterUserId, smartCase.orgId);
+        }
+        
+        // In hands-on/balanced mode: notify admin about proposal (they may need to approve)
+        // In hands-off mode: don't notify admin yet (wait for tenant to select time slot)
+        if (involvementMode !== 'hands-off') {
+          await notificationService.notifyAdmins({
+            message: `Contractor ${contractor?.name || 'Unknown'} submitted a proposal for case: ${smartCase.title}`,
+            type: 'case_scheduled',
+            subject: 'New Proposal Submitted',
+            title: 'New Proposal',
+            caseId: smartCase.id,
+            orgId: smartCase.orgId
+          }, smartCase.orgId);
+        }
+      }
+
+      res.json(proposal);
+    } catch (error) {
+      console.error("Error creating appointment proposal:", error);
+      res.status(500).json({ message: "Failed to create proposal" });
+    }
+  });
+
+  app.put('/api/proposals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { insertAppointmentProposalSchema } = await import("@shared/schema");
+      const validatedData = insertAppointmentProposalSchema.partial().parse(req.body);
+      
+      const proposal = await storage.updateAppointmentProposal(req.params.id, validatedData);
+      res.json(proposal);
+    } catch (error) {
+      console.error("Error updating appointment proposal:", error);
+      res.status(500).json({ message: "Failed to update appointment proposal" });
+    }
+  });
+
+  // Proposal Slot routes
+  app.get('/api/proposals/:proposalId/slots', isAuthenticated, async (req: any, res) => {
+    try {
+      const slots = await storage.getProposalSlots(req.params.proposalId);
+      res.json(slots);
+    } catch (error) {
+      console.error("Error fetching proposal slots:", error);
+      res.status(500).json({ message: "Failed to fetch proposal slots" });
+    }
+  });
+
+  app.post('/api/proposals/:proposalId/slots', isAuthenticated, async (req: any, res) => {
+    try {
+      const { insertProposalSlotSchema } = await import("@shared/schema");
+      const validatedData = insertProposalSlotSchema.parse({
+        ...req.body,
+        proposalId: req.params.proposalId
+      });
+
+      const slot = await storage.createProposalSlot(validatedData);
+      res.json(slot);
+    } catch (error) {
+      console.error("Error creating proposal slot:", error);
+      res.status(500).json({ message: "Failed to create proposal slot" });
+    }
+  });
+
+  // Contractor accepts case and proposes 3 time slots
+  app.post('/api/contractor/cases/:caseId/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const caseId = req.params.caseId;
+      const { slot1Date, slot1Time, slot2Date, slot2Time, slot3Date, slot3Time, notes, estimatedCost, estimatedDuration } = req.body;
+
+      // Get the case
+      const smartCase = await storage.getSmartCase(caseId);
+      if (!smartCase) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      // Get property to determine timezone
+      const property = smartCase.propertyId ? await storage.getProperty(smartCase.propertyId) : null;
+      if (!property) {
+        return res.status(404).json({ message: "Property not found for case" });
+      }
+      
+      const propertyTimezone = getTimezoneFromState(property.state);
+      console.log(`🌍 Property timezone: ${property.city}, ${property.state} → ${propertyTimezone}`);
+
+      // Get contractor - first try to match by userId, then use the assigned contractor
+      const contractors = await storage.getContractors(smartCase.orgId);
+      let contractor = contractors.find((c: any) => c.userId === userId);
+      
+      // If no contractor found by userId (role simulation mode), use the assigned contractor
+      if (!contractor && smartCase.assignedContractorId) {
+        contractor = contractors.find((c: any) => c.id === smartCase.assignedContractorId);
+        if (!contractor) {
+          return res.status(404).json({ message: "Assigned contractor not found" });
+        }
+        console.log(`👷 Role simulation: User ${userId} accepting case as contractor ${contractor.name}`);
+      }
+      
+      if (!contractor) {
+        return res.status(403).json({ message: "You are not registered as a contractor" });
+      }
+
+      // Check if contractor already has a pending proposal for this case
+      const existingProposals = await storage.getAppointmentProposals(caseId);
+      const contractorExistingProposal = existingProposals.find(
+        (p: any) => p.contractorId === contractor.id && p.status === 'pending'
+      );
+      
+      if (contractorExistingProposal) {
+        // Delete the old proposal and its slots before creating a new one
+        const oldSlots = await storage.getProposalSlots(contractorExistingProposal.id);
+        for (const slot of oldSlots) {
+          await storage.deleteProposalSlot(slot.id);
+        }
+        await storage.deleteAppointmentProposal(contractorExistingProposal.id);
+        console.log(`🔄 Replaced existing proposal ${contractorExistingProposal.id} with new one`);
+      }
+
+      // Parse and create Date objects for all 3 slots with proper timezone handling
+      const parseSlotDateTime = (dateStr: string, timeStr: string): Date => {
+        console.log(`📅 parseSlotDateTime - Input: dateStr=${dateStr}, timeStr=${timeStr}, propertyTZ=${propertyTimezone}`);
+        
+        // Frontend sends Date objects serialized as ISO strings (e.g., "2025-10-21T07:00:00.000Z")
+        // Extract the date part
+        const dateObj = new Date(dateStr);
+        const year = dateObj.getUTCFullYear();
+        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getUTCDate()).padStart(2, '0');
+        
+        // Combine with the time string to create a local datetime string
+        // Format: "2025-10-21 10:00:00" - this represents local time at the property
+        const localDateTimeStr = `${year}-${month}-${day} ${timeStr}:00`;
+        
+        // Parse the local datetime string, then convert from property's local time to UTC
+        const parsedLocal = parseDate(localDateTimeStr, 'yyyy-MM-dd HH:mm:ss', new Date());
+        const utcDate = fromZonedTime(parsedLocal, propertyTimezone);
+        console.log(`📅 Parsed "${localDateTimeStr}" in ${propertyTimezone} → UTC: ${utcDate.toISOString()}`);
+        
+        return utcDate;
+      };
+
+      const slot1Start = parseSlotDateTime(slot1Date, slot1Time);
+      const slot2Start = parseSlotDateTime(slot2Date, slot2Time);
+      const slot3Start = parseSlotDateTime(slot3Date, slot3Time);
+
+      // Calculate end times (use contractor's duration, AI suggested, or default to 60 minutes)
+      const durationMinutes = estimatedDuration || smartCase.aiSuggestedDurationMinutes || 60;
+      
+      const slot1End = new Date(slot1Start);
+      slot1End.setMinutes(slot1End.getMinutes() + durationMinutes);
+      
+      const slot2End = new Date(slot2Start);
+      slot2End.setMinutes(slot2End.getMinutes() + durationMinutes);
+      
+      const slot3End = new Date(slot3Start);
+      slot3End.setMinutes(slot3End.getMinutes() + durationMinutes);
+
+      // Create the proposal
+      const { insertAppointmentProposalSchema } = await import("@shared/schema");
+      const proposalData = insertAppointmentProposalSchema.parse({
+        caseId: caseId,
+        contractorId: contractor.id,
+        estimatedCost: estimatedCost || null,
+        estimatedDurationMinutes: durationMinutes,
+        notes: notes || null,
+        status: 'pending'
+      });
+
+      const proposal = await storage.createAppointmentProposal(proposalData);
+
+      // Create the 3 time slots sequentially with error handling
+      const { insertProposalSlotSchema } = await import("@shared/schema");
+      const createdSlots = [];
+      
+      try {
+        const slot1Data = insertProposalSlotSchema.parse({
+          proposalId: proposal.id,
+          slotNumber: 1,
+          startTime: slot1Start,
+          endTime: slot1End,
+          status: 'pending'
+        });
+        const slot1 = await storage.createProposalSlot(slot1Data);
+        createdSlots.push(slot1);
+        
+        const slot2Data = insertProposalSlotSchema.parse({
+          proposalId: proposal.id,
+          slotNumber: 2,
+          startTime: slot2Start,
+          endTime: slot2End,
+          status: 'pending'
+        });
+        const slot2 = await storage.createProposalSlot(slot2Data);
+        createdSlots.push(slot2);
+        
+        const slot3Data = insertProposalSlotSchema.parse({
+          proposalId: proposal.id,
+          slotNumber: 3,
+          startTime: slot3Start,
+          endTime: slot3End,
+          status: 'pending'
+        });
+        const slot3 = await storage.createProposalSlot(slot3Data);
+        createdSlots.push(slot3);
+      } catch (slotError) {
+        // Rollback: delete any created slots and the proposal
+        console.error("Error creating slots, rolling back:", slotError);
+        for (const slot of createdSlots) {
+          try {
+            await storage.deleteProposalSlot(slot.id);
+          } catch (deleteError) {
+            console.error("Error deleting slot during rollback:", deleteError);
+          }
+        }
+        await storage.deleteAppointmentProposal(proposal.id);
+        throw new Error("Failed to create all 3 time slots. Please try again.");
+      }
+
+      // Update case status to "In Review" (tenant needs to select a slot)
+      await storage.updateSmartCase(caseId, {
+        status: 'In Review'
+      });
+
+      // Notify admin and tenant that proposals are ready
+      const { notificationService } = await import('./notificationService');
+      
+      // Get approval policy to customize notification messages
+      const policies = await storage.getApprovalPolicies(smartCase.orgId);
+      const approvalPolicy = policies.find(p => p.isActive) || policies[0];
+      const involvementMode = approvalPolicy?.involvementMode || 'hands-on';
+      
+      console.log(`📋 Approval policy: ${JSON.stringify({ policies: policies.length, active: !!approvalPolicy, involvementMode })}`);
+      console.log(`📋 Case details: reporterUserId="${smartCase.reporterUserId}", caseId="${smartCase.id}"`);
+      
+      // Customize messages based on involvement mode
+      const isHandsOff = involvementMode === 'hands-off';
+      const requiresReview = involvementMode === 'hands-on' || involvementMode === 'balanced';
+      
+      console.log(`🔔 Notification plan: isHandsOff=${isHandsOff}, will notify tenant=${!!smartCase.reporterUserId}, will notify admin=${!isHandsOff}`);
+      
+      // Always notify tenant to select time slot
+      if (smartCase.reporterUserId) {
+        const reporterUser = await storage.getUser(smartCase.reporterUserId);
+        const tenantEmail = reporterUser?.email || '';
+        await notificationService.notifyTenant(
+          {
+            message: `Contractor ${contractor.name} has proposed 3 time slots for your maintenance request: ${smartCase.title}. Please select your preferred time.`,
+            type: 'case_scheduled',
+            subject: 'Action Required: Select Appointment Time',
+            title: 'Choose Your Appointment',
+            caseId: smartCase.id,
+            orgId: smartCase.orgId
+          },
+          tenantEmail,
+          smartCase.reporterUserId,
+          smartCase.orgId
+        );
+        console.log(`✅ Tenant notified about proposal for case ${smartCase.id}`);
+      }
+      
+      // Only notify admin in hands-on/balanced mode (not in hands-off)
+      if (!isHandsOff) {
+        await notificationService.notifyAdmins({
+          message: `Action Required - Contractor ${contractor.name} submitted a proposal for case: ${smartCase.title} - $${estimatedCost || 'TBD'}, ${durationMinutes}min`,
+          type: 'case_scheduled',
+          subject: 'Action Required: Review Proposal',
+          title: 'New Proposal - Review Needed',
+          caseId: smartCase.id,
+          orgId: smartCase.orgId
+        }, smartCase.orgId);
+      }
+
+      res.json({
+        success: true,
+        proposal,
+        slots: createdSlots,
+        message: "Case accepted and appointment options proposed"
+      });
+    } catch (error) {
+      console.error("Error accepting case:", error);
+      res.status(500).json({ 
+        message: "Failed to accept case", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Select a proposal slot (tenant action)
+  app.post('/api/proposals/slots/:slotId/select', isAuthenticated, async (req: any, res) => {
+    try {
+      const slotId = req.params.slotId;
+      const userId = req.user.claims.sub;
+      
+      const slot = await storage.getProposalSlot(slotId);
+      
+      if (!slot) {
+        return res.status(404).json({ message: "Slot not found" });
+      }
+
+      const proposal = await storage.getAppointmentProposal(slot.proposalId);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      const case_ = await storage.getSmartCase(proposal.caseId);
+      if (!case_) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      // Authorization: Get user's org and check it matches the case
+      const userOrg = await storage.getUserOrganization(userId);
+      if (!userOrg || case_.orgId !== userOrg.id) {
+        return res.status(403).json({ message: "Unauthorized to select slot for this case" });
+      }
+
+      // Verify user is the case reporter (tenant) or org owner
+      const isReporter = case_.reporterUserId === userId;
+      const isOrgOwner = userOrg.ownerId === userId;
+      
+      if (!isReporter && !isOrgOwner) {
+        return res.status(403).json({ message: "Only the case reporter or organization owner can select appointment slots" });
+      }
+
+      // Get approval policies for the org
+      const policies = await storage.getApprovalPolicies(userOrg.id);
+      const policy = policies.find(p => p.isActive) || policies[0]; // Get active policy or first one
+      
+      // Check if auto-approval applies
+      let autoApproved = false;
+      let appointmentId: string | null = null;
+
+      if (policy) {
+        
+        // Check auto-approval criteria
+        const costWithinThreshold = !policy.costThreshold || Number(proposal.estimatedCost) <= Number(policy.costThreshold);
+        const slotTime = new Date(slot.startTime);
+        const slotHour = slotTime.getHours();
+        
+        // Check if time is within preferred range
+        let timeWithinPreference = true;
+        if (policy.preferredTimeStart && policy.preferredTimeEnd) {
+          const [startHour] = policy.preferredTimeStart.split(':').map(Number);
+          const [endHour] = policy.preferredTimeEnd.split(':').map(Number);
+          timeWithinPreference = slotHour >= startHour && slotHour <= endHour;
+        }
+
+        // Check if contractor is trusted
+        const trustedContractors = policy.trustedContractors || [];
+        const contractorTrusted = trustedContractors.includes(proposal.contractorId);
+
+        // Check urgency
+        const urgencyCheck = !policy.urgencyLevel || case_.priority === policy.urgencyLevel;
+
+        // Auto-approve based on involvement mode
+        if (policy.involvementMode === 'hands-off') {
+          // Fully automated - always approve
+          autoApproved = true;
+        } else if (policy.involvementMode === 'balanced') {
+          // Balanced - approve if all criteria met
+          if (costWithinThreshold && timeWithinPreference && 
+              (trustedContractors.length === 0 || contractorTrusted) && urgencyCheck) {
+            autoApproved = true;
+          }
+        }
+        // hands-on mode requires manual approval
+      }
+
+      // Update proposal with selected slot and auto-approval status
+      await storage.updateAppointmentProposal(proposal.id, {
+        selectedSlotId: slotId,
+        autoApproved,
+        autoApprovalReason: autoApproved ? "Auto-approved based on landlord policy" : null,
+        status: autoApproved ? "accepted" : "pending"
+      });
+
+      // Create appointment if auto-approved
+      if (autoApproved) {
+        const appointment = await storage.createAppointment({
+          caseId: case_.id,
+          contractorId: proposal.contractorId,
+          orgId: case_.orgId,
+          title: case_.title,
+          scheduledStartAt: slot.startTime,
+          scheduledEndAt: slot.endTime,
+          status: "Confirmed",
+          notes: proposal.notes || null,
+        });
+        appointmentId = appointment.id;
+
+        // Update case status
+        await storage.updateSmartCase(case_.id, { status: "Scheduled" });
+
+        // Notify contractor that their proposal was accepted
+        const { notificationService } = await import('./notificationService');
+        const scheduledDate = new Date(slot.startTime).toLocaleDateString();
+        const scheduledTime = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        await notificationService.notifyContractor({
+          message: `Your proposal for "${case_.title}" has been accepted and scheduled for ${scheduledDate} at ${scheduledTime}!`,
+          type: 'case_accepted',
+          title: 'Proposal Accepted',
+          subject: 'Your Proposal Has Been Accepted',
+          caseId: case_.id,
+          orgId: case_.orgId
+        }, proposal.contractorId, case_.orgId);
+
+        // Notify admin about the scheduled appointment with auto-approval context
+        const policyMode = policy?.involvementMode || 'hands-on';
+        await notificationService.notifyAdmins({
+          message: policyMode === 'hands-off'
+            ? `FYI - Appointment auto-approved and scheduled for case: ${case_.title} on ${scheduledDate} at ${scheduledTime} (hands-off mode enabled)`
+            : `Appointment auto-approved and scheduled for case: ${case_.title} on ${scheduledDate} at ${scheduledTime} (criteria met for balanced mode)`,
+          type: 'case_scheduled',
+          title: 'Appointment Auto-Approved',
+          subject: 'Maintenance Appointment Auto-Approved',
+          caseId: case_.id,
+          orgId: case_.orgId
+        }, case_.orgId);
+      } else {
+        // Manual approval required - notify admin and contractor
+        const { notificationService } = await import('./notificationService');
+        const scheduledDate = new Date(slot.startTime).toLocaleDateString();
+        const scheduledTime = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Notify admin that tenant selected a time slot (needs approval)
+        await notificationService.notifyAdmins({
+          message: `Tenant has selected a time slot for case "${case_.title}" - ${scheduledDate} at ${scheduledTime}. Please review and approve.`,
+          type: 'case_scheduled',
+          title: 'Appointment Approval Needed',
+          subject: 'Action Required: Approve Appointment',
+          caseId: case_.id,
+          orgId: case_.orgId
+        }, case_.orgId);
+        
+        // Notify contractor that tenant selected their slot (pending approval)
+        await notificationService.notifyContractor({
+          message: `Tenant has selected your proposed time slot for "${case_.title}" - ${scheduledDate} at ${scheduledTime}. Awaiting landlord approval.`,
+          type: 'case_scheduled',
+          title: 'Time Slot Selected',
+          subject: 'Tenant Selected Your Proposed Time',
+          caseId: case_.id,
+          orgId: case_.orgId
+        }, proposal.contractorId, case_.orgId);
+        
+        // Update case to indicate it's awaiting landlord review
+        await storage.updateSmartCase(case_.id, { status: "In Review" });
+      }
+
+      res.json({ 
+        success: true, 
+        autoApproved, 
+        appointmentId,
+        message: autoApproved 
+          ? "Appointment automatically approved and scheduled!" 
+          : "Selection received. Awaiting landlord approval."
+      });
+    } catch (error) {
+      console.error("Error selecting proposal slot:", error);
+      res.status(500).json({ message: "Failed to select slot" });
+    }
+  });
+
+  // Get available time slots from Google Calendar
+  app.get('/api/availability/slots', isAuthenticated, async (req: any, res) => {
+    try {
+      const { startDate, endDate, durationMinutes } = req.query;
+      
+      if (!startDate || !endDate || !durationMinutes) {
+        return res.status(400).json({ 
+          message: "Missing required parameters: startDate, endDate, durationMinutes" 
+        });
+      }
+
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      const duration = parseInt(durationMinutes as string);
+
+      const { findAvailableSlots } = await import('./googleCalendar');
+      const slots = await findAvailableSlots(start, end, duration);
+
+      res.json(slots);
+    } catch (error) {
+      console.error("Error finding available slots:", error);
+      res.status(500).json({ message: "Failed to find available slots" });
+    }
+  });
+
+  // Check if specific time is available
+  app.post('/api/availability/check', isAuthenticated, async (req: any, res) => {
+    try {
+      const { startTime, endTime } = req.body;
+      
+      if (!startTime || !endTime) {
+        return res.status(400).json({ 
+          message: "Missing required parameters: startTime, endTime" 
+        });
+      }
+
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+
+      const { checkAvailability } = await import('./googleCalendar');
+      const result = await checkAvailability(start, end);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking availability:", error);
+      res.status(500).json({ message: "Failed to check availability" });
+    }
+  });
+
+  // ========================================
+  // OMNICHANNEL COMMUNICATION ROUTES
+  // ========================================
+
+  // Twilio SMS Webhook
+  app.post('/api/twilio/sms/inbound', async (req: any, res) => {
+    try {
+      // Get org ID from phone number lookup (simplified - you might need a mapping table)
+      const orgId = req.body.orgId || req.query.orgId;
+      
+      if (!orgId) {
+        return res.status(400).send('Missing organization ID');
+      }
+
+      const { TwilioSmsService } = await import('./twilioSmsService');
+      const smsService = new TwilioSmsService(storage);
+      
+      const message = await smsService.processInboundSms({
+        From: req.body.From,
+        To: req.body.To,
+        Body: req.body.Body,
+        MessageSid: req.body.MessageSid,
+        orgId,
+      });
+
+      // Generate Maya's response
+      const { MayaOmnichannelService } = await import('./mayaOmnichannelService');
+      const mayaService = new MayaOmnichannelService(storage);
+      
+      const response = await mayaService.processMessage({
+        messageId: message.id,
+        orgId,
+      });
+
+      if (response.shouldRespond) {
+        await mayaService.sendResponse({
+          messageId: message.id,
+          response: response.response!,
+          orgId,
+        });
+      }
+
+      res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    } catch (error) {
+      console.error('Twilio SMS webhook error:', error);
+      res.status(500).send('Error processing SMS');
+    }
+  });
+
+  // Twilio Voice Webhook
+  app.post('/api/twilio/voice/inbound', async (req: any, res) => {
+    try {
+      const orgId = req.body.orgId || req.query.orgId;
+      
+      if (!orgId) {
+        return res.status(400).send('Missing organization ID');
+      }
+
+      const { TwilioVoiceService } = await import('./twilioVoiceService');
+      const voiceService = new TwilioVoiceService(storage);
+      
+      await voiceService.processInboundCall({
+        From: req.body.From,
+        To: req.body.To,
+        CallSid: req.body.CallSid,
+        orgId,
+      });
+
+      // Return TwiML response
+      const { IdentityMatchingService } = await import('./identityMatching');
+      const identityService = new IdentityMatchingService(storage);
+      const identity = await identityService.identifyContact({
+        phone: req.body.From,
+        orgId,
+      });
+
+      const twiml = voiceService.generateCallResponse(identity);
+      res.type('text/xml').send(twiml);
+    } catch (error) {
+      console.error('Twilio Voice webhook error:', error);
+      res.status(500).send('Error processing voice call');
+    }
+  });
+
+  // Twilio Transcription Callback
+  app.post('/api/twilio/voice/transcription', async (req: any, res) => {
+    try {
+      const { TwilioVoiceService } = await import('./twilioVoiceService');
+      const voiceService = new TwilioVoiceService(storage);
+      
+      await voiceService.processTranscription({
+        CallSid: req.body.CallSid,
+        TranscriptionText: req.body.TranscriptionText,
+        TranscriptionUrl: req.body.TranscriptionUrl,
+      });
+
+      res.send('OK');
+    } catch (error) {
+      console.error('Transcription webhook error:', error);
+      res.status(500).send('Error processing transcription');
+    }
+  });
+
+  // SendGrid Inbound Email Webhook
+  app.post('/api/sendgrid/inbound', async (req: any, res) => {
+    try {
+      const orgId = req.body.orgId || req.query.orgId;
+      
+      if (!orgId) {
+        return res.status(400).send('Missing organization ID');
+      }
+
+      const { SendGridEmailService } = await import('./sendgridEmailService');
+      const emailService = new SendGridEmailService(storage);
+      
+      const message = await emailService.processInboundEmail({
+        from: req.body.from,
+        to: req.body.to,
+        subject: req.body.subject,
+        text: req.body.text,
+        html: req.body.html,
+        attachments: req.body.attachments,
+        orgId,
+      });
+
+      // Generate Maya's response
+      const { MayaOmnichannelService } = await import('./mayaOmnichannelService');
+      const mayaService = new MayaOmnichannelService(storage);
+      
+      const response = await mayaService.processMessage({
+        messageId: message.id,
+        orgId,
+      });
+
+      if (response.shouldRespond) {
+        await mayaService.sendResponse({
+          messageId: message.id,
+          response: response.response!,
+          orgId,
+        });
+      }
+
+      res.send('OK');
+    } catch (error) {
+      console.error('SendGrid webhook error:', error);
+      res.status(500).send('Error processing email');
+    }
+  });
+
+  // Get Channel Messages (Inbox)
+  app.get('/api/inbox', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      // Get user's role in the organization
+      const userRole = await db
+        .select({ role: organizationMembers.role })
+        .from(organizationMembers)
+        .where(
+          and(
+            eq(organizationMembers.userId, userId),
+            eq(organizationMembers.orgId, org.id)
+          )
+        )
+        .limit(1);
+
+      const role = userRole[0]?.role;
+      
+      // If no role found, check if user is org owner (backward compatibility)
+      const effectiveRole = role || (org.ownerId === userId ? 'admin' : null);
+      
+      if (!effectiveRole) {
+        // User has no role in this organization
+        return res.json([]);
+      }
+
+      const filters: any = {};
+      if (req.query.channelType) filters.channelType = req.query.channelType;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.tenantId) filters.tenantId = req.query.tenantId;
+      if (req.query.contractorId) filters.contractorId = req.query.contractorId;
+
+      // Role-based filtering
+      if (effectiveRole === 'vendor') {
+        // Find the vendor record for this user
+        const vendor = await db
+          .select()
+          .from(vendors)
+          .where(
+            and(
+              eq(vendors.userId, userId),
+              eq(vendors.orgId, org.id)
+            )
+          )
+          .limit(1);
+
+        if (vendor[0]) {
+          // Only show messages where this contractor is involved
+          filters.contractorId = vendor[0].id;
+        } else {
+          // No vendor record found, return empty array
+          return res.json([]);
+        }
+      } else if (effectiveRole === 'tenant') {
+        // Tenants cannot access inbox (they work through their own portal)
+        // For now, return empty array - tenant portal would be a separate feature
+        return res.json([]);
+      }
+      // For admin and manager roles, no additional filtering needed (they see all)
+
+      const messages = await storage.getChannelMessages(org.id, filters);
+      
+      // Enrich with related data
+      const enrichedMessages = await Promise.all(messages.map(async (msg: any) => {
+        const tenant = msg.tenantId ? await storage.getTenantsInGroup('').then(t => t.find((x: any) => x.id === msg.tenantId)) : null;
+        const contractor = msg.contractorId ? await storage.getContractor(msg.contractorId) : null;
+        const unit = msg.unitId ? await storage.getUnit(msg.unitId) : null;
+        const property = msg.propertyId ? await storage.getProperty(msg.propertyId) : null;
+        const smartCase = msg.caseId ? await storage.getSmartCase(msg.caseId) : null;
+
+        return {
+          ...msg,
+          tenant,
+          contractor,
+          unit,
+          property,
+          case: smartCase,
+        };
+      }));
+
+      res.json(enrichedMessages);
+    } catch (error) {
+      console.error("Error fetching inbox:", error);
+      res.status(500).json({ message: "Failed to fetch inbox" });
+    }
+  });
+
+  // Get Predictive Insights
+  app.get('/api/predictive-insights', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const filters: any = {};
+      if (req.query.isActive !== undefined) filters.isActive = req.query.isActive === 'true';
+      if (req.query.insightType) filters.insightType = req.query.insightType;
+
+      const insights = await storage.getPredictiveInsights(org.id, filters);
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching predictive insights:", error);
+      res.status(500).json({ message: "Failed to fetch predictive insights" });
+    }
+  });
+
+  // Generate Predictive Insights (Run Analytics)
+  app.post('/api/predictive-insights/generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const { PredictiveAnalyticsEngine } = await import('./predictiveAnalyticsEngine');
+      const analyticsEngine = new PredictiveAnalyticsEngine(storage);
+      
+      await analyticsEngine.generatePredictions(org.id);
+
+      const insights = await storage.getPredictiveInsights(org.id, { isActive: true });
+      res.json({ 
+        success: true, 
+        count: insights.length,
+        insights 
+      });
+    } catch (error) {
+      console.error("Error generating predictions:", error);
+      res.status(500).json({ message: "Failed to generate predictions" });
+    }
+  });
+
+  // Get Channel Settings
+  app.get('/api/channel-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const settings = await storage.getChannelSettings(org.id);
+      res.json(settings || {});
+    } catch (error) {
+      console.error("Error fetching channel settings:", error);
+      res.status(500).json({ message: "Failed to fetch channel settings" });
+    }
+  });
+
+  // Update Channel Settings
+  app.put('/api/channel-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const settings = await storage.updateChannelSettings(org.id, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating channel settings:", error);
+      res.status(500).json({ message: "Failed to update channel settings" });
+    }
+  });
+
+  // Manually Respond to Message
+  app.post('/api/messages/:id/respond', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const { response } = req.body;
+      if (!response) {
+        return res.status(400).json({ message: "Response text is required" });
+      }
+
+      const { MayaOmnichannelService } = await import('./mayaOmnichannelService');
+      const mayaService = new MayaOmnichannelService(storage);
+      
+      await mayaService.sendResponse({
+        messageId: req.params.id,
+        response,
+        orgId: org.id,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error sending response:", error);
+      res.status(500).json({ message: "Failed to send response" });
+    }
+  });
+
+  // Equipment routes
+
+  // Get equipment catalog
+  app.get('/api/equipment-catalog', isAuthenticated, async (req: any, res) => {
+    try {
+      res.json(EQUIPMENT_CATALOG);
+    } catch (error) {
+      console.error("Error fetching equipment catalog:", error);
+      res.status(500).json({ message: "Failed to fetch equipment catalog" });
+    }
+  });
+
+  // Migrate existing property/unit equipment data to equipment table
+  app.post('/api/equipment/migrate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const properties = await storage.getProperties();
+      const units = await storage.getUnits();
+      let importedCount = 0;
+
+      // Import building-level equipment from properties
+      for (const property of properties) {
+        // Building HVAC
+        if (property.buildingHvacYear) {
+          await storage.createEquipment({
+            orgId: org.id,
+            propertyId: property.id,
+            unitId: null,
+            equipmentType: 'hvac',
+            installYear: property.buildingHvacYear,
+            manufacturer: property.buildingHvacBrand || undefined,
+            model: property.buildingHvacModel || undefined,
+            customLifespanYears: property.buildingHvacLifetime || undefined,
+            useClimateAdjustment: true,
+          });
+          importedCount++;
+        }
+
+        // Building Water Heater
+        if (property.buildingWaterYear) {
+          await storage.createEquipment({
+            orgId: org.id,
+            propertyId: property.id,
+            unitId: null,
+            equipmentType: 'water_heater',
+            installYear: property.buildingWaterYear,
+            manufacturer: property.buildingWaterBrand || undefined,
+            model: property.buildingWaterModel || undefined,
+            customLifespanYears: property.buildingWaterLifetime || undefined,
+            useClimateAdjustment: true,
+          });
+          importedCount++;
+        }
+      }
+
+      // Import unit-level equipment
+      for (const unit of units) {
+        // Unit HVAC
+        if (unit.hvacYear) {
+          await storage.createEquipment({
+            orgId: org.id,
+            propertyId: unit.propertyId,
+            unitId: unit.id,
+            equipmentType: 'hvac',
+            installYear: unit.hvacYear,
+            manufacturer: unit.hvacBrand || undefined,
+            model: unit.hvacModel || undefined,
+            customLifespanYears: unit.hvacLifetime || undefined,
+            useClimateAdjustment: true,
+          });
+          importedCount++;
+        }
+
+        // Unit Water Heater
+        if (unit.waterHeaterYear) {
+          await storage.createEquipment({
+            orgId: org.id,
+            propertyId: unit.propertyId,
+            unitId: unit.id,
+            equipmentType: 'water_heater',
+            installYear: unit.waterHeaterYear,
+            manufacturer: unit.waterHeaterBrand || undefined,
+            model: unit.waterHeaterModel || undefined,
+            customLifespanYears: unit.waterHeaterLifetime || undefined,
+            useClimateAdjustment: true,
+          });
+          importedCount++;
+        }
+      }
+
+      res.json({ success: true, importedCount, message: `Imported ${importedCount} equipment items` });
+    } catch (error) {
+      console.error("Error migrating equipment:", error);
+      res.status(500).json({ message: "Failed to migrate equipment" });
+    }
+  });
+
+  // Analyze equipment image with OpenAI Vision
+  app.post('/api/equipment/analyze-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const { image, mimeType } = req.body;
+      
+      if (!image) {
+        return res.status(400).json({ message: "No image provided" });
+      }
+
+      // Initialize OpenAI client
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: "OpenAI API key not configured" });
+      }
+
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      // Call OpenAI Vision API
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `You are an expert in identifying home and building equipment. Analyze this image and identify the equipment shown. Return ONLY a JSON object with these fields:
+- equipmentType: one of these exact values: "roof", "hvac", "water_heater", "boiler", "furnace", "air_conditioner", "heat_pump", "sump_pump", "tankless_water_heater", "well_pump", "septic_system", or a descriptive name if it doesn't match any of these
+- customDisplayName: a human-friendly name (e.g., "Water Heater", "HVAC System", "Boiler")
+- manufacturer: the brand/manufacturer name if visible (e.g., "Carrier", "Rheem", "Lennox")
+- model: the model number if visible
+- year: the manufacturing or installation year if visible (as a number)
+
+If you cannot identify the equipment with confidence, return an empty object {}. Be conservative - only return data you're confident about.`,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType || 'image/jpeg'};base64,${image}`,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 500,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        return res.status(500).json({ message: "No response from AI" });
+      }
+
+      // Parse the JSON response
+      let result;
+      try {
+        // Extract JSON from response (in case there's markdown formatting)
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        } else {
+          result = {};
+        }
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", content);
+        result = {};
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error analyzing equipment image:", error);
+      res.status(500).json({ 
+        message: "Failed to analyze image", 
+        error: error?.message || "Unknown error" 
+      });
+    }
+  });
+
+  // Get equipment for a property
+  app.get('/api/properties/:id/equipment', isAuthenticated, async (req: any, res) => {
+    try {
+      const equipment = await storage.getEquipment(req.params.id);
+      res.json(equipment);
+    } catch (error) {
+      console.error("Error fetching equipment:", error);
+      res.status(500).json({ message: "Failed to fetch equipment" });
+    }
+  });
+
+  // Create equipment for a property
+  app.post('/api/properties/:id/equipment', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      const validatedData = insertEquipmentSchema.parse({
+        ...req.body,
+        orgId: org.id,
+        propertyId: req.params.id,
+      });
+
+      const equipment = await storage.createEquipment(validatedData);
+      
+      // Note: Prediction generation handled by modal's single call to /api/predictive-insights/generate
+      // to avoid N redundant rebuilds when saving multiple equipment items
+      
+      res.json(equipment);
+    } catch (error) {
+      console.error("Error creating equipment:", error);
+      res.status(500).json({ message: "Failed to create equipment" });
+    }
+  });
+
+  // Update equipment
+  app.put('/api/equipment/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertEquipmentSchema.partial().parse(req.body);
+      const equipment = await storage.updateEquipment(req.params.id, validatedData);
+      
+      // Note: Prediction generation handled by modal's single call to /api/predictive-insights/generate
+      // to avoid N redundant rebuilds when saving multiple equipment items
+      
+      res.json(equipment);
+    } catch (error) {
+      console.error("Error updating equipment:", error);
+      res.status(500).json({ message: "Failed to update equipment" });
+    }
+  });
+
+  // Delete equipment
+  app.delete('/api/equipment/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteEquipment(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting equipment:", error);
+      res.status(500).json({ message: "Failed to delete equipment" });
+    }
+  });
+
+  // ===========================
+  // TEAM ROUTES
+  // ===========================
+
+  // Get all teams for an organization (or all orgs for contractors)
+  app.get('/api/teams', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Check if user is a contractor (has vendor records)
+      const contractorVendors = await storage.getContractorVendorsByUserId(userId);
+      
+      if (contractorVendors.length > 0) {
+        // Contractor: fetch teams from all organizations they work in
+        const orgIds = [...new Set(contractorVendors.map(v => v.orgId))];
+        const teamsPromises = orgIds.map(orgId => storage.getTeams(orgId));
+        const teamsArrays = await Promise.all(teamsPromises);
+        const allTeams = teamsArrays.flat();
+        res.json(allTeams);
+      } else {
+        // Non-contractor: fetch teams from their organization
+        const org = await storage.getUserOrganization(userId);
+        if (!org) return res.status(404).json({ message: "Organization not found" });
+        
+        const teams = await storage.getTeams(org.id);
+        res.json(teams);
+      }
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+      res.status(500).json({ message: "Failed to fetch teams" });
+    }
+  });
+
+  // Get single team
+  app.get('/api/teams/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      res.json(team);
+    } catch (error) {
+      console.error("Error fetching team:", error);
+      res.status(500).json({ message: "Failed to fetch team" });
+    }
+  });
+
+  // Create team
+  app.post('/api/teams', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const validatedData = insertTeamSchema.parse({
+        ...req.body,
+        orgId: org.id,
+      });
+
+      const team = await storage.createTeam(validatedData);
+      res.json(team);
+    } catch (error) {
+      console.error("Error creating team:", error);
+      res.status(500).json({ message: "Failed to create team" });
+    }
+  });
+
+  // Update team
+  app.put('/api/teams/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertTeamSchema.partial().parse(req.body);
+      const team = await storage.updateTeam(req.params.id, validatedData);
+      res.json(team);
+    } catch (error) {
+      console.error("Error updating team:", error);
+      res.status(500).json({ message: "Failed to update team" });
+    }
+  });
+
+  // Delete team
+  app.delete('/api/teams/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteTeam(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting team:", error);
+      // Return specific error message if it's about foreign key constraint
+      if (error.message && error.message.includes('assigned jobs')) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to delete team" });
+      }
+    }
+  });
+
+  // ===========================
+  // SCHEDULED JOB ROUTES
+  // ===========================
+
+  // Get all scheduled jobs for an organization
+  app.get('/api/scheduled-jobs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      let orgId: string | null = null;
+      let isTenant = user?.primaryRole === 'tenant';
+      let tenantCaseIds: string[] = [];
+      
+      // First try regular organization membership
+      const org = await storage.getUserOrganization(userId);
+      if (org) {
+        orgId = org.id;
+      } else {
+        // Check if user is a tenant - get org from tenants table
+        const tenantRecord = await db
+          .select({ orgId: tenants.orgId })
+          .from(tenants)
+          .where(eq(tenants.userId, userId))
+          .limit(1);
+        
+        if (tenantRecord.length && tenantRecord[0].orgId) {
+          orgId = tenantRecord[0].orgId;
+          isTenant = true;
+        }
+      }
+      
+      if (!orgId) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const filters = {
+        teamId: req.query.teamId as string | undefined,
+        status: req.query.status as string | undefined,
+      };
+
+      let jobs = await storage.getScheduledJobs(orgId, filters);
+      
+      // For tenants, filter jobs to only those linked to their cases
+      if (isTenant) {
+        // Get the tenant's cases
+        const tenantCases = await db
+          .select({ id: smartCases.id })
+          .from(smartCases)
+          .where(eq(smartCases.reporterUserId, userId));
+        
+        tenantCaseIds = tenantCases.map(c => c.id);
+        
+        // Filter jobs to only those linked to tenant's cases
+        jobs = jobs.filter(job => job.caseId && tenantCaseIds.includes(job.caseId));
+      }
+      
+      res.json(jobs);
+    } catch (error) {
+      console.error("Error fetching scheduled jobs:", error);
+      res.status(500).json({ message: "Failed to fetch scheduled jobs" });
+    }
+  });
+
+  // Get single scheduled job
+  app.get('/api/scheduled-jobs/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const job = await storage.getScheduledJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Scheduled job not found" });
+      res.json(job);
+    } catch (error) {
+      console.error("Error fetching scheduled job:", error);
+      res.status(500).json({ message: "Failed to fetch scheduled job" });
+    }
+  });
+
+  // Create scheduled job
+  app.post('/api/scheduled-jobs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const org = await storage.getUserOrganization(userId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const validatedData = insertScheduledJobSchema.parse({
+        ...req.body,
+        orgId: org.id,
+      });
+
+      const job = await storage.createScheduledJob(validatedData);
+      res.json(job);
+    } catch (error) {
+      console.error("Error creating scheduled job:", error);
+      res.status(500).json({ message: "Failed to create scheduled job" });
+    }
+  });
+
+  // Assign team to a case (creates or updates unscheduled job)
+  app.post('/api/cases/:caseId/assign-team', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { caseId } = req.params;
+
+      // Validate team ID
+      const { teamId } = z.object({ teamId: z.string() }).parse(req.body);
+
+      // Get the case
+      const smartCase = await storage.getSmartCase(caseId);
+      if (!smartCase) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      // Verify user has access to the case's organization
+      // For contractors, check vendors table; for admins, check organizationMembers
+      const vendorAccess = await db
+        .select()
+        .from(vendors)
+        .where(and(
+          eq(vendors.userId, userId),
+          eq(vendors.orgId, smartCase.orgId)
+        ))
+        .limit(1);
+
+      const orgMemberAccess = await db
+        .select()
+        .from(organizationMembers)
+        .where(and(
+          eq(organizationMembers.userId, userId),
+          eq(organizationMembers.orgId, smartCase.orgId)
+        ))
+        .limit(1);
+
+      if (vendorAccess.length === 0 && orgMemberAccess.length === 0) {
+        return res.status(403).json({ message: "Not authorized to modify this case" });
+      }
+
+      // Verify team belongs to the case's organization
+      const team = await storage.getTeam(teamId);
+      if (!team || team.orgId !== smartCase.orgId) {
+        return res.status(403).json({ message: "Team not found or not authorized" });
+      }
+
+      // Look for an existing unscheduled job for this case
+      // Only match jobs with status === 'Unscheduled' to avoid modifying scheduled jobs
+      const existingJobs = await storage.getScheduledJobs(smartCase.orgId, { caseId });
+      const unscheduledJob = existingJobs?.find(job => 
+        job.status === 'Unscheduled' && job.orgId === smartCase.orgId
+      );
+
+      let job;
+
+      if (unscheduledJob) {
+        // Update the existing unscheduled job's team
+        job = await storage.updateScheduledJob(unscheduledJob.id, { teamId });
+      } else {
+        // Create a new unscheduled job with validated data
+        const jobData = insertScheduledJobSchema.parse({
+          orgId: smartCase.orgId,
+          caseId,
+          teamId,
+          title: smartCase.title,
+          description: smartCase.description,
+          status: 'Unscheduled',
+          scheduledStartAt: null,
+          scheduledEndAt: null,
+        });
+
+        job = await storage.createScheduledJob(jobData);
+      }
+
+      res.json(job);
+    } catch (error) {
+      console.error("Error assigning team to case:", error);
+      res.status(500).json({ message: "Failed to assign team" });
+    }
+  });
+
+  // Update scheduled job
+  app.put('/api/scheduled-jobs/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertScheduledJobSchema.partial().parse(req.body);
+      
+      // Get the existing job first to check if it has a linked case
+      const existingJob = await storage.getScheduledJob(req.params.id);
+      
+      // Auto-set requiresTenantConfirmation if scheduling a tenant-reported case
+      if (existingJob?.caseId && validatedData.status === 'Pending Approval') {
+        const smartCase = await storage.getSmartCase(existingJob.caseId);
+        if (smartCase && smartCase.reporterUserId) {
+          validatedData.requiresTenantConfirmation = true;
+          validatedData.tenantConfirmed = false;
+          console.log(`✅ Auto-enabled tenant confirmation for job ${req.params.id} (case has tenant reporter)`);
+        }
+      }
+      
+      const job = await storage.updateScheduledJob(req.params.id, validatedData);
+      
+      // Update linked case status when job status changes
+      if (job.caseId && validatedData.status) {
+        let caseStatus: string | undefined;
+        
+        // Map job status to case status
+        if (validatedData.status === 'Pending Approval') {
+          caseStatus = 'In Review';
+        } else if (validatedData.status === 'Scheduled' || validatedData.status === 'Confirmed') {
+          caseStatus = 'Scheduled';
+        } else if (validatedData.status === 'In Progress') {
+          caseStatus = 'In Progress';
+        } else if (validatedData.status === 'Completed') {
+          caseStatus = 'Resolved';
+        } else if (validatedData.status === 'Unscheduled') {
+          caseStatus = 'On Hold';
+        }
+        
+        if (caseStatus) {
+          await storage.updateSmartCase(job.caseId, { status: caseStatus as any });
+        }
+        
+        // Send notifications based on status changes
+        try {
+          const smartCase = await storage.getSmartCase(job.caseId);
+          if (smartCase && smartCase.reporterUserId) {
+            const tenantUser = await storage.getUser(smartCase.reporterUserId);
+            if (tenantUser) {
+              const { notificationService } = await import('./notificationService');
+              
+              // Send tenant notification when status changes to "Pending Approval"
+              if (validatedData.status === 'Pending Approval' && job.scheduledStartAt && job.scheduledEndAt) {
+                const startDate = new Date(job.scheduledStartAt);
+                const endDate = new Date(job.scheduledEndAt);
+                const formattedStart = startDate.toLocaleString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+                const formattedTime = `${startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                
+                await notificationService.notifyTenant({
+                  message: `Your maintenance request "${smartCase.title}" has been scheduled for ${formattedStart} (${formattedTime}). Please approve or reject this time slot.`,
+                  type: 'schedule_approval_request',
+                  title: 'Schedule Approval Needed',
+                  caseId: smartCase.id,
+                  jobId: job.id,
+                  orgId: job.orgId
+                }, tenantUser.email, smartCase.reporterUserId, job.orgId);
+                console.log(`📧 Sent approval notification to tenant ${smartCase.reporterUserId} for job ${job.id}`);
+                
+                // Notify admin based on involvement mode
+                const approvalPolicies = await storage.getApprovalPolicies(job.orgId);
+                const involvementMode = approvalPolicies?.[0]?.involvementMode || 'balanced';
+                
+                if (involvementMode !== 'hands-off') {
+                  await notificationService.notifyAdmins({
+                    message: `Job "${job.title}" for case "${smartCase.title}" is awaiting tenant approval. Scheduled for ${formattedStart}.`,
+                    type: 'schedule_approval_request',
+                    title: 'Job Awaiting Tenant Approval',
+                    subject: 'Tenant Approval Needed',
+                    caseId: smartCase.id,
+                    jobId: job.id,
+                    orgId: job.orgId
+                  }, job.orgId);
+                  console.log(`📧 Sent admin notification for job ${job.id} (${involvementMode} mode)`);
+                }
+              }
+              
+              // Send notification when job is unscheduled
+              if (validatedData.status === 'Unscheduled') {
+                await notificationService.notifyTenant({
+                  message: `The scheduled appointment for "${smartCase.title}" has been cancelled and needs to be rescheduled.`,
+                  type: 'case_unscheduled',
+                  title: 'Appointment Cancelled',
+                  subject: 'Maintenance Appointment Cancelled',
+                  caseId: smartCase.id,
+                  caseNumber: smartCase.caseNumber,
+                  orgId: job.orgId
+                }, tenantUser.email, smartCase.reporterUserId, job.orgId);
+                
+                // Notify contractor if assigned
+                if (job.contractorId) {
+                  await notificationService.notifyContractor({
+                    message: `Job "${job.title}" for case "${smartCase.title}" has been unscheduled.`,
+                    type: 'case_unscheduled',
+                    title: 'Job Unscheduled',
+                    subject: 'Job Unscheduled',
+                    caseId: smartCase.id,
+                    caseNumber: smartCase.caseNumber,
+                    orgId: job.orgId
+                  }, job.contractorId, job.orgId);
+                }
+                console.log(`📧 Sent unscheduled notifications for job ${job.id}`);
+              }
+              
+              // Send notification when job time is rescheduled
+              if ((validatedData.status === 'Scheduled' || validatedData.status === 'Confirmed') && 
+                  (validatedData.scheduledStartAt || validatedData.scheduledEndAt)) {
+                const startDate = new Date(job.scheduledStartAt || validatedData.scheduledStartAt);
+                const endDate = new Date(job.scheduledEndAt || validatedData.scheduledEndAt);
+                const formattedStart = startDate.toLocaleString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+                const formattedTime = `${startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                
+                await notificationService.notifyTenant({
+                  message: `Your maintenance appointment for "${smartCase.title}" has been rescheduled to ${formattedStart} (${formattedTime}).`,
+                  type: 'case_rescheduled',
+                  title: 'Appointment Rescheduled',
+                  subject: 'Maintenance Appointment Rescheduled',
+                  caseId: smartCase.id,
+                  caseNumber: smartCase.caseNumber,
+                  orgId: job.orgId
+                }, tenantUser.email, smartCase.reporterUserId, job.orgId);
+                
+                // Notify contractor if assigned
+                if (job.contractorId) {
+                  await notificationService.notifyContractor({
+                    message: `Job "${job.title}" for case "${smartCase.title}" has been rescheduled to ${formattedStart} (${formattedTime}).`,
+                    type: 'case_rescheduled',
+                    title: 'Job Rescheduled',
+                    subject: 'Job Rescheduled',
+                    caseId: smartCase.id,
+                    caseNumber: smartCase.caseNumber,
+                    orgId: job.orgId
+                  }, job.contractorId, job.orgId);
+                }
+                console.log(`📧 Sent rescheduled notifications for job ${job.id}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error sending notifications:', error);
+          // Don't fail the request if notification fails
+        }
+      }
+      
+      res.json(job);
+    } catch (error) {
+      console.error("Error updating scheduled job:", error);
+      res.status(500).json({ message: "Failed to update scheduled job" });
+    }
+  });
+
+  // Update scheduled job (PATCH)
+  app.patch('/api/scheduled-jobs/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertScheduledJobSchema.partial().parse(req.body);
+      const job = await storage.updateScheduledJob(req.params.id, validatedData);
+      
+      // Update linked case status when job status changes
+      if (job.caseId && validatedData.status) {
+        let caseStatus: string | undefined;
+        
+        // Map job status to case status
+        if (validatedData.status === 'Pending Approval') {
+          caseStatus = 'In Review';
+        } else if (validatedData.status === 'Scheduled' || validatedData.status === 'Confirmed') {
+          caseStatus = 'Scheduled';
+        } else if (validatedData.status === 'In Progress') {
+          caseStatus = 'In Progress';
+        } else if (validatedData.status === 'Completed') {
+          caseStatus = 'Resolved';
+        } else if (validatedData.status === 'Unscheduled') {
+          caseStatus = 'On Hold';
+        }
+        
+        if (caseStatus) {
+          await storage.updateSmartCase(job.caseId, { status: caseStatus as any });
+        }
+        
+        // Send tenant notification when status changes to "Pending Approval"
+        if (validatedData.status === 'Pending Approval' && job.scheduledStartAt && job.scheduledEndAt) {
+          try {
+            const smartCase = await storage.getSmartCase(job.caseId);
+            if (smartCase && smartCase.reporterUserId) {
+              const tenantUser = await storage.getUser(smartCase.reporterUserId);
+              if (tenantUser) {
+                const { notificationService } = await import('./notificationService');
+                const startDate = new Date(job.scheduledStartAt);
+                const endDate = new Date(job.scheduledEndAt);
+                const formattedStart = startDate.toLocaleString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+                const formattedTime = `${startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                
+                await notificationService.notifyTenant({
+                  message: `Your maintenance request "${smartCase.title}" has been scheduled for ${formattedStart} (${formattedTime}). Please approve or reject this time slot.`,
+                  type: 'schedule_approval_request',
+                  title: 'Schedule Approval Needed',
+                  caseId: smartCase.id,
+                  jobId: job.id,
+                  orgId: job.orgId
+                }, tenantUser.email, smartCase.reporterUserId, job.orgId);
+                console.log(`📧 Sent approval notification to tenant ${smartCase.reporterUserId} for job ${job.id}`);
+                
+                // Notify admin based on involvement mode
+                const approvalPolicies = await storage.getApprovalPolicies(job.orgId);
+                const involvementMode = approvalPolicies?.[0]?.involvementMode || 'balanced';
+                
+                // In balanced/hands-on mode: notify admin about pending approval
+                // In hands-off mode: don't notify admin (tenant handles independently)
+                if (involvementMode !== 'hands-off') {
+                  await notificationService.notifyAdmins({
+                    message: `Job "${job.title}" for case "${smartCase.title}" is awaiting tenant approval. Scheduled for ${formattedStart}.`,
+                    type: 'schedule_approval_request',
+                    title: 'Job Awaiting Tenant Approval',
+                    subject: 'Tenant Approval Needed',
+                    caseId: smartCase.id,
+                    jobId: job.id,
+                    orgId: job.orgId
+                  }, job.orgId);
+                  console.log(`📧 Sent admin notification for job ${job.id} (${involvementMode} mode)`);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error sending tenant notification:', error);
+            // Don't fail the request if notification fails
+          }
+        }
+      }
+      
+      res.json(job);
+    } catch (error) {
+      console.error("Error updating scheduled job:", error);
+      res.status(500).json({ message: "Failed to update scheduled job" });
+    }
+  });
+
+  // Delete scheduled job
+  app.delete('/api/scheduled-jobs/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteScheduledJob(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting scheduled job:", error);
+      res.status(500).json({ message: "Failed to delete scheduled job" });
+    }
+  });
+
+  // Approve scheduled job (tenant approval)
+  app.post('/api/scheduled-jobs/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const job = await storage.getScheduledJob(req.params.id);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Scheduled job not found" });
+      }
+      
+      // Verify that the user is the tenant (reporter) of the linked case
+      if (job.caseId) {
+        const smartCase = await storage.getSmartCase(job.caseId);
+        if (smartCase && smartCase.reporterUserId !== userId) {
+          return res.status(403).json({ message: "You are not authorized to approve this job" });
+        }
+      }
+      
+      // Update job status to "Scheduled" (approved) and mark as tenant-confirmed
+      const updatedJob = await storage.updateScheduledJob(req.params.id, {
+        status: 'Scheduled',
+        tenantConfirmed: true,
+        tenantConfirmedAt: new Date()
+      });
+      
+      // Update linked case status to "Scheduled"
+      if (updatedJob.caseId) {
+        await storage.updateSmartCase(updatedJob.caseId, { status: 'Scheduled' as any });
+      }
+      
+      // Send notifications
+      console.log(`📧 Starting notification process for approved job ${updatedJob.id}`);
+      try {
+        const { notificationService } = await import('./notificationService');
+        let smartCase = null;
+        let jobTitle = updatedJob.title;
+        
+        // Get case details if linked
+        if (updatedJob.caseId) {
+          smartCase = await storage.getSmartCase(updatedJob.caseId);
+          jobTitle = smartCase?.title || updatedJob.title;
+          
+          // Get contractor ID from job or from assigned case
+          const contractorId = updatedJob.contractorId || smartCase?.assignedContractorId;
+          console.log(`📧 Contractor lookup: job.contractorId=${updatedJob.contractorId}, case.assignedContractorId=${smartCase?.assignedContractorId}, final=${contractorId}`);
+          
+          // Notify contractor if there is one
+          if (contractorId) {
+            await notificationService.notifyContractor({
+              message: `Tenant approved the scheduled time for "${jobTitle}"`,
+              type: 'schedule_approved',
+              title: 'Schedule Approved',
+              caseId: updatedJob.caseId,
+              jobId: updatedJob.id,
+              orgId: updatedJob.orgId
+            }, contractorId, updatedJob.orgId);
+            console.log(`✅ Notified contractor ${contractorId} of approval for job ${updatedJob.id}`);
+          } else {
+            console.log(`⚠️ No contractor assigned - skipping contractor notification for job ${updatedJob.id}`);
+          }
+        }
+        
+        // Always notify admins of approvals regardless of policy mode or case linkage
+        // The involvement mode only applies to initial scheduling, not to tenant responses
+        await notificationService.notifyAdmins({
+          message: `Tenant approved scheduled maintenance for "${jobTitle}"`,
+          type: 'schedule_approved',
+          title: 'Schedule Approved by Tenant',
+          subject: 'Maintenance Schedule Approved',
+          caseId: updatedJob.caseId || undefined,
+          orgId: updatedJob.orgId
+        }, updatedJob.orgId);
+        console.log(`✅ Notified admins of approval for job ${updatedJob.id}`);
+      } catch (error) {
+        console.error('❌ Error sending approval notifications:', error);
+      }
+      
+      res.json(updatedJob);
+    } catch (error) {
+      console.error("Error approving scheduled job:", error);
+      res.status(500).json({ message: "Failed to approve scheduled job" });
+    }
+  });
+
+  // Reject scheduled job (tenant rejection)
+  app.post('/api/scheduled-jobs/:id/reject', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const job = await storage.getScheduledJob(req.params.id);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Scheduled job not found" });
+      }
+      
+      // Verify that the user is the tenant (reporter) of the linked case
+      if (job.caseId) {
+        const smartCase = await storage.getSmartCase(job.caseId);
+        if (smartCase && smartCase.reporterUserId !== userId) {
+          return res.status(403).json({ message: "You are not authorized to reject this job" });
+        }
+      }
+      
+      // Update job status to "Unscheduled" and remove scheduled times
+      const updatedJob = await storage.updateScheduledJob(req.params.id, {
+        status: 'Unscheduled',
+        scheduledStartAt: null,
+        scheduledEndAt: null,
+        tenantConfirmed: false,
+        tenantConfirmedAt: null
+      });
+      
+      // Update linked case status to "On Hold"
+      if (updatedJob.caseId) {
+        await storage.updateSmartCase(updatedJob.caseId, { status: 'On Hold' as any });
+      }
+      
+      // Send notifications
+      console.log(`📧 Starting notification process for rejected job ${updatedJob.id}`);
+      try {
+        const { notificationService } = await import('./notificationService');
+        let smartCase = null;
+        let jobTitle = updatedJob.title;
+        
+        // Get case details if linked
+        if (updatedJob.caseId) {
+          smartCase = await storage.getSmartCase(updatedJob.caseId);
+          jobTitle = smartCase?.title || updatedJob.title;
+          
+          // Get contractor ID from job or from assigned case
+          const contractorId = updatedJob.contractorId || smartCase?.assignedContractorId;
+          console.log(`📧 Contractor lookup: job.contractorId=${updatedJob.contractorId}, case.assignedContractorId=${smartCase?.assignedContractorId}, final=${contractorId}`);
+          
+          // Notify contractor if there is one
+          if (contractorId) {
+            await notificationService.notifyContractor({
+              message: `Tenant rejected the proposed time for "${jobTitle}". Please propose a new time.`,
+              type: 'schedule_rejected',
+              title: 'Schedule Rejected',
+              caseId: updatedJob.caseId,
+              jobId: updatedJob.id,
+              orgId: updatedJob.orgId
+            }, contractorId, updatedJob.orgId);
+            console.log(`❌ Notified contractor ${contractorId} of rejection for job ${updatedJob.id}`);
+          } else {
+            console.log(`⚠️ No contractor assigned - skipping contractor notification for rejected job ${updatedJob.id}`);
+          }
+        }
+        
+        // Always notify admins of rejections regardless of policy mode or case linkage
+        // The involvement mode only applies to initial scheduling, not to tenant responses
+        await notificationService.notifyAdmins({
+          message: `Tenant rejected proposed time for "${jobTitle}". Contractor needs to propose a new time.`,
+          type: 'schedule_rejected',
+          title: 'Schedule Rejected by Tenant',
+          subject: 'Maintenance Schedule Rejected',
+          caseId: updatedJob.caseId || undefined,
+          orgId: updatedJob.orgId
+        }, updatedJob.orgId);
+        console.log(`❌ Notified admins of rejection for job ${updatedJob.id}`);
+      } catch (error) {
+        console.error('❌ Error sending rejection notifications:', error);
+      }
+      
+      res.json(updatedJob);
+    } catch (error) {
+      console.error("Error rejecting scheduled job:", error);
+      res.status(500).json({ message: "Failed to reject scheduled job" });
+    }
+  });
+
+  // Create counter-proposal (tenant suggests alternative times)
+  app.post('/api/counter-proposals', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { jobId, caseId, reason, availabilitySlots } = req.body;
+      
+      // Get the job to verify access
+      const job = await storage.getScheduledJob(jobId);
+      if (!job) {
+        return res.status(404).json({ message: "Scheduled job not found" });
+      }
+      
+      // Verify that the user is the tenant (reporter) of the linked case
+      if (job.caseId) {
+        const smartCase = await storage.getSmartCase(job.caseId);
+        if (!smartCase || smartCase.reporterUserId !== userId) {
+          return res.status(403).json({ message: "You are not authorized to create a counter-proposal for this job" });
+        }
+      }
+      
+      const org = await storage.getUserOrganization(userId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      // Import and validate schema
+      const { insertCounterProposalSchema } = await import("@shared/schema");
+      const validatedData = insertCounterProposalSchema.parse({
+        orgId: org.id,
+        scheduledJobId: jobId,
+        tenantId: userId,
+        availabilitySlots,
+        reason: reason || null,
+        status: 'Pending',
+      });
+      
+      // Create the counter-proposal
+      const counterProposal = await storage.createCounterProposal(validatedData);
+      
+      // Update job status to indicate counter-proposal exists
+      await storage.updateScheduledJob(jobId, {
+        status: 'Needs Review',
+      });
+      
+      // Notify contractor about counter-proposal
+      // Try to get contractor from job first, then from case if job has no contractor
+      let contractorToNotify = job.contractorId;
+      if (!contractorToNotify && job.caseId) {
+        const smartCase = await storage.getSmartCase(job.caseId);
+        if (smartCase?.assignedContractorId) {
+          contractorToNotify = smartCase.assignedContractorId;
+        }
+      }
+      
+      if (contractorToNotify && job.caseId) {
+        try {
+          const smartCase = await storage.getSmartCase(job.caseId);
+          const { notificationService } = await import('./notificationService');
+          await notificationService.notifyContractor({
+            message: `Tenant proposed alternative times for "${smartCase?.title || job.title}"`,
+            type: 'counter_proposal',
+            title: 'Counter-Proposal Received',
+            caseId: job.caseId,
+            jobId: job.id,
+            orgId: job.orgId
+          }, contractorToNotify, job.orgId);
+          console.log(`📅 Notified contractor ${contractorToNotify} of counter-proposal for job ${job.id}`);
+        } catch (error) {
+          console.error(`❌ Error sending contractor notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      } else {
+        console.log(`⚠️ No contractor to notify for counter-proposal on job ${job.id} (jobContractorId: ${job.contractorId}, caseAssigneeId: ${contractorToNotify || 'none'})`);
+      }
+      
+      // Also notify admins if organization has hands-on involvement mode
+      try {
+        const policies = await storage.getApprovalPolicies(org.id);
+        const activePolicy = policies.find(p => p.isActive) || policies[0];
+        if (activePolicy?.involvementMode === 'hands-on' && job.caseId) {
+          const smartCase = await storage.getSmartCase(job.caseId);
+          const { notificationService } = await import('./notificationService');
+          await notificationService.notifyAdmins({
+            message: `Tenant proposed alternative times for "${smartCase?.title || job.title}"`,
+            type: 'counter_proposal',
+            title: 'Counter-Proposal from Tenant',
+            caseId: job.caseId,
+            jobId: job.id,
+            orgId: job.orgId
+          }, org.id);
+          console.log(`📧 Notified admins of counter-proposal for job ${job.id} (hands-on mode)`);
+        }
+      } catch (error) {
+        console.error(`❌ Error sending admin notification for counter-proposal: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
+      res.json(counterProposal);
+    } catch (error) {
+      console.error("Error creating counter-proposal:", error);
+      res.status(500).json({ message: "Failed to create counter-proposal" });
+    }
+  });
+
+  // Counter-propose new times (tenant submits availability)
+  app.post('/api/scheduled-jobs/:id/counter-propose', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const job = await storage.getScheduledJob(req.params.id);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Scheduled job not found" });
+      }
+      
+      // Verify that the user is the tenant (reporter) of the linked case
+      if (job.caseId) {
+        const smartCase = await storage.getSmartCase(job.caseId);
+        if (smartCase && smartCase.reporterUserId !== userId) {
+          return res.status(403).json({ message: "You are not authorized to counter-propose for this job" });
+        }
+      }
+      
+      const { availabilitySlots, reason } = req.body;
+      
+      if (!availabilitySlots || !Array.isArray(availabilitySlots) || availabilitySlots.length === 0) {
+        return res.status(400).json({ message: "At least one availability slot is required" });
+      }
+      
+      // Validate each slot has required fields
+      for (const slot of availabilitySlots) {
+        if (!slot.startAt || !slot.endAt) {
+          return res.status(400).json({ message: "Each availability slot must have both start and end times" });
+        }
+        
+        // Validate that startAt and endAt are valid dates
+        const startDate = new Date(slot.startAt);
+        const endDate = new Date(slot.endAt);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          return res.status(400).json({ message: "Invalid date format in availability slots" });
+        }
+        
+        if (endDate <= startDate) {
+          return res.status(400).json({ message: "End time must be after start time for each slot" });
+        }
+      }
+      
+      // Create counter-proposal
+      const counterProposal = await db.insert(counterProposals).values({
+        orgId: job.orgId,
+        scheduledJobId: job.id,
+        tenantId: userId,
+        availabilitySlots: availabilitySlots,
+        reason: reason || null,
+        status: 'Pending',
+      }).returning();
+      
+      // Notify contractor of counter-proposal
+      if (job.contractorId && job.caseId) {
+        try {
+          const smartCase = await storage.getSmartCase(job.caseId);
+          const { notificationService } = await import('./notificationService');
+          await notificationService.notifyContractor({
+            message: `Tenant proposed alternative times for "${smartCase?.title || job.title}"`,
+            type: 'counter_proposal_submitted',
+            title: 'New Time Proposal',
+            caseId: job.caseId,
+            jobId: job.id,
+            orgId: job.orgId
+          }, job.contractorId, job.orgId);
+          console.log(`📅 Notified contractor ${job.contractorId} of counter-proposal for job ${job.id}`);
+        } catch (error) {
+          console.error('Error sending contractor notification:', error);
+        }
+      }
+      
+      res.json(counterProposal[0]);
+    } catch (error) {
+      console.error("Error creating counter-proposal:", error);
+      res.status(500).json({ message: "Failed to create counter-proposal" });
+    }
+  });
+
+  // Get counter-proposals for a job
+  app.get('/api/counter-proposals/job/:jobId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const job = await storage.getScheduledJob(req.params.jobId);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Scheduled job not found" });
+      }
+      
+      // Verify user has access to this job (contractor, tenant, or admin from same org)
+      const userOrgMembership = await db.select()
+        .from(organizationMembers)
+        .where(and(
+          eq(organizationMembers.userId, userId),
+          eq(organizationMembers.orgId, job.orgId)
+        ))
+        .limit(1);
+      
+      if (!userOrgMembership || userOrgMembership.length === 0) {
+        return res.status(403).json({ message: "You are not authorized to view these proposals" });
+      }
+      
+      const proposals = await db.select()
+        .from(counterProposals)
+        .where(eq(counterProposals.scheduledJobId, req.params.jobId))
+        .orderBy(desc(counterProposals.createdAt));
+      
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching counter-proposals:", error);
+      res.status(500).json({ message: "Failed to fetch counter-proposals" });
+    }
+  });
+
+  // Accept counter-proposal (contractor/admin)
+  app.post('/api/counter-proposals/:id/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const proposal = await db.select()
+        .from(counterProposals)
+        .where(eq(counterProposals.id, req.params.id))
+        .limit(1);
+      
+      if (!proposal || proposal.length === 0) {
+        return res.status(404).json({ message: "Counter-proposal not found" });
+      }
+      
+      const { selectedSlotIndex, selectedStart, selectedEnd } = req.body;
+      const slots = proposal[0].availabilitySlots as any[];
+      
+      let selectedSlot;
+      
+      // If contractor selected specific start/end times, use those
+      if (selectedStart && selectedEnd) {
+        selectedSlot = { startAt: selectedStart, endAt: selectedEnd };
+      } else if (selectedSlotIndex !== undefined && slots[selectedSlotIndex]) {
+        // Fall back to slot index selection (legacy behavior)
+        selectedSlot = slots[selectedSlotIndex];
+      } else {
+        return res.status(400).json({ message: "Please select a valid time slot" });
+      }
+      
+      // Update counter-proposal status
+      await db.update(counterProposals)
+        .set({
+          status: 'Accepted',
+          reviewedAt: new Date(),
+          reviewedBy: userId,
+        })
+        .where(eq(counterProposals.id, req.params.id));
+      
+      // Update scheduled job with the selected time
+      const updatedJob = await storage.updateScheduledJob(proposal[0].scheduledJobId, {
+        scheduledStartAt: new Date(selectedSlot.startAt),
+        scheduledEndAt: new Date(selectedSlot.endAt),
+        status: 'Scheduled',
+      });
+      
+      // Update linked case status
+      if (updatedJob.caseId) {
+        await storage.updateSmartCase(updatedJob.caseId, { status: 'Scheduled' as any });
+      }
+      
+      // Notify tenant and admin that counter-proposal was accepted
+      const job = await storage.getScheduledJob(proposal[0].scheduledJobId);
+      if (job && job.caseId) {
+        try {
+          const smartCase = await storage.getSmartCase(job.caseId);
+          const { notificationService } = await import('./notificationService');
+          const selectedSlotTime = formatInTimeZone(parseISO(selectedSlot.startAt), 'America/New_York', "EEE, MMM d 'at' h:mm a");
+          
+          // Notify tenant
+          if (smartCase && smartCase.reporterUserId) {
+            await notificationService.notifyTenant({
+              message: `Your proposed time for "${smartCase.title || job.title}" was accepted. Scheduled for ${selectedSlotTime}`,
+              type: 'counter_proposal_accepted',
+              title: 'Time Proposal Accepted',
+              caseId: job.caseId,
+              jobId: job.id,
+              orgId: job.orgId
+            }, smartCase.reporterUserId, job.orgId);
+            console.log(`✅ Notified tenant ${smartCase.reporterUserId} that counter-proposal was accepted`);
+          }
+          
+          // Notify admin
+          if (smartCase) {
+            await notificationService.notifyAdmins({
+              message: `Counter-proposal accepted for "${smartCase.title || job.title}". Scheduled for ${selectedSlotTime}`,
+              type: 'counter_proposal_accepted',
+              title: 'Appointment Scheduled',
+              caseId: job.caseId,
+              jobId: job.id,
+              orgId: job.orgId
+            }, job.orgId);
+            console.log(`✅ Notified admin that counter-proposal was accepted for job ${job.id}`);
+          }
+        } catch (error) {
+          console.error('Error sending notifications:', error);
+        }
+      }
+      
+      res.json({ success: true, job: updatedJob });
+    } catch (error) {
+      console.error("Error accepting counter-proposal:", error);
+      res.status(500).json({ message: "Failed to accept counter-proposal" });
+    }
+  });
+
+  // Reject counter-proposal (contractor/admin)
+  app.post('/api/counter-proposals/:id/reject', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const proposal = await db.select()
+        .from(counterProposals)
+        .where(eq(counterProposals.id, req.params.id))
+        .limit(1);
+      
+      if (!proposal || proposal.length === 0) {
+        return res.status(404).json({ message: "Counter-proposal not found" });
+      }
+      
+      // Update counter-proposal status
+      await db.update(counterProposals)
+        .set({
+          status: 'Rejected',
+          reviewedAt: new Date(),
+          reviewedBy: userId,
+        })
+        .where(eq(counterProposals.id, req.params.id));
+      
+      // Notify tenant that their counter-proposal was rejected
+      const job = await storage.getScheduledJob(proposal[0].scheduledJobId);
+      if (job && job.caseId) {
+        try {
+          const smartCase = await storage.getSmartCase(job.caseId);
+          const { notificationService } = await import('./notificationService');
+          if (smartCase && smartCase.reporterUserId) {
+            await notificationService.notifyTenant({
+              message: `Your proposed times for "${smartCase.title || job.title}" were not available. The contractor will propose new times.`,
+              type: 'counter_proposal_rejected',
+              title: 'Time Proposal Declined',
+              caseId: job.caseId,
+              jobId: job.id,
+              orgId: job.orgId
+            }, smartCase.reporterUserId, job.orgId);
+            console.log(`❌ Notified tenant ${smartCase.reporterUserId} that counter-proposal was rejected`);
+          }
+        } catch (error) {
+          console.error('Error sending tenant notification:', error);
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error rejecting counter-proposal:", error);
+      res.status(500).json({ message: "Failed to reject counter-proposal" });
+    }
+  });
+
+  return httpServer;
+}

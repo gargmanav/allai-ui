@@ -1,0 +1,236 @@
+import { db } from '../db';
+import { 
+  smartCases, 
+  userContractorSpecialties, 
+  favoriteContractors,
+  contractorOrgLinks,
+  contractorProfiles,
+  contractorDismissedCases,
+  quotes
+} from '@shared/schema';
+import { eq, and, or, isNull, inArray, notInArray, SQL } from 'drizzle-orm';
+
+export interface MarketplaceFilters {
+  specialtyIds?: string[];
+  orgId?: string;
+  isUrgent?: boolean;
+  excludeAssigned?: boolean;
+}
+
+export async function getMarketplaceCases(contractorUserId: string, filters?: MarketplaceFilters) {
+  // Get dismissed case IDs for this contractor
+  const dismissedCases = await db.query.contractorDismissedCases.findMany({
+    where: eq(contractorDismissedCases.contractorUserId, contractorUserId),
+  });
+  const dismissedCaseIds = dismissedCases.map(d => d.caseId);
+
+  // Build where conditions
+  const conditions: SQL<unknown>[] = [
+    isNull(smartCases.assignedContractorId), // Only unassigned cases
+  ];
+
+  // Exclude dismissed cases
+  if (dismissedCaseIds.length > 0) {
+    conditions.push(notInArray(smartCases.id, dismissedCaseIds));
+  }
+  
+  // Filter by specialty if specified
+  if (filters?.specialtyIds) {
+    // This would need a specialty field on smartCases
+    // For now, we'll skip this filtering
+  }
+  
+  // Filter by org if specified
+  if (filters?.orgId) {
+    conditions.push(eq(smartCases.orgId, filters.orgId));
+  }
+  
+  // Filter by urgency if specified
+  if (filters?.isUrgent !== undefined) {
+    conditions.push(eq(smartCases.isUrgent, filters.isUrgent));
+  }
+  
+  // Get all unassigned cases
+  const cases = await db.query.smartCases.findMany({
+    where: and(...conditions) as SQL<unknown>,
+    with: {
+      property: true,
+      unit: true,
+      media: true,
+    },
+    orderBy: (cases, { desc }) => [desc(cases.priority), desc(cases.postedAt)],
+  });
+  
+  // Filter cases by access rules
+  const visibleCases = [];
+  
+  for (const caseItem of cases) {
+    // Check contractor-org link exists and is active
+    if (caseItem.orgId) {
+      const link = await db.query.contractorOrgLinks.findFirst({
+        where: and(
+          eq(contractorOrgLinks.contractorUserId, contractorUserId),
+          eq(contractorOrgLinks.orgId, caseItem.orgId),
+          eq(contractorOrgLinks.status, 'active')
+        ),
+      });
+      
+      // Skip if no active link with this org
+      if (!link) {
+        continue;
+      }
+    }
+    
+    // Check favorite restriction (unless urgent)
+    if (caseItem.restrictToFavorites && !caseItem.isUrgent && caseItem.orgId) {
+      const isFavorite = await db.query.favoriteContractors.findFirst({
+        where: and(
+          eq(favoriteContractors.orgId, caseItem.orgId),
+          eq(favoriteContractors.contractorUserId, contractorUserId)
+        ),
+      });
+      
+      // Skip if not a favorite
+      if (!isFavorite) {
+        continue;
+      }
+    }
+    
+    visibleCases.push(caseItem);
+  }
+  
+  return visibleCases;
+}
+
+export async function canContractorAcceptCase(contractorUserId: string, caseId: string): Promise<{ canAccept: boolean; reason?: string }> {
+  const caseItem = await db.query.smartCases.findFirst({
+    where: eq(smartCases.id, caseId),
+  });
+  
+  if (!caseItem) {
+    return { canAccept: false, reason: 'Case not found' };
+  }
+  
+  // Check if already assigned
+  if (caseItem.assignedContractorId) {
+    return { canAccept: false, reason: 'Case already assigned' };
+  }
+  
+  // Check favorite restriction (unless urgent)
+  if (caseItem.restrictToFavorites && !caseItem.isUrgent && caseItem.orgId) {
+    const isFavorite = await db.query.favoriteContractors.findFirst({
+      where: and(
+        eq(favoriteContractors.orgId, caseItem.orgId),
+        eq(favoriteContractors.contractorUserId, contractorUserId)
+      ),
+    });
+    
+    if (!isFavorite) {
+      return { canAccept: false, reason: 'This job is restricted to favorite contractors only' };
+    }
+  }
+  
+  return { canAccept: true };
+}
+
+export async function acceptCase(contractorUserId: string, caseId: string, options?: { quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number }): Promise<{ success: boolean; error?: string }> {
+  // Verify contractor can accept
+  const { canAccept, reason } = await canContractorAcceptCase(contractorUserId, caseId);
+  
+  if (!canAccept) {
+    return { success: false, error: reason };
+  }
+  
+  try {
+    // Use transaction to prevent race condition
+    const result = await db.transaction(async (tx) => {
+      // Build the update set
+      const updateSet: any = { 
+        assignedContractorId: contractorUserId,
+        status: 'In Review'
+      };
+      
+      // Set pricing info if provided
+      if (options?.priceTbd) {
+        updateSet.priceTbd = true;
+        updateSet.quotedPrice = null;
+      } else if (options?.quotedPrice) {
+        updateSet.quotedPrice = options.quotedPrice;
+        updateSet.priceTbd = false;
+      }
+      
+      // Assign case to contractor with WHERE clause ensuring it's still unassigned
+      const updated = await tx.update(smartCases)
+        .set(updateSet)
+        .where(and(
+          eq(smartCases.id, caseId),
+          isNull(smartCases.assignedContractorId) // Prevents double-assign race
+        ))
+        .returning();
+      
+      // If no rows updated, case was already assigned
+      if (updated.length === 0) {
+        throw new Error('Case already assigned to another contractor');
+      }
+      
+      const caseItem = updated[0];
+      
+      // Create a quote record when price is provided (not TBD)
+      if (options?.quotedPrice && !options?.priceTbd) {
+        const priceStr = String(parseFloat(options.quotedPrice) || 0);
+        await tx.insert(quotes).values({
+          contractorId: contractorUserId,
+          caseId: caseItem.id,
+          orgId: caseItem.orgId || undefined,
+          propertyId: caseItem.propertyId || undefined,
+          title: caseItem.title || 'Quote',
+          status: 'sent',
+          subtotal: priceStr,
+          total: priceStr,
+          sentAt: new Date(),
+          availableStartDate: options?.availableStartDate ? new Date(options.availableStartDate) : undefined,
+          availableEndDate: options?.availableEndDate ? new Date(options.availableEndDate) : undefined,
+          estimatedDays: options?.estimatedDays || undefined,
+        });
+      }
+      
+      // Create/update contractor-org link
+      if (caseItem.orgId) {
+        const existingLink = await tx.query.contractorOrgLinks.findFirst({
+          where: and(
+            eq(contractorOrgLinks.contractorUserId, contractorUserId),
+            eq(contractorOrgLinks.orgId, caseItem.orgId)
+          ),
+        });
+        
+        if (existingLink) {
+          await tx.update(contractorOrgLinks)
+            .set({ 
+              lastJobAt: new Date(),
+              status: 'active',
+              totalJobsCompleted: existingLink.totalJobsCompleted + 1
+            })
+            .where(eq(contractorOrgLinks.id, existingLink.id));
+        } else {
+          await tx.insert(contractorOrgLinks).values({
+            contractorUserId,
+            orgId: caseItem.orgId,
+            status: 'active',
+            lastJobAt: new Date(),
+            totalJobsCompleted: 1,
+          });
+        }
+      }
+      
+      return caseItem;
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error accepting case:', error);
+    if (error.message?.includes('already assigned')) {
+      return { success: false, error: 'This case was just accepted by another contractor' };
+    }
+    return { success: false, error: 'Failed to accept case' };
+  }
+}

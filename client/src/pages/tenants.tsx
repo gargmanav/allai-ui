@@ -1,0 +1,1191 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import Sidebar from "@/components/layout/sidebar";
+import Header from "@/components/layout/header";
+import TenantForm from "@/components/forms/tenant-form";
+import LeaseForm from "@/components/forms/lease-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Users, Plus, Mail, Phone, User, FileText, DollarSign, Calendar, AlertTriangle, Archive, Edit, RotateCcw, Trash2 } from "lucide-react";
+import type { TenantGroup, Property, OwnershipEntity, Lease, Unit, InsertLease } from "@shared/schema";
+
+export default function Tenants() {
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showTenantForm, setShowTenantForm] = useState(false);
+  const [showLeaseForm, setShowLeaseForm] = useState(false);
+  const [selectedTenantGroup, setSelectedTenantGroup] = useState<TenantGroup | null>(null);
+  const [selectedLease, setSelectedLease] = useState<Lease | null>(null);
+  const [isRenewalMode, setIsRenewalMode] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<TenantGroup | null>(null);
+  const [editingTenantData, setEditingTenantData] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [entityFilter, setEntityFilter] = useState<string>("all");
+  const [propertyFilter, setPropertyFilter] = useState<string>("all");
+  const [unitFilter, setUnitFilter] = useState<string[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState<string | null>(null);
+  const [showUnarchiveConfirm, setShowUnarchiveConfirm] = useState<string | null>(null);
+  const [showPermanentDeleteConfirm, setShowPermanentDeleteConfirm] = useState<string | null>(null);
+
+  // Helper function to determine tenant status
+  const getTenantStatus = (group: TenantGroup, groupLeases: Lease[]) => {
+    // First check if tenant is archived
+    if (group.status === "Archived") {
+      return "Archived";
+    }
+    
+    // Then check lease status
+    const activeLease = groupLeases.find(lease => lease.status === "Active");
+    if (activeLease) {
+      return "Current";
+    } else if (groupLeases.length > 0) {
+      return "Prior";
+    }
+    return "No Lease";
+  };
+
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, isLoading, toast]);
+
+  const { data: tenantGroups, isLoading: tenantsLoading, error } = useQuery<TenantGroup[]>({
+    queryKey: ["/api/tenants"],
+    retry: false,
+  });
+
+  const { data: properties } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+    retry: false,
+  });
+
+  const { data: entities = [] } = useQuery<OwnershipEntity[]>({
+    queryKey: ["/api/entities"],
+    retry: false,
+  });
+
+  const { data: leases = [] } = useQuery<Lease[]>({
+    queryKey: ["/api/leases"],
+    retry: false,
+  });
+
+  const { data: units = [] } = useQuery<Unit[]>({
+    queryKey: ["/api/units"],
+    retry: false,
+  });
+
+  // Query for checking tenant relationships before delete
+  const { data: tenantRelationships, refetch: checkTenantRelationships } = useQuery({
+    queryKey: ["/api/tenants", "relationship-count", showPermanentDeleteConfirm],
+    queryFn: async () => {
+      if (!showPermanentDeleteConfirm) return null;
+      const response = await apiRequest("GET", `/api/tenants/${showPermanentDeleteConfirm}/relationship-count`);
+      return response.json();
+    },
+    enabled: false, // Only run when manually triggered
+    retry: false,
+  });
+
+  const createTenantMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/tenants", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      setShowTenantForm(false);
+      toast({
+        title: "Success",
+        description: "Tenant created successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTenantMutation = useMutation({
+    mutationFn: async ({ groupId, data }: { groupId: string; data: any }) => {
+      const response = await apiRequest("PUT", `/api/tenants/${groupId}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      setEditingTenant(null);
+      setEditingTenantData(null);
+      setShowTenantForm(false);
+      toast({
+        title: "Success",
+        description: "Tenant updated successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveTenantMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const response = await apiRequest("DELETE", `/api/tenants/${groupId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leases"] });
+      setShowDeleteConfirm(null);
+      toast({
+        title: "Success",
+        description: "Tenant archived successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to archive tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveIndividualTenantMutation = useMutation({
+    mutationFn: async (tenantId: string) => {
+      const response = await apiRequest("PATCH", `/api/tenants/${tenantId}/archive`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      setShowArchiveConfirm(null);
+      toast({
+        title: "Success",
+        description: "Tenant archived successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to archive tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unarchiveIndividualTenantMutation = useMutation({
+    mutationFn: async (tenantId: string) => {
+      const response = await apiRequest("PATCH", `/api/tenants/${tenantId}/unarchive`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      setShowUnarchiveConfirm(null);
+      toast({
+        title: "Success",
+        description: "Tenant unarchived successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to unarchive tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const permanentDeleteTenantMutation = useMutation({
+    mutationFn: async (tenantId: string) => {
+      const response = await apiRequest("DELETE", `/api/tenants/${tenantId}/permanent`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leases"] });
+      setShowPermanentDeleteConfirm(null);
+      toast({
+        title: "Success",
+        description: "Tenant deleted permanently",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      // Check if this is a relationship error
+      const errorText = error?.toString() || '';
+      if (errorText.includes('has relationships')) {
+        toast({
+          title: "Cannot Delete Tenant",
+          description: "This tenant has lease or transaction history. Please archive instead of deleting.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete tenant",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const createLeaseMutation = useMutation({
+    mutationFn: async (data: InsertLease) => {
+      const response = await apiRequest("POST", "/api/leases", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      setShowLeaseForm(false);
+      setSelectedTenantGroup(null);
+      setSelectedLease(null);
+      setIsRenewalMode(false);
+      toast({
+        title: "Success",
+        description: "Lease created successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create lease",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLeaseMutation = useMutation({
+    mutationFn: async ({ leaseId, data }: { leaseId: string; data: Partial<InsertLease> }) => {
+      const response = await apiRequest("PUT", `/api/leases/${leaseId}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] }); // Invalidate for rent changes
+      setShowLeaseForm(false);
+      setSelectedTenantGroup(null);
+      setSelectedLease(null);
+      setIsRenewalMode(false);
+      toast({
+        title: "Success",
+        description: "Lease updated successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update lease",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (isLoading || !isAuthenticated) {
+    return null;
+  }
+
+  if (error && isUnauthorizedError(error as Error)) {
+    return null;
+  }
+
+  const filteredProperties = properties || [];
+  
+  const filteredTenantGroups = tenantGroups?.filter(group => {
+    // Filter by archive status
+    const groupLeases = leases.filter(lease => lease.tenantGroupId === group.id);
+    const tenantStatus = getTenantStatus(group, groupLeases);
+    const archiveMatch = showArchived ? tenantStatus === "Archived" : tenantStatus !== "Archived";
+    
+    // Filter by property
+    const propertyMatch = propertyFilter === "all" || group.propertyId === propertyFilter;
+    
+    // Filter by unit - only apply unit filter if some units are selected
+    const unitMatch = unitFilter.length === 0 || (() => {
+      // Use already filtered groupLeases
+      const groupUnitIds = groupLeases.map(lease => lease.unitId);
+      
+      // Check if any of the group's units match the filter
+      return groupUnitIds.some(unitId => unitFilter.includes(unitId)) ||
+        (unitFilter.includes("common") && groupUnitIds.length === 0);
+    })();
+    
+    // Filter by entity (via property)
+    if (entityFilter !== "all") {
+      const property = properties?.find(p => p.id === group.propertyId);
+      // For now, we'll skip entity filtering since we need property-entity relationships
+      // This will be enhanced when we have the full property ownership data
+    }
+    
+    return archiveMatch && propertyMatch && unitMatch;
+  }) || [];
+
+  return (
+    <div className="flex h-screen bg-background" data-testid="page-tenants">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Tenants" />
+        
+        <main className="flex-1 overflow-auto p-6 bg-muted/30">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Tenants</h1>
+              <p className="text-muted-foreground">Manage your tenant relationships</p>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {/* Archive Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="show-archived-tenants"
+                  checked={showArchived}
+                  onCheckedChange={setShowArchived}
+                  data-testid="toggle-view-archived-tenants"
+                />
+                <Label htmlFor="show-archived-tenants" className="text-sm">
+                  View Archived ({showArchived ? 'Shown' : 'Hidden'})
+                </Label>
+              </div>
+
+              {/* Entity Filter */}
+              <Select value={entityFilter} onValueChange={(value) => {
+                setEntityFilter(value);
+                if (value !== "all") {
+                  setPropertyFilter("all");
+                }
+              }}>
+                <SelectTrigger className="w-44" data-testid="select-entity-filter">
+                  <SelectValue placeholder="All Entities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Entities</SelectItem>
+                  {entities.map((entity) => (
+                    <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Property Filter */}
+              <Select value={propertyFilter} onValueChange={(value) => {
+                setPropertyFilter(value);
+                setUnitFilter([]); // Reset unit filter when property changes
+              }}>
+                <SelectTrigger className="w-52" data-testid="select-property-filter">
+                  <SelectValue placeholder="All Properties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Properties</SelectItem>
+                  {(properties || []).map((property) => (
+                    <SelectItem key={property.id} value={property.id}>
+                      {property.name || `${property.street}, ${property.city}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Unit Selection - only show for buildings with multiple units */}
+              {propertyFilter !== "all" && (() => {
+                const selectedProperty = properties?.find(p => p.id === propertyFilter);
+                const propertyUnits = units.filter(unit => unit.propertyId === propertyFilter);
+                const isBuilding = propertyUnits.length > 1;
+                
+                if (!isBuilding) return null;
+
+                const handleUnitToggle = (unitId: string) => {
+                  const newFilter = [...unitFilter];
+                  if (newFilter.includes(unitId)) {
+                    setUnitFilter(newFilter.filter(id => id !== unitId));
+                  } else {
+                    setUnitFilter([...newFilter, unitId]);
+                  }
+                };
+                
+                return (
+                  <div className="flex flex-col space-y-2 p-3 border rounded-md bg-muted/30">
+                    <span className="text-sm font-medium">Units (Optional - leave empty to apply to entire building)</span>
+                    <div className="grid grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={unitFilter.includes("common")}
+                          onChange={() => handleUnitToggle("common")}
+                          className="rounded border-gray-300"
+                          data-testid="checkbox-common-area"
+                        />
+                        <span className="text-sm">Common Area</span>
+                      </label>
+                      {propertyUnits.map((unit) => (
+                        <label key={unit.id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={unitFilter.includes(unit.id)}
+                            onChange={() => handleUnitToggle(unit.id)}
+                            className="rounded border-gray-300"
+                            data-testid={`checkbox-unit-${unit.id}`}
+                          />
+                          <span className="text-sm">{unit.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <Dialog open={showTenantForm} onOpenChange={(open) => {
+                setShowTenantForm(open);
+                if (!open) {
+                  setEditingTenant(null);
+                  setEditingTenantData(null);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-tenant" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Tenant
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{editingTenant ? "Edit Tenant" : "Add New Tenant"}</DialogTitle>
+                  </DialogHeader>
+                  <TenantForm 
+                    initialData={editingTenantData || undefined}
+                    onSubmit={(data) => {
+                      if (editingTenant) {
+                        updateTenantMutation.mutate({ groupId: editingTenant.id, data });
+                      } else {
+                        createTenantMutation.mutate(data);
+                      }
+                    }}
+                    onCancel={() => {
+                      setShowTenantForm(false);
+                      setEditingTenant(null);
+                      setEditingTenantData(null);
+                    }}
+                    isLoading={createTenantMutation.isPending || updateTenantMutation.isPending}
+                  />
+                </DialogContent>
+              </Dialog>
+
+              {/* Lease Management Dialog */}
+              <Dialog open={showLeaseForm} onOpenChange={setShowLeaseForm}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Lease Management</DialogTitle>
+                  </DialogHeader>
+                  {selectedTenantGroup && (
+                    <LeaseForm
+                      tenantGroup={selectedTenantGroup}
+                      units={units}
+                      properties={properties}
+                      existingLease={selectedLease || undefined}
+                      isRenewal={isRenewalMode}
+                      onSubmit={(data) => {
+                        if (isRenewalMode) {
+                          // For renewal, create a new lease with updated dates and rent
+                          const renewalData = {
+                            ...data,
+                            // Set start date as day after current lease ends
+                            startDate: selectedLease?.endDate ? new Date(new Date(selectedLease.endDate).getTime() + 24 * 60 * 60 * 1000) : data.startDate,
+                          };
+                          createLeaseMutation.mutate(renewalData);
+                        } else if (selectedLease && !isRenewalMode) {
+                          // For editing existing lease, use PUT request
+                          updateLeaseMutation.mutate({
+                            leaseId: selectedLease.id,
+                            data: data
+                          });
+                        } else {
+                          // For creating new lease, use POST request
+                          createLeaseMutation.mutate(data);
+                        }
+                      }}
+                      onCancel={() => {
+                        setShowLeaseForm(false);
+                        setSelectedTenantGroup(null);
+                        setSelectedLease(null);
+                        setIsRenewalMode(false);
+                      }}
+                      isLoading={createLeaseMutation.isPending || updateLeaseMutation.isPending}
+                    />
+                  )}
+                </DialogContent>
+              </Dialog>
+
+              {/* Archive Confirmation Dialog */}
+              <Dialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Archive Tenant</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Archive this tenant? This will:
+                    </p>
+                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                      <li>Mark tenant as "Archived" - they won't show in active lists</li>
+                      <li>Preserve all historical data and lease information</li>
+                      <li>Allow you to view their information in archived tenant reports</li>
+                    </ul>
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        💡 <strong>Tip:</strong> Use this when tenants move out to keep historical records while cleaning up your active tenant list.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowDeleteConfirm(null)}
+                        disabled={archiveTenantMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => {
+                          if (showDeleteConfirm) {
+                            archiveTenantMutation.mutate(showDeleteConfirm);
+                          }
+                        }}
+                        disabled={archiveTenantMutation.isPending}
+                      >
+                        <Archive className="h-4 w-4 mr-2" />
+                        {archiveTenantMutation.isPending ? "Archiving..." : "Archive Tenant"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Individual Tenant Archive Confirmation Dialog */}
+              <Dialog open={!!showArchiveConfirm} onOpenChange={() => setShowArchiveConfirm(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Archive Tenant</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Archive this tenant? This will:
+                    </p>
+                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                      <li>Mark tenant as "Archived" - they won't show in active lists</li>
+                      <li>Preserve all lease and transaction history</li>
+                      <li>Allow you to view their information in archived tenant reports</li>
+                    </ul>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        💡 <strong>Tip:</strong> Use this when tenants move out to keep historical records while cleaning up your active tenant list.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowArchiveConfirm(null)}
+                        disabled={archiveIndividualTenantMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => {
+                          if (showArchiveConfirm) {
+                            archiveIndividualTenantMutation.mutate(showArchiveConfirm);
+                          }
+                        }}
+                        disabled={archiveIndividualTenantMutation.isPending}
+                        data-testid="button-confirm-archive-tenant"
+                      >
+                        <Archive className="h-4 w-4 mr-2" />
+                        {archiveIndividualTenantMutation.isPending ? "Archiving..." : "Archive Tenant"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Individual Tenant Unarchive Confirmation Dialog */}
+              <Dialog open={!!showUnarchiveConfirm} onOpenChange={() => setShowUnarchiveConfirm(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Unarchive Tenant</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Unarchive this tenant? This will:
+                    </p>
+                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                      <li>Mark tenant as "Active" - they will show in active tenant lists</li>
+                      <li>Restore access to all lease management features</li>
+                      <li>Include them in active tenant reports and dashboards</li>
+                    </ul>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                      <p className="text-sm text-green-800 dark:text-green-200">
+                        ✅ <strong>Tip:</strong> Use this to reactivate a tenant you want to manage again.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowUnarchiveConfirm(null)}
+                        disabled={unarchiveIndividualTenantMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        onClick={() => {
+                          if (showUnarchiveConfirm) {
+                            unarchiveIndividualTenantMutation.mutate(showUnarchiveConfirm);
+                          }
+                        }}
+                        disabled={unarchiveIndividualTenantMutation.isPending}
+                        data-testid="button-confirm-unarchive-tenant"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        {unarchiveIndividualTenantMutation.isPending ? "Unarchiving..." : "Unarchive Tenant"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Individual Tenant Permanent Delete Confirmation Dialog */}
+              <Dialog open={!!showPermanentDeleteConfirm} onOpenChange={() => setShowPermanentDeleteConfirm(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Permanently Delete Tenant</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                      <p className="text-sm text-red-800 dark:text-red-200">
+                        ⚠️ <strong>Warning:</strong> This permanently deletes the tenant and cannot be undone.
+                      </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      This will permanently remove the tenant if they have no:
+                    </p>
+                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                      <li>Active or historical leases</li>
+                      <li>Associated transaction records</li>
+                      <li>Any financial or legal history</li>
+                    </ul>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        💡 <strong>Recommended:</strong> Use "Archive" instead to preserve historical records while hiding from active lists.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowPermanentDeleteConfirm(null)}
+                        disabled={permanentDeleteTenantMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => {
+                          if (showPermanentDeleteConfirm) {
+                            permanentDeleteTenantMutation.mutate(showPermanentDeleteConfirm);
+                          }
+                        }}
+                        disabled={permanentDeleteTenantMutation.isPending}
+                        data-testid="button-confirm-delete-tenant"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {permanentDeleteTenantMutation.isPending ? "Deleting..." : "Delete Permanently"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          {tenantsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} data-testid={`skeleton-tenant-${i}`}>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div className="h-6 bg-muted animate-pulse rounded" />
+                      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                      <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (filteredTenantGroups && filteredTenantGroups.length > 0) ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTenantGroups.map((group, index) => {
+              const groupLeases = leases.filter(lease => lease.tenantGroupId === group.id);
+              const activeLease = groupLeases
+                .filter(lease => lease.status === "Active")
+                .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())[0];
+              const isLeaseEndingSoon = (endDate: string | Date | null) => {
+                if (!endDate) return false;
+                const daysUntilEnd = Math.ceil((new Date(endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                return daysUntilEnd <= 90 && daysUntilEnd > 0;
+              };
+              
+              return (
+                <Card key={group.id} className="hover:shadow-md transition-shadow rounded-2xl overflow-hidden" data-testid={`card-tenant-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-emerald-100/60 rounded-lg flex items-center justify-center">
+                          <Users className="h-6 w-6 text-emerald-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg" data-testid={`text-tenant-name-${index}`}>{group.name}</CardTitle>
+                          <Badge 
+                            variant={
+                              getTenantStatus(group, groupLeases) === "Current" ? "default" :
+                              getTenantStatus(group, groupLeases) === "Archived" ? "destructive" : "secondary"
+                            } 
+                            className={
+                              getTenantStatus(group, groupLeases) === "Current" ? "bg-green-100 text-green-800" :
+                              getTenantStatus(group, groupLeases) === "Archived" ? "bg-gray-100 text-gray-600" : ""
+                            }
+                            data-testid={`badge-tenant-status-${index}`}
+                          >
+                            {getTenantStatus(group, groupLeases)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="text-sm text-muted-foreground">
+                        {group.propertyId && (
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-blue-600 font-medium">Property:</span>
+                            <span data-testid={`text-tenant-property-${index}`}>
+                              {(() => {
+                                const property = properties?.find(p => p.id === group.propertyId);
+                                return property ? (property.name || `${property.street}, ${property.city}`) : 'Property';
+                              })()}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Lease Information */}
+                        {activeLease ? (
+                          <>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-green-600" />
+                              <span data-testid={`text-lease-rent-${index}`}>
+                                ${activeLease.rent}/month
+                              </span>
+                              {isLeaseEndingSoon(activeLease.endDate) && (
+                                <Badge variant="destructive" className="ml-2">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Expiring Soon
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Calendar className="h-4 w-4" />
+                              <span data-testid={`text-lease-dates-${index}`}>
+                                {activeLease.startDate ? new Date(activeLease.startDate).toLocaleDateString() : 'N/A'} - {activeLease.endDate ? new Date(activeLease.endDate).toLocaleDateString() : 'N/A'}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 mb-2">
+                              <FileText className="h-4 w-4" />
+                              <span data-testid={`text-lease-status-${index}`}>
+                                Lease: {activeLease.status}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center space-x-2 mb-2 text-orange-600">
+                            <AlertTriangle className="h-4 w-4" />
+                            <span data-testid={`text-no-lease-${index}`}>No Active Lease</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center space-x-2 mb-2">
+                          <User className="h-4 w-4" />
+                          <span data-testid={`text-tenant-type-${index}`}>Tenant Group</span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-muted-foreground" data-testid={`text-tenant-created-${index}`}>
+                        Added {group.createdAt ? new Date(group.createdAt).toLocaleDateString() : 'Unknown'}
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {group.status === "Archived" ? (
+                        // For archived tenants: show edit, unarchive, and delete options
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-0" 
+                            onClick={() => {
+                              setEditingTenant(group);
+                              setShowTenantForm(true);
+                            }}
+                            data-testid={`button-edit-archived-tenant-${index}`}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            View/Edit
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="px-3" 
+                            onClick={() => setShowUnarchiveConfirm(group.id)}
+                            data-testid={`button-unarchive-tenant-${index}`}
+                            disabled={unarchiveIndividualTenantMutation.isPending}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="px-3" 
+                            onClick={async () => {
+                              try {
+                                // Preflight check: verify tenant can be deleted
+                                const response = await apiRequest("GET", `/api/tenants/${group.id}/relationship-count`);
+                                const relationshipData = await response.json();
+                                
+                                if (relationshipData.count > 0) {
+                                  // Show blocking message instead of delete dialog
+                                  toast({
+                                    title: "Cannot Delete Tenant",
+                                    description: `This tenant has ${relationshipData.count} relationship${relationshipData.count === 1 ? '' : 's'} (leases, transactions). Please archive instead of deleting.`,
+                                    variant: "destructive",
+                                  });
+                                } else {
+                                  // Safe to delete - show confirmation dialog
+                                  setShowPermanentDeleteConfirm(group.id);
+                                }
+                              } catch (error) {
+                                console.error("Error checking tenant relationships:", error);
+                                toast({
+                                  title: "Error",
+                                  description: "Could not verify tenant relationships. Please try again.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            data-testid={`button-delete-tenant-${index}`}
+                            disabled={permanentDeleteTenantMutation.isPending}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : activeLease ? (
+                        // For tenants with active leases
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-[110px]" 
+                            onClick={() => {
+                              setSelectedTenantGroup(group);
+                              setSelectedLease(activeLease);
+                              setShowLeaseForm(true);
+                            }}
+                            data-testid={`button-view-lease-${index}`}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Manage Lease
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-[80px]" 
+                            onClick={() => {
+                              setSelectedTenantGroup(group);
+                              setSelectedLease(activeLease);
+                              setIsRenewalMode(true);
+                              setShowLeaseForm(true);
+                            }}
+                            data-testid={`button-renew-lease-${index}`}
+                          >
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Renew
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-[70px]" 
+                            onClick={async () => {
+                              try {
+                                // Fetch the tenants for this group
+                                const response = await apiRequest("GET", `/api/tenants/${group.id}/members`);
+                                const groupTenants = await response.json();
+                                
+                                // Structure the data for the form
+                                const formData = {
+                                  tenantGroup: {
+                                    name: group.name,
+                                    propertyId: group.propertyId || "",
+                                    unitId: ""
+                                  },
+                                  tenants: groupTenants.length > 0 ? groupTenants : [{
+                                    firstName: "",
+                                    lastName: "",
+                                    email: "",
+                                    phone: "",
+                                    emergencyContact: "",
+                                    emergencyPhone: "",
+                                    notes: ""
+                                  }]
+                                };
+                                
+                                setEditingTenant(group);
+                                setEditingTenantData(formData);
+                                setShowTenantForm(true);
+                              } catch (error) {
+                                console.error("Error fetching tenant data:", error);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to load tenant data",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            data-testid={`button-edit-tenant-${index}`}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-[80px]" 
+                            onClick={() => setShowArchiveConfirm(group.id)}
+                            data-testid={`button-archive-tenant-${index}`}
+                            disabled={archiveIndividualTenantMutation.isPending}
+                          >
+                            <Archive className="h-3 w-3 mr-1" />
+                            Archive
+                          </Button>
+                        </>
+                      ) : (
+                        // For tenants without leases
+                        <>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="flex-1 min-w-[100px]" 
+                            onClick={() => {
+                              setSelectedTenantGroup(group);
+                              setShowLeaseForm(true);
+                            }}
+                            data-testid={`button-create-lease-${index}`}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Create Lease
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-[70px]" 
+                            onClick={async () => {
+                              try {
+                                // Fetch the tenants for this group
+                                const response = await apiRequest("GET", `/api/tenants/${group.id}/members`);
+                                const groupTenants = await response.json();
+                                
+                                // Structure the data for the form
+                                const formData = {
+                                  tenantGroup: {
+                                    name: group.name,
+                                    propertyId: group.propertyId || "",
+                                    unitId: ""
+                                  },
+                                  tenants: groupTenants.length > 0 ? groupTenants : [{
+                                    firstName: "",
+                                    lastName: "",
+                                    email: "",
+                                    phone: "",
+                                    emergencyContact: "",
+                                    emergencyPhone: "",
+                                    notes: ""
+                                  }]
+                                };
+                                
+                                setEditingTenant(group);
+                                setEditingTenantData(formData);
+                                setShowTenantForm(true);
+                              } catch (error) {
+                                console.error("Error fetching tenant data:", error);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to load tenant data",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            data-testid={`button-edit-tenant-${index}`}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 min-w-[80px]" 
+                            onClick={() => setShowArchiveConfirm(group.id)}
+                            data-testid={`button-archive-tenant-${index}`}
+                            disabled={archiveIndividualTenantMutation.isPending}
+                          >
+                            <Archive className="h-3 w-3 mr-1" />
+                            Archive
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-tenants">No Tenants Yet</h3>
+                <p className="text-muted-foreground mb-4">Start managing tenant relationships by adding your first tenant.</p>
+                <Button onClick={() => setShowTenantForm(true)} data-testid="button-add-first-tenant" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Tenant
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

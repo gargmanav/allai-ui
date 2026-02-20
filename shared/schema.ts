@@ -1,0 +1,2013 @@
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  jsonb,
+  pgTable,
+  timestamp,
+  varchar,
+  text,
+  decimal,
+  integer,
+  boolean,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Session storage table (required for Replit Auth)
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// ============================================================================
+// MULTI-USER AUTHENTICATION & AUTHORIZATION SYSTEM
+// ============================================================================
+
+// User role enum
+export const userRoleEnum = pgEnum("user_role", ["platform_super_admin", "org_admin", "property_owner", "contractor", "tenant"]);
+
+// Membership status for invitations
+export const membershipStatusEnum = pgEnum("membership_status", ["invited", "active", "inactive"]);
+
+// Contractor specialty tiers (6-tier system)
+export const contractorSpecialtyTierEnum = pgEnum("contractor_specialty_tier", ["tier1", "tier2", "tier3", "tier4", "tier5", "tier6"]);
+
+// Verification types
+export const verificationTypeEnum = pgEnum("verification_type", ["email", "sms"]);
+export const verificationStatusEnum = pgEnum("verification_status", ["pending", "verified", "expired"]);
+
+// User storage table (enhanced for multi-user auth)
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  phone: varchar("phone"),
+  bio: text("bio"),
+  // Multi-user auth fields
+  isPlatformSuperAdmin: boolean("is_platform_super_admin").default(false),
+  primaryRole: userRoleEnum("primary_role"), // Main role for the user
+  emailVerified: boolean("email_verified").default(false),
+  phoneVerified: boolean("phone_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Contractor scheduling enums (declared early for organizations table)
+export const schedulingModeEnum = pgEnum("scheduling_mode", ["contractor_first", "mutual_availability"]);
+
+// Organization type enum - distinguishes landlords from property owners
+export const organizationTypeEnum = pgEnum("organization_type", ["landlord", "property_owner"]);
+
+// Organizations
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  ownerId: varchar("owner_id").notNull().references(() => users.id),
+  ownerType: organizationTypeEnum("owner_type").default("landlord"),
+  timezone: varchar("timezone").default("America/New_York"),
+  schedulingMode: schedulingModeEnum("scheduling_mode").default("contractor_first"),
+  defaultAccessApprovalHours: integer("default_access_approval_hours").default(24),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Organization members (enhanced with enum-backed roles and invitation status)
+export const organizationMembers = pgTable("organization_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  orgRole: userRoleEnum("org_role").notNull().default("org_admin"), // Role within this organization
+  membershipStatus: membershipStatusEnum("membership_status").default("active"),
+  invitedBy: varchar("invited_by").references(() => users.id),
+  invitedAt: timestamp("invited_at"),
+  joinedAt: timestamp("joined_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// CONTRACTOR SYSTEM (Global Marketplace)
+// ============================================================================
+
+// Contractor Specialties - Master list of all available specialties across 6 tiers
+export const contractorSpecialties = pgTable("contractor_specialties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(), // e.g., "Plumber", "HVAC Technician"
+  tier: contractorSpecialtyTierEnum("tier").notNull(), // tier1-6
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0), // Order within tier
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contractor Profiles - One profile per contractor user (one-to-one with users)
+export const contractorProfiles = pgTable("contractor_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id), // One-to-one
+  bio: text("bio"),
+  isAvailable: boolean("is_available").default(true),
+  emergencyAvailable: boolean("emergency_available").default(false),
+  maxJobsPerDay: integer("max_jobs_per_day").default(3),
+  responseTimeHours: integer("response_time_hours").default(24),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User Contractor Specialties - Junction table (many-to-many: users to specialties)
+export const userContractorSpecialties = pgTable("user_contractor_specialties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  specialtyId: varchar("specialty_id").notNull().references(() => contractorSpecialties.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contractor-Organization Links - Track which orgs contractors have worked with
+export const contractorOrgLinks = pgTable("contractor_org_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  status: varchar("status").default("active"), // active, inactive
+  lastJobAt: timestamp("last_job_at"),
+  totalJobsCompleted: integer("total_jobs_completed").default(0),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_contractor_org_links_unique").on(table.contractorUserId, table.orgId).where(sql`${table.status} = 'active'`),
+]);
+
+// Contractor Customers - Contractors manually manage their customer list
+export const contractorCustomers = pgTable("contractor_customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorId: varchar("contractor_id").notNull().references(() => users.id),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  companyName: varchar("company_name"),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  streetAddress: text("street_address"),
+  city: varchar("city"),
+  state: varchar("state"),
+  zipCode: varchar("zip_code"),
+  notes: text("notes"),
+  // Geocoding for map display
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  geocodedAt: timestamp("geocoded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============================================================================
+// QUOTE SYSTEM (Phase 1)
+// ============================================================================
+
+// Quote enums
+export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "awaiting_response", "approved", "declined", "expired", "cancelled"]);
+export const depositTypeEnum = pgEnum("deposit_type", ["none", "percent", "fixed"]);
+
+// Quotes - Contractor quotes sent to customers or landlords for work orders
+export const quotes = pgTable("quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorId: varchar("contractor_id").notNull().references(() => users.id),
+  customerId: varchar("customer_id").references(() => contractorCustomers.id), // Optional - for direct contractor customers
+  caseId: varchar("case_id").references(() => smartCases.id), // Link to work order for landlord proposals
+  orgId: varchar("org_id").references(() => organizations.id), // For landlord-facing quotes
+  propertyId: varchar("property_id").references(() => properties.id), // Optional link to AllAI properties
+  title: varchar("title").notNull(),
+  status: quoteStatusEnum("status").default("draft"),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
+  taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }).default("0"),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull().default("0"),
+  depositType: depositTypeEnum("deposit_type").default("none"),
+  depositValue: decimal("deposit_value", { precision: 10, scale: 2 }),
+  requiredDepositAmount: decimal("required_deposit_amount", { precision: 10, scale: 2 }).default("0"),
+  expiresAt: timestamp("expires_at"),
+  clientMessage: text("client_message"),
+  internalNotes: text("internal_notes"),
+  sentVia: varchar("sent_via"), // 'sms', 'email', 'link'
+  sentAt: timestamp("sent_at"),
+  approvedAt: timestamp("approved_at"),
+  declinedAt: timestamp("declined_at"),
+  approvalToken: varchar("approval_token"),
+  archivedAt: timestamp("archived_at"),
+  // Scheduling fields for work order proposals
+  availableStartDate: timestamp("available_start_date", { withTimezone: true }), // Earliest the contractor can start
+  availableEndDate: timestamp("available_end_date", { withTimezone: true }), // Latest they can start
+  estimatedDays: integer("estimated_days").default(1), // How many days the job will take
+  scopeOfWork: text("scope_of_work"), // Description of what's included
+  // Counter-proposal tracking
+  hasCounterProposal: boolean("has_counter_proposal").default(false),
+  counterProposalCount: integer("counter_proposal_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Quote Line Items - Individual items in a quote
+export const quoteLineItems = pgTable("quote_line_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1"),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  isOptional: boolean("is_optional").default(false),
+  isTaxable: boolean("is_taxable").default(true),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Quote Counter-Proposals - Landlord counter-proposals on contractor quotes
+export const quoteCounterProposalStatusEnum = pgEnum("quote_counter_proposal_status", ["pending", "accepted", "rejected", "expired"]);
+
+export const quoteCounterProposals = pgTable("quote_counter_proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
+  proposedBy: varchar("proposed_by").notNull().references(() => users.id), // Landlord or contractor
+  proposedByRole: varchar("proposed_by_role").notNull(), // "landlord" or "contractor"
+  
+  // Counter-proposal terms
+  proposedTotal: decimal("proposed_total", { precision: 10, scale: 2 }), // New price if different
+  proposedStartDate: timestamp("proposed_start_date", { withTimezone: true }), // New start date if different
+  proposedEndDate: timestamp("proposed_end_date", { withTimezone: true }), // New end date if different
+  scopeChanges: text("scope_changes"), // Description of scope changes
+  message: text("message"), // Explanation for the counter-proposal
+  
+  // Response tracking
+  status: quoteCounterProposalStatusEnum("status").default("pending"),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+  respondedBy: varchar("responded_by").references(() => users.id),
+  responseMessage: text("response_message"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Favorite Contractors - Landlords mark their preferred contractors
+export const favoriteContractors = pgTable("favorite_contractors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
+  addedBy: varchar("added_by").notNull().references(() => users.id), // Which admin added them
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// VERIFICATION & SESSION MANAGEMENT
+// ============================================================================
+
+// Verification Tokens - Email and SMS verification
+export const verificationTokens = pgTable("verification_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id), // Nullable for pre-registration verification
+  email: varchar("email"), // For email verification
+  phone: varchar("phone"), // For SMS verification
+  type: verificationTypeEnum("type").notNull(),
+  tokenHash: varchar("token_hash").notNull(), // Hashed token for security
+  status: verificationStatusEnum("status").default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User Sessions - Long-lived refresh tokens for "remember me"
+export const userSessions = pgTable("user_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  refreshTokenHash: varchar("refresh_token_hash").notNull().unique(), // Hashed refresh token
+  expiresAt: timestamp("expires_at"), // Nullable = indefinite (as requested)
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address"),
+  // Superadmin impersonation fields
+  viewAsOrgId: varchar("view_as_org_id").references(() => organizations.id),
+  viewAsOrgName: varchar("view_as_org_name"),
+  viewAsRole: varchar("view_as_role"),
+  viewAsUserId: varchar("view_as_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// SMS Opt-Outs - Track users who opted out of SMS notifications
+export const smsOptOuts = pgTable("sms_opt_outs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: varchar("phone").notNull().unique(),
+  userId: varchar("user_id").references(() => users.id), // Nullable if opt-out before user creation
+  reason: text("reason"),
+  optedOutAt: timestamp("opted_out_at").defaultNow(),
+});
+
+// ============================================================================
+// CONTRACTOR TEAM MANAGEMENT
+// ============================================================================
+
+// Contractor Team Members - Team members WITH their own login accounts
+export const contractorTeamMembers = pgTable("contractor_team_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadContractorUserId: varchar("lead_contractor_user_id").notNull().references(() => users.id),
+  memberUserId: varchar("member_user_id").notNull().references(() => users.id),
+  role: varchar("role"), // e.g., "Assistant", "Apprentice"
+  canManageJobs: boolean("can_manage_jobs").default(false),
+  isActive: boolean("is_active").default(true),
+  invitedAt: timestamp("invited_at"),
+  joinedAt: timestamp("joined_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contact Team Members - Team members WITHOUT login (contact info only)
+export const contactTeamMembers = pgTable("contact_team_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
+  name: varchar("name").notNull(),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  role: varchar("role"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ownership entities - Expanded to support both legacy and new types during migration
+export const ownershipEntityTypeEnum = pgEnum("ownership_entity_type", [
+  "LLC", "Individual", // Legacy types (will be migrated)
+  "Personal", "Joint", "LLC/Corp", "Trust" // New types
+]);
+
+// Tax-related enums
+export const scheduleECategoryEnum = pgEnum("schedule_e_category", [
+  "advertising", "auto_travel", "cleaning_maintenance", "commissions", 
+  "insurance", "legal_professional", "management_fees", "mortgage_interest", 
+  "other_interest", "repairs", "supplies", "taxes", "utilities", "depreciation", 
+  "other_expenses", "capital_improvements"
+]);
+
+export const vendorTypeEnum = pgEnum("vendor_type", ["individual", "corporation", "partnership", "llc"]);
+
+export const depreciationMethodEnum = pgEnum("depreciation_method", ["straight_line", "accelerated"]);
+
+export const assetTypeEnum = pgEnum("asset_type", ["building", "improvement", "equipment", "furniture"]);
+
+export const ownershipEntities = pgTable("ownership_entities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  type: ownershipEntityTypeEnum("type").notNull(),
+  name: varchar("name").notNull(),
+  state: varchar("state"),
+  ein: varchar("ein"),
+  registeredAgent: varchar("registered_agent"),
+  renewalMonth: integer("renewal_month"),
+  // License and permit tracking
+  licenseRenewalDate: timestamp("license_renewal_date"), // Business license renewal date
+  permitExpiryDate: timestamp("permit_expiry_date"), // Operating permit expiry date
+  notes: text("notes"),
+  // Archive status
+  status: varchar("status").default("Active").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Properties
+export const propertyTypeEnum = pgEnum("property_type", ["Single Family", "Condo", "Townhome", "Residential Building", "Commercial Unit", "Commercial Building"]);
+// Remove enum temporarily to avoid migration complexity
+// export const propertyStatusEnum = pgEnum("property_status", ["Active", "Archived"]);
+
+export const properties = pgTable("properties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(),
+  type: propertyTypeEnum("type").notNull(),
+  street: varchar("street").notNull(),
+  city: varchar("city").notNull(),
+  state: varchar("state").notNull(),
+  zipCode: varchar("zip_code").notNull(),
+  country: varchar("country").default("US"),
+  yearBuilt: integer("year_built"),
+  sqft: integer("sqft"),
+  hoaName: varchar("hoa_name"),
+  hoaContact: varchar("hoa_contact"),
+  hoaFeeAmount: decimal("hoa_fee_amount", { precision: 10, scale: 2 }), // Monthly HOA fee
+  hoaFeeDueDay: integer("hoa_fee_due_day"), // Day of month HOA fee is due (1-31)
+  // Insurance tracking
+  insuranceExpiryDate: timestamp("insurance_expiry_date"), // When property insurance expires
+  insuranceCarrier: varchar("insurance_carrier"), // Insurance company name
+  insurancePolicyNumber: varchar("insurance_policy_number"),
+  // Property tax tracking
+  propertyTaxDueMonth: integer("property_tax_due_month"), // Month taxes are due (1-12)
+  propertyTaxDueDay: integer("property_tax_due_day"), // Day of month (1-31)
+  notes: text("notes"),
+  // Building-level equipment (for buildings only)
+  buildingHvacBrand: varchar("building_hvac_brand"),
+  buildingHvacModel: varchar("building_hvac_model"),
+  buildingHvacYear: integer("building_hvac_year"),
+  buildingHvacLifetime: integer("building_hvac_lifetime"), // years
+  buildingHvacReminder: boolean("building_hvac_reminder").default(false),
+  buildingHvacLocation: varchar("building_hvac_location"),
+  buildingWaterBrand: varchar("building_water_brand"),
+  buildingWaterModel: varchar("building_water_model"),
+  buildingWaterYear: integer("building_water_year"),
+  buildingWaterLifetime: integer("building_water_lifetime"), // years
+  buildingWaterReminder: boolean("building_water_reminder").default(false),
+  buildingWaterLocation: varchar("building_water_location"),
+  buildingWaterShutoff: varchar("building_water_shutoff"),
+  buildingElectricalPanel: varchar("building_electrical_panel"),
+  buildingEquipmentNotes: text("building_equipment_notes"),
+  // Property value tracking
+  propertyValue: decimal("property_value", { precision: 12, scale: 2 }), // Total building/property value
+  autoAppreciation: boolean("auto_appreciation").default(false), // Enable automatic yearly appreciation
+  appreciationRate: decimal("appreciation_rate", { precision: 4, scale: 2 }), // Annual appreciation percentage (e.g., 3.50 for 3.5%)
+  valueEntryDate: timestamp("value_entry_date"), // When the value was entered (to calculate yearly increases)
+  // Primary mortgage tracking
+  monthlyMortgage: decimal("monthly_mortgage", { precision: 10, scale: 2 }), // Monthly mortgage payment amount
+  interestRate: decimal("interest_rate", { precision: 5, scale: 3 }), // Annual interest rate percentage (e.g., 5.250 for 5.25%)
+  purchasePrice: decimal("purchase_price", { precision: 12, scale: 2 }), // Total purchase price of the property
+  downPayment: decimal("down_payment", { precision: 12, scale: 2 }), // Cash invested (down payment + closing costs)
+  acquisitionDate: timestamp("acquisition_date"), // Date property was acquired (for partial-year calculations)
+  mortgageStartDate: timestamp("mortgage_start_date"), // Date when mortgage payments should start being auto-generated
+  // Secondary mortgage tracking
+  monthlyMortgage2: decimal("monthly_mortgage_2", { precision: 10, scale: 2 }), // Second mortgage monthly payment amount
+  interestRate2: decimal("interest_rate_2", { precision: 5, scale: 3 }), // Second mortgage annual interest rate percentage
+  mortgageStartDate2: timestamp("mortgage_start_date_2"), // Date when second mortgage payments should start being auto-generated
+  // Property sale tracking
+  saleDate: timestamp("sale_date"), // Date property was sold (ends mortgage calculations)
+  salePrice: decimal("sale_price", { precision: 12, scale: 2 }), // Sale price of the property
+  // Archive status
+  status: varchar("status").default("Active").notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Property ownership (junction table for ownership splits)
+export const propertyOwnerships = pgTable("property_ownerships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id),
+  entityId: varchar("entity_id").notNull().references(() => ownershipEntities.id),
+  percent: decimal("percent", { precision: 5, scale: 2 }).notNull(),
+});
+
+// Units
+export const units = pgTable("units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id),
+  label: varchar("label").notNull(),
+  bedrooms: integer("bedrooms"),
+  bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
+  sqft: integer("sqft"),
+  floor: integer("floor"),
+  rentAmount: decimal("rent_amount", { precision: 10, scale: 2 }),
+  deposit: decimal("deposit", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  // Equipment tracking (all optional)
+  hvacBrand: varchar("hvac_brand"),
+  hvacModel: varchar("hvac_model"),
+  hvacYear: integer("hvac_year"),
+  hvacLifetime: integer("hvac_lifetime"), // years
+  hvacReminder: boolean("hvac_reminder").default(false),
+  waterHeaterBrand: varchar("water_heater_brand"),
+  waterHeaterModel: varchar("water_heater_model"),
+  waterHeaterYear: integer("water_heater_year"),
+  waterHeaterLifetime: integer("water_heater_lifetime"), // years
+  waterHeaterReminder: boolean("water_heater_reminder").default(false),
+  applianceNotes: text("appliance_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Custom appliances for units
+export const unitAppliances = pgTable("unit_appliances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").notNull().references(() => units.id),
+  name: varchar("name").notNull(), // e.g., "Refrigerator", "Dishwasher"
+  manufacturer: varchar("manufacturer"), // e.g., "GE", "Whirlpool"
+  model: varchar("model"),
+  year: integer("year"),
+  expectedLifetime: integer("expected_lifetime"), // years
+  alertBeforeExpiry: integer("alert_before_expiry"), // months before expected end of life
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tenant groups (for multiple tenants per unit)
+export const tenantGroups = pgTable("tenant_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  propertyId: varchar("property_id").references(() => properties.id),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  status: varchar("status").notNull().default("Active"), // Active, Former, Archived
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tenants
+export const tenants = pgTable("tenants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  groupId: varchar("group_id").references(() => tenantGroups.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  // Link to user account (nullable for staged migration - tenants invited but not yet verified)
+  userId: varchar("user_id").references(() => users.id),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
+  email: varchar("email").notNull(), // Now required for omnichannel
+  phone: varchar("phone").notNull(), // Now required for omnichannel
+  emergencyContact: varchar("emergency_contact"),
+  emergencyPhone: varchar("emergency_phone"),
+  notes: text("notes"),
+  // Invitation tracking
+  invitedAt: timestamp("invited_at"),
+  emailVerificationSent: boolean("email_verification_sent").default(false),
+  smsVerificationSent: boolean("sms_verification_sent").default(false),
+  // Archive status
+  status: varchar("status").default("Active").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Leases
+export const leaseStatusEnum = pgEnum("lease_status", ["Active", "Expired", "Terminated", "Pending"]);
+
+export const leases = pgTable("leases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").notNull().references(() => units.id),
+  tenantGroupId: varchar("tenant_group_id").notNull().references(() => tenantGroups.id),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  rent: decimal("rent", { precision: 10, scale: 2 }).notNull(),
+  deposit: decimal("deposit", { precision: 10, scale: 2 }),
+  dueDay: integer("due_day").default(1),
+  lateFeeRuleJson: jsonb("late_fee_rule_json"),
+  status: leaseStatusEnum("status").default("Active"),
+  // Renewal and reminder options
+  autoRenewEnabled: boolean("auto_renew_enabled").default(false),
+  expirationReminderMonths: integer("expiration_reminder_months").default(3), // Months before lease expires
+  renewalReminderEnabled: boolean("renewal_reminder_enabled").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Rent payments (specific tracking for lease payments)
+export const rentPayments = pgTable("rent_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leaseId: varchar("lease_id").notNull().references(() => leases.id),
+  transactionId: varchar("transaction_id").references(() => transactions.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentDate: timestamp("payment_date").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  isLate: boolean("is_late").default(false),
+  lateFee: decimal("late_fee", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Assets/Appliances
+export const assetCategoryEnum = pgEnum("asset_category", ["HVAC", "Boiler", "Water Heater", "Fridge", "Range/Oven", "Microwave", "Dishwasher", "Washer", "Dryer", "Disposal", "Smoke/CO", "Roof", "Windows", "Irrigation", "Sump Pump", "Panel", "Garage Door", "Security"]);
+
+export const assets = pgTable("assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").references(() => units.id),
+  propertyId: varchar("property_id").references(() => properties.id),
+  category: assetCategoryEnum("category").notNull(),
+  make: varchar("make"),
+  model: varchar("model"),
+  serial: varchar("serial"),
+  mfgYear: integer("mfg_year"),
+  installDate: timestamp("install_date"),
+  warrantyEnd: timestamp("warranty_end"),
+  lastServiceAt: timestamp("last_service_at"),
+  nextServiceAt: timestamp("next_service_at"),
+  photos: text("photos").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Asset extracts (AI vision results)
+export const assetExtracts = pgTable("asset_extracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assetId: varchar("asset_id").notNull().references(() => assets.id),
+  sourcePhotoUrl: varchar("source_photo_url").notNull(),
+  extractJson: jsonb("extract_json"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Maintenance templates
+export const maintenanceTemplates = pgTable("maintenance_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  category: assetCategoryEnum("category").notNull(),
+  name: varchar("name").notNull(),
+  cadenceDays: integer("cadence_days").notNull(),
+  defaultNotes: text("default_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Maintenance reminders
+export const maintenanceReminderStatusEnum = pgEnum("maintenance_reminder_status", ["Pending", "Completed", "Overdue"]);
+
+export const maintenanceReminders = pgTable("maintenance_reminders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assetId: varchar("asset_id").notNull().references(() => assets.id),
+  templateId: varchar("template_id").references(() => maintenanceTemplates.id),
+  dueAt: timestamp("due_at").notNull(),
+  status: maintenanceReminderStatusEnum("status").default("Pending"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Smart Cases
+export const caseStatusEnum = pgEnum("case_status", ["New", "In Review", "Scheduled", "In Progress", "On Hold", "Resolved", "Closed"]);
+export const casePriorityEnum = pgEnum("case_priority", ["Normal", "High", "Urgent"]);
+
+export const smartCases = pgTable("smart_cases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  propertyId: varchar("property_id").references(() => properties.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  status: caseStatusEnum("status").default("New"),
+  priority: casePriorityEnum("priority").default("Normal"),
+  category: varchar("category"),
+  aiTriageJson: jsonb("ai_triage_json"),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  // Contractor assignment fields
+  assignedContractorId: varchar("assigned_contractor_id").references(() => vendors.id),
+  customerId: varchar("customer_id").references(() => contractorCustomers.id), // For contractor customer management
+  scheduledStartAt: timestamp("scheduled_start_at"),
+  scheduledEndAt: timestamp("scheduled_end_at"),
+  estimatedDuration: varchar("estimated_duration"),
+  // AI time suggestion fields
+  aiSuggestedTime: timestamp("ai_suggested_time"),
+  aiSuggestedDurationMinutes: integer("ai_suggested_duration_minutes"),
+  aiTimeConfidence: decimal("ai_time_confidence", { precision: 3, scale: 2 }), // 0-1 confidence score
+  aiReasoningNotes: text("ai_reasoning_notes"), // Why Maya suggested this time
+  triageConversationId: varchar("triage_conversation_id"),
+  reporterUserId: varchar("reporter_user_id").references(() => users.id),
+  // Job marketplace fields
+  restrictToFavorites: boolean("restrict_to_favorites").default(false), // Only show to favorite contractors
+  postedAt: timestamp("posted_at"), // When job was posted to marketplace
+  timeoutNotificationSent: boolean("timeout_notification_sent").default(false), // 4-hour timeout notification
+  isUrgent: boolean("is_urgent").default(false), // Emergency bypass for favorites restriction
+  priceTbd: boolean("price_tbd").default(false), // Price to be discussed - set when contractor accepts without quoting
+  quotedPrice: decimal("quoted_price", { precision: 10, scale: 2 }), // Quick price set during accept & quote flow
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Indexes for job marketplace performance
+  index("idx_smart_cases_org_status").on(table.orgId, table.status, table.priority, table.postedAt),
+  index("idx_smart_cases_marketplace").on(table.assignedContractorId, table.restrictToFavorites, table.postedAt).where(sql`${table.assignedContractorId} IS NULL`),
+]);
+
+// Job Offers - Specific job offers to individual contractors (placed after smartCases)
+export const jobOffers = pgTable("job_offers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
+  offeredBy: varchar("offered_by").notNull().references(() => users.id), // Admin who offered
+  status: varchar("status").default("pending"), // pending, accepted, declined, expired
+  expiresAt: timestamp("expires_at"),
+  respondedAt: timestamp("responded_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_job_offers_contractor").on(table.contractorUserId, table.status, table.expiresAt),
+]);
+
+// Case media
+export const caseMedia = pgTable("case_media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  url: varchar("url").notNull(),
+  type: varchar("type").notNull(), // image, video, document
+  caption: text("caption"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const caseMediaRelations = relations(caseMedia, ({ one }) => ({
+  case: one(smartCases, { fields: [caseMedia.caseId], references: [smartCases.id] }),
+}));
+
+// Case events
+export const caseEvents = pgTable("case_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  type: varchar("type").notNull(), // status_change, comment, cost_update, etc.
+  description: text("description").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Vendors
+export const vendors = pgTable("vendors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  userId: varchar("user_id").references(() => users.id), // For contractor user accounts
+  name: varchar("name").notNull(),
+  category: varchar("category"), // plumbing, electrical, hvac, etc.
+  phone: varchar("phone").notNull(), // Now required for omnichannel
+  email: varchar("email").notNull(), // Now required for omnichannel
+  address: text("address"),
+  rating: decimal("rating", { precision: 3, scale: 2 }),
+  notes: text("notes"),
+  isPreferred: boolean("is_preferred").default(false),
+  // Tax-related fields for 1099 tracking
+  vendorType: vendorTypeEnum("vendor_type").default("individual"),
+  w9OnFile: boolean("w9_on_file").default(false),
+  taxExempt: boolean("tax_exempt").default(false),
+  // Contractor-specific fields
+  isActiveContractor: boolean("is_active_contractor").default(false),
+  emergencyAvailable: boolean("emergency_available").default(false),
+  estimatedHourlyRate: decimal("estimated_hourly_rate", { precision: 10, scale: 2 }),
+  maxJobsPerDay: integer("max_jobs_per_day").default(3),
+  responseTimeHours: integer("response_time_hours").default(24),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// CAM Categories
+export const camCategories = pgTable("cam_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(),
+  code: varchar("code"),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contractor Availability (weekly schedule)
+export const contractorAvailability = pgTable("contractor_availability", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorId: varchar("contractor_id").notNull().references(() => vendors.id),
+  dayOfWeek: integer("day_of_week").notNull(), // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime: varchar("start_time").notNull(), // "09:00"
+  endTime: varchar("end_time").notNull(), // "17:00"
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contractor Blackouts (unavailable periods)
+export const contractorBlackouts = pgTable("contractor_blackouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorId: varchar("contractor_id").notNull().references(() => vendors.id),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  reason: varchar("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Appointments
+export const appointmentStatusEnum = pgEnum("appointment_status", ["Scheduled", "In Progress", "Completed", "Cancelled", "No Show"]);
+
+export const appointments = pgTable("appointments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  contractorId: varchar("contractor_id").notNull().references(() => vendors.id),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  title: text("title"),
+  scheduledStartAt: timestamp("scheduled_start_at", { withTimezone: true }).notNull(),
+  scheduledEndAt: timestamp("scheduled_end_at", { withTimezone: true }).notNull(),
+  actualStartAt: timestamp("actual_start_at", { withTimezone: true }),
+  actualEndAt: timestamp("actual_end_at", { withTimezone: true }),
+  status: appointmentStatusEnum("status").default("Scheduled"),
+  priority: varchar("priority").default("Normal"),
+  notes: text("notes"),
+  requiresTenantAccess: boolean("requires_tenant_access").default(false),
+  tenantApproved: boolean("tenant_approved").default(false),
+  tenantApprovedAt: timestamp("tenant_approved_at", { withTimezone: true }),
+  approvalToken: varchar("approval_token"),
+  approvalExpiresAt: timestamp("approval_expires_at"),
+  proposedBy: varchar("proposed_by").references(() => users.id),
+  googleCalendarEventId: varchar("google_calendar_event_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Proposed Appointment Slots (contractor proposes 3 time options for tenant to choose)
+export const proposedSlotStatusEnum = pgEnum("proposed_slot_status", ["Pending", "Selected", "Declined"]);
+
+export const proposedAppointmentSlots = pgTable("proposed_appointment_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  contractorId: varchar("contractor_id").notNull().references(() => vendors.id),
+  proposedStartAt: timestamp("proposed_start_at", { withTimezone: true }).notNull(),
+  proposedEndAt: timestamp("proposed_end_at", { withTimezone: true }).notNull(),
+  status: proposedSlotStatusEnum("status").default("Pending"),
+  notes: text("notes"),
+  slotOrder: integer("slot_order").default(1), // 1, 2, or 3 (which of the 3 slots)
+  declineReason: text("decline_reason"), // If tenant declined, why?
+  selectedAt: timestamp("selected_at", { withTimezone: true }), // When tenant chose this slot
+  createdAppointmentId: varchar("created_appointment_id").references(() => appointments.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// Reschedule Requests (for rescheduling existing appointments)
+export const rescheduleRequestStatusEnum = pgEnum("reschedule_request_status", ["Pending", "Accepted", "Declined", "Cancelled"]);
+
+export const rescheduleRequests = pgTable("reschedule_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  appointmentId: varchar("appointment_id").notNull().references(() => appointments.id),
+  requestedBy: varchar("requested_by").notNull().references(() => users.id), // Who initiated the reschedule
+  reason: text("reason"),
+  status: rescheduleRequestStatusEnum("status").default("Pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+// Reschedule Proposed Slots (3 time options for the reschedule)
+export const rescheduleProposedSlots = pgTable("reschedule_proposed_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rescheduleRequestId: varchar("reschedule_request_id").notNull().references(() => rescheduleRequests.id),
+  proposedStartAt: timestamp("proposed_start_at").notNull(),
+  proposedEndAt: timestamp("proposed_end_at").notNull(),
+  slotNumber: integer("slot_number").notNull(), // 1, 2, or 3
+  isSelected: boolean("is_selected").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Triage Conversations (AI chat sessions)
+export const triageConversations = pgTable("triage_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  propertyId: varchar("property_id").references(() => properties.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  status: varchar("status").default("active"), // active, completed, abandoned
+  caseCreated: boolean("case_created").default(false),
+  createdCaseId: varchar("created_case_id").references(() => smartCases.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Triage Messages
+export const triageMessages = pgTable("triage_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => triageConversations.id),
+  role: varchar("role").notNull(), // user, assistant, system
+  content: text("content").notNull(),
+  mediaUrls: text("media_urls").array(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Duration Learning Logs (AI learns from historical data)
+export const durationLearningLogs = pgTable("duration_learning_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  category: varchar("category").notNull(),
+  estimatedDuration: varchar("estimated_duration"),
+  actualDuration: integer("actual_duration"), // in minutes
+  accuracyScore: decimal("accuracy_score", { precision: 3, scale: 2 }),
+  contractorId: varchar("contractor_id").references(() => vendors.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Transactions
+export const transactionTypeEnum = pgEnum("transaction_type", ["Income", "Expense"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["Paid", "Unpaid", "Skipped", "Partial"]);
+
+export const transactions = pgTable("transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  propertyId: varchar("property_id").references(() => properties.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  entityId: varchar("entity_id").references(() => ownershipEntities.id), // For operational transactions
+  type: transactionTypeEnum("type").notNull(),
+  scope: varchar("scope").default("property"), // "property" or "operational"
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: varchar("description").notNull(),
+  category: varchar("category"),
+  date: timestamp("date").notNull(),
+  isDateRange: boolean("is_date_range").default(false), // For bulk date range entries
+  endDate: timestamp("end_date"), // End date for bulk entries
+  vendorId: varchar("vendor_id").references(() => vendors.id),
+  receiptUrl: varchar("receipt_url"),
+  notes: text("notes"),
+  isRecurring: boolean("is_recurring").default(false),
+  recurringFrequency: varchar("recurring_frequency"), // "days", "weeks", "months", "years"
+  recurringInterval: integer("recurring_interval").default(1), // Every X (frequency)
+  recurringEndDate: timestamp("recurring_end_date"),
+  taxDeductible: boolean("tax_deductible").default(true),
+  // Tax-related fields for Schedule E categorization
+  scheduleECategory: scheduleECategoryEnum("schedule_e_category"),
+  isCapitalizable: boolean("is_capitalizable").default(false), // Whether expense should be capitalized vs deducted
+  depreciationAssetId: varchar("depreciation_asset_id").references(() => depreciationAssets.id), // Link to depreciation asset if capitalized
+  taxYear: integer("tax_year"), // Override tax year (for year-end adjustments)
+  parentRecurringId: varchar("parent_recurring_id"), // Reference to the original transaction for recurring instances
+  isBulkEntry: boolean("is_bulk_entry").default(false), // For bulk expense entries
+  paymentStatus: paymentStatusEnum("payment_status").default("Paid"), // Payment tracking status
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }), // Amount actually paid for partial payments
+  // Multi-year amortization fields
+  isAmortized: boolean("is_amortized").notNull().default(false), // Whether expense is amortized over multiple years
+  amortizationYears: integer("amortization_years"), // Number of years to amortize over (2-40)
+  amortizationStartDate: timestamp("amortization_start_date"), // When amortization period begins
+  amortizationMethod: varchar("amortization_method").notNull().default("straight_line"), // Amortization calculation method
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Transaction Line Items (for split expenses)
+export const transactionLineItems = pgTable("transaction_line_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  transactionId: varchar("transaction_id").notNull().references(() => transactions.id),
+  category: varchar("category").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: varchar("description"),
+  taxDeductible: boolean("tax_deductible").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// CAM Entries
+export const camEntries = pgTable("cam_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id),
+  categoryId: varchar("category_id").notNull().references(() => camCategories.id),
+  transactionId: varchar("transaction_id").references(() => transactions.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  ytdEstimate: decimal("ytd_estimate", { precision: 10, scale: 2 }),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Reminders
+export const reminderScopeEnum = pgEnum("reminder_scope", ["entity", "property", "lease", "asset"]);
+export const reminderTypeEnum = pgEnum("reminder_type", ["rent", "lease", "regulatory", "maintenance", "custom", "mortgage", "insurance", "property_tax", "hoa", "permit"]);
+export const reminderChannelEnum = pgEnum("reminder_channel", ["inapp", "email", "sms", "push"]);
+export const reminderStatusEnum = pgEnum("reminder_status", ["Pending", "Overdue", "Completed", "Cancelled"]);
+
+export const reminders = pgTable("reminders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  scope: reminderScopeEnum("scope"),
+  scopeId: varchar("scope_id"),
+  entityId: varchar("entity_id").references(() => ownershipEntities.id),
+  title: varchar("title").notNull(),
+  type: reminderTypeEnum("type"),
+  dueAt: timestamp("due_at"),
+  leadDays: integer("lead_days").default(0),
+  channels: reminderChannelEnum("channels").array().default(sql`ARRAY['inapp']::reminder_channel[]`),
+  payloadJson: jsonb("payload_json"),
+  status: reminderStatusEnum("status"),
+  sentAt: timestamp("sent_at"),
+  completedAt: timestamp("completed_at"),
+  isRecurring: boolean("is_recurring").default(false),
+  recurringFrequency: varchar("recurring_frequency"), // "days", "weeks", "months", "years"
+  recurringInterval: integer("recurring_interval").default(1), // Every X (frequency)
+  recurringEndDate: timestamp("recurring_end_date"),
+  parentRecurringId: varchar("parent_recurring_id"), // Reference to the original reminder for recurring instances
+  isBulkEntry: boolean("is_bulk_entry").default(false), // For bulk reminder entries
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Regulatory rules
+export const regulatoryRules = pgTable("regulatory_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityId: varchar("entity_id").notNull().references(() => ownershipEntities.id),
+  name: varchar("name").notNull(),
+  cronText: varchar("cron_text"),
+  month: integer("month"),
+  day: integer("day"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  type: varchar("type").default("info"), // info, warning, error, success
+  isRead: boolean("is_read").default(false),
+  metadata: jsonb("metadata"),
+  targetRole: varchar("target_role"), // admin, contractor, tenant (for testing visibility)
+  targetName: varchar("target_name"), // Optional: specific person name (for testing)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Threads and Messages
+export const threadScopeEnum = pgEnum("thread_scope", ["unit", "case", "entity"]);
+
+export const threads = pgTable("threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  scope: threadScopeEnum("scope").notNull(),
+  scopeId: varchar("scope_id").notNull(),
+  title: varchar("title"),
+  isPrivate: boolean("is_private").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => threads.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  attachments: text("attachments").array(),
+  isInternal: boolean("is_internal").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Depreciation Assets (for tax depreciation tracking)
+export const depreciationAssets = pgTable("depreciation_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  propertyId: varchar("property_id").references(() => properties.id),
+  assetType: assetTypeEnum("asset_type").notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  // Cost basis information
+  originalCost: decimal("original_cost", { precision: 12, scale: 2 }).notNull(),
+  adjustedBasis: decimal("adjusted_basis", { precision: 12, scale: 2 }).notNull(),
+  // Depreciation parameters
+  inServiceDate: timestamp("in_service_date").notNull(),
+  recoveryPeriod: decimal("recovery_period", { precision: 4, scale: 1 }).notNull(), // 27.5, 39, etc.
+  depreciationMethod: depreciationMethodEnum("depreciation_method").notNull().default("straight_line"),
+  convention: varchar("convention").notNull().default("mid_month"), // mid_month, half_year, etc.
+  bonusDepreciationPercent: decimal("bonus_depreciation_percent", { precision: 5, scale: 2 }).default("0"),
+  section179Taken: decimal("section179_taken", { precision: 10, scale: 2 }).default("0"),
+  // Status tracking
+  isActive: boolean("is_active").default(true),
+  disposalDate: timestamp("disposal_date"),
+  disposalAmount: decimal("disposal_amount", { precision: 12, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Depreciation Schedules (yearly depreciation calculations)
+export const depreciationSchedules = pgTable("depreciation_schedules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assetId: varchar("asset_id").notNull().references(() => depreciationAssets.id),
+  taxYear: integer("tax_year").notNull(),
+  // Calculated depreciation amounts
+  currentYearDepreciation: decimal("current_year_depreciation", { precision: 10, scale: 2 }).notNull(),
+  accumulatedDepreciation: decimal("accumulated_depreciation", { precision: 12, scale: 2 }).notNull(),
+  remainingBasis: decimal("remaining_basis", { precision: 12, scale: 2 }).notNull(),
+  // Calculation metadata
+  calculationMethod: varchar("calculation_method").notNull(),
+  monthsInService: integer("months_in_service").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  organizations: many(organizations),
+  memberships: many(organizationMembers),
+  notifications: many(notifications),
+  messages: many(messages),
+}));
+
+export const organizationsRelations = relations(organizations, ({ one, many }) => ({
+  owner: one(users, { fields: [organizations.ownerId], references: [users.id] }),
+  members: many(organizationMembers),
+  entities: many(ownershipEntities),
+  properties: many(properties),
+  tenantGroups: many(tenantGroups),
+  smartCases: many(smartCases),
+  vendors: many(vendors),
+  camCategories: many(camCategories),
+  transactions: many(transactions),
+  reminders: many(reminders),
+  threads: many(threads),
+  depreciationAssets: many(depreciationAssets),
+}));
+
+export const propertiesRelations = relations(properties, ({ one, many }) => ({
+  organization: one(organizations, { fields: [properties.orgId], references: [organizations.id] }),
+  units: many(units),
+  ownerships: many(propertyOwnerships),
+  assets: many(assets),
+  smartCases: many(smartCases),
+  transactions: many(transactions),
+  camEntries: many(camEntries),
+  depreciationAssets: many(depreciationAssets),
+}));
+
+export const unitsRelations = relations(units, ({ one, many }) => ({
+  property: one(properties, { fields: [units.propertyId], references: [properties.id] }),
+  leases: many(leases),
+  assets: many(assets),
+  smartCases: many(smartCases),
+  transactions: many(transactions),
+}));
+
+export const leasesRelations = relations(leases, ({ one }) => ({
+  unit: one(units, { fields: [leases.unitId], references: [units.id] }),
+  tenantGroup: one(tenantGroups, { fields: [leases.tenantGroupId], references: [tenantGroups.id] }),
+}));
+
+export const tenantsRelations = relations(tenants, ({ one }) => ({
+  organization: one(organizations, { fields: [tenants.orgId], references: [organizations.id] }),
+  unit: one(units, { fields: [tenants.unitId], references: [units.id] }),
+  user: one(users, { fields: [tenants.userId], references: [users.id] }),
+  group: one(tenantGroups, { fields: [tenants.groupId], references: [tenantGroups.id] }),
+}));
+
+export const smartCasesRelations = relations(smartCases, ({ one, many }) => ({
+  organization: one(organizations, { fields: [smartCases.orgId], references: [organizations.id] }),
+  unit: one(units, { fields: [smartCases.unitId], references: [units.id] }),
+  property: one(properties, { fields: [smartCases.propertyId], references: [properties.id] }),
+  customer: one(contractorCustomers, { fields: [smartCases.customerId], references: [contractorCustomers.id] }),
+  media: many(caseMedia),
+  events: many(caseEvents),
+  quotes: many(quotes),
+}));
+
+// Quote relations
+export const quotesRelations = relations(quotes, ({ one, many }) => ({
+  contractor: one(users, { fields: [quotes.contractorId], references: [users.id] }),
+  customer: one(contractorCustomers, { fields: [quotes.customerId], references: [contractorCustomers.id] }),
+  case: one(smartCases, { fields: [quotes.caseId], references: [smartCases.id] }),
+  organization: one(organizations, { fields: [quotes.orgId], references: [organizations.id] }),
+  property: one(properties, { fields: [quotes.propertyId], references: [properties.id] }),
+  lineItems: many(quoteLineItems),
+  counterProposals: many(quoteCounterProposals),
+}));
+
+export const quoteLineItemsRelations = relations(quoteLineItems, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteLineItems.quoteId], references: [quotes.id] }),
+}));
+
+export const quoteCounterProposalsRelations = relations(quoteCounterProposals, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteCounterProposals.quoteId], references: [quotes.id] }),
+  proposer: one(users, { fields: [quoteCounterProposals.proposedBy], references: [users.id] }),
+  responder: one(users, { fields: [quoteCounterProposals.respondedBy], references: [users.id] }),
+}));
+
+// Depreciation table relations
+export const depreciationAssetsRelations = relations(depreciationAssets, ({ one, many }) => ({
+  organization: one(organizations, { fields: [depreciationAssets.orgId], references: [organizations.id] }),
+  property: one(properties, { fields: [depreciationAssets.propertyId], references: [properties.id] }),
+  schedules: many(depreciationSchedules),
+  transactions: many(transactions),
+}));
+
+export const depreciationSchedulesRelations = relations(depreciationSchedules, ({ one }) => ({
+  asset: one(depreciationAssets, { fields: [depreciationSchedules.assetId], references: [depreciationAssets.id] }),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  organization: one(organizations, { fields: [transactions.orgId], references: [organizations.id] }),
+  property: one(properties, { fields: [transactions.propertyId], references: [properties.id] }),
+  unit: one(units, { fields: [transactions.unitId], references: [units.id] }),
+  entity: one(ownershipEntities, { fields: [transactions.entityId], references: [ownershipEntities.id] }),
+  vendor: one(vendors, { fields: [transactions.vendorId], references: [vendors.id] }),
+  depreciationAsset: one(depreciationAssets, { fields: [transactions.depreciationAssetId], references: [depreciationAssets.id] }),
+}));
+
+// Insert schemas
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
+export const insertOwnershipEntitySchema = createInsertSchema(ownershipEntities).omit({ id: true, createdAt: true });
+export const insertPropertySchema = createInsertSchema(properties).omit({ id: true, createdAt: true });
+export const insertUnitSchema = createInsertSchema(units).omit({ id: true, createdAt: true }).extend({
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(), 
+  sqft: z.number().optional(),
+  floor: z.number().optional(),
+  rentAmount: z.string().optional(),
+  deposit: z.string().optional(),
+  hvacYear: z.number().optional(),
+  hvacLifetime: z.number().optional(),
+  waterHeaterYear: z.number().optional(),
+  waterHeaterLifetime: z.number().optional(),
+});
+export const insertTenantGroupSchema = createInsertSchema(tenantGroups).omit({ id: true, createdAt: true });
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
+export const insertLeaseSchema = createInsertSchema(leases).omit({ id: true, createdAt: true });
+export const insertAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true });
+export const insertSmartCaseSchema = createInsertSchema(smartCases).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true, createdAt: true });
+export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
+export const insertReminderSchema = createInsertSchema(reminders).omit({ id: true, createdAt: true, parentRecurringId: true }).extend({
+  dueAt: z.union([z.date(), z.string().transform((str) => new Date(str)), z.null()]),
+  isRecurring: z.boolean().optional().default(false),
+  recurringFrequency: z.enum(["days", "weeks", "months", "years"]).optional(),
+  recurringInterval: z.number().min(1).optional().default(1),
+  recurringEndDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+  isBulkEntry: z.boolean().optional().default(false),
+}).refine((data) => {
+  if (data.isRecurring && !data.recurringFrequency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Recurring frequency is required for recurring reminders",
+  path: ["recurringFrequency"],
+});
+// Line Item schemas
+export const insertTransactionLineItemSchema = createInsertSchema(transactionLineItems).omit({ id: true, createdAt: true });
+
+export const insertExpenseSchema = insertTransactionSchema.extend({
+  type: z.literal("Expense"),
+  isRecurring: z.boolean().default(false),
+  recurringFrequency: z.enum(["days", "weeks", "months", "years"]).optional(),
+  recurringInterval: z.number().min(1).default(1),
+  recurringEndDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+  // Explicitly include amortization fields to ensure they're not stripped
+  isAmortized: z.boolean().default(false),
+  amortizationYears: z.number().int().min(2).max(30).optional(),
+  amortizationStartDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+  amortizationMethod: z.enum(["straight_line"]).default("straight_line"),
+  taxDeductible: z.boolean().default(true),
+  // Tax categorization fields
+  scheduleECategory: z.enum(["advertising", "auto_travel", "cleaning_maintenance", "commissions", "insurance", "legal_professional", "management_fees", "mortgage_interest", "other_interest", "repairs", "supplies", "taxes", "utilities", "depreciation", "other_expenses", "capital_improvements"]).optional(),
+  isCapitalizable: z.boolean().default(false),
+  depreciationAssetId: z.string().optional(),
+  taxYear: z.number().int().optional(),
+  parentRecurringId: z.string().optional(),
+  scope: z.enum(["property", "operational"]).default("property"),
+  entityId: z.string().optional(),
+  isBulkEntry: z.boolean().default(false),
+  lineItems: z.array(insertTransactionLineItemSchema.omit({ transactionId: true })).optional(),
+}).refine((data) => {
+  if (data.isRecurring && !data.recurringFrequency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Recurring frequency is required for recurring expenses",
+  path: ["recurringFrequency"],
+}).refine((data) => {
+  if (data.scope === "operational" && !data.entityId) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Entity ID is required for operational expenses",
+  path: ["entityId"],
+});
+
+// Contractor-related insert schemas
+export const insertContractorAvailabilitySchema = createInsertSchema(contractorAvailability).omit({ id: true, createdAt: true });
+export const insertContractorBlackoutSchema = createInsertSchema(contractorBlackouts).omit({ id: true, createdAt: true });
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProposedAppointmentSlotSchema = createInsertSchema(proposedAppointmentSlots).omit({ id: true, createdAt: true });
+export const insertRescheduleRequestSchema = createInsertSchema(rescheduleRequests).omit({ id: true, createdAt: true });
+export const insertRescheduleProposedSlotSchema = createInsertSchema(rescheduleProposedSlots).omit({ id: true, createdAt: true });
+export const insertTriageConversationSchema = createInsertSchema(triageConversations).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTriageMessageSchema = createInsertSchema(triageMessages).omit({ id: true, createdAt: true });
+export const insertDurationLearningLogSchema = createInsertSchema(durationLearningLogs).omit({ id: true, createdAt: true });
+
+// Contractor availability update schema
+export const contractorAvailabilityUpdateSchema = z.object({
+  contractorId: z.string(),
+  availability: z.array(z.object({
+    dayOfWeek: z.number().min(0).max(6),
+    startTime: z.string(),
+    endTime: z.string(),
+    isActive: z.boolean().default(true),
+  })),
+});
+
+// Types
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type OwnershipEntity = typeof ownershipEntities.$inferSelect;
+export type InsertOwnershipEntity = z.infer<typeof insertOwnershipEntitySchema>;
+export type Property = typeof properties.$inferSelect;
+export type InsertProperty = z.infer<typeof insertPropertySchema>;
+export type Unit = typeof units.$inferSelect;
+export type InsertUnit = z.infer<typeof insertUnitSchema>;
+export type TenantGroup = typeof tenantGroups.$inferSelect;
+export type InsertTenantGroup = z.infer<typeof insertTenantGroupSchema>;
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type Lease = typeof leases.$inferSelect;
+export type InsertLease = z.infer<typeof insertLeaseSchema>;
+export type Asset = typeof assets.$inferSelect;
+export type InsertAsset = z.infer<typeof insertAssetSchema>;
+export type SmartCase = typeof smartCases.$inferSelect;
+export type InsertSmartCase = z.infer<typeof insertSmartCaseSchema>;
+export type Vendor = typeof vendors.$inferSelect;
+export type InsertVendor = z.infer<typeof insertVendorSchema>;
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type TransactionLineItem = typeof transactionLineItems.$inferSelect;
+export type InsertTransactionLineItem = z.infer<typeof insertTransactionLineItemSchema>;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Reminder = typeof reminders.$inferSelect;
+export type InsertReminder = z.infer<typeof insertReminderSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type RentPayment = typeof rentPayments.$inferSelect;
+export type InsertRentPayment = typeof rentPayments.$inferInsert;
+
+// Contractor-related types
+export type ContractorAvailability = typeof contractorAvailability.$inferSelect;
+export type InsertContractorAvailability = z.infer<typeof insertContractorAvailabilitySchema>;
+export type ContractorBlackout = typeof contractorBlackouts.$inferSelect;
+export type InsertContractorBlackout = z.infer<typeof insertContractorBlackoutSchema>;
+export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type ProposedAppointmentSlot = typeof proposedAppointmentSlots.$inferSelect;
+export type InsertProposedAppointmentSlot = z.infer<typeof insertProposedAppointmentSlotSchema>;
+export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
+export type InsertRescheduleRequest = z.infer<typeof insertRescheduleRequestSchema>;
+export type RescheduleProposedSlot = typeof rescheduleProposedSlots.$inferSelect;
+export type InsertRescheduleProposedSlot = z.infer<typeof insertRescheduleProposedSlotSchema>;
+export type TriageConversation = typeof triageConversations.$inferSelect;
+export type InsertTriageConversation = z.infer<typeof insertTriageConversationSchema>;
+export type TriageMessage = typeof triageMessages.$inferSelect;
+export type InsertTriageMessage = z.infer<typeof insertTriageMessageSchema>;
+export type DurationLearningLog = typeof durationLearningLogs.$inferSelect;
+export type InsertDurationLearningLog = z.infer<typeof insertDurationLearningLogSchema>;
+
+// Tax-related insert schemas
+export const insertDepreciationAssetSchema = createInsertSchema(depreciationAssets).omit({ id: true, createdAt: true }).extend({
+  inServiceDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  disposalDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+  originalCost: z.string().refine((val) => !isNaN(Number(val)), "Must be a valid number"),
+  adjustedBasis: z.string().refine((val) => !isNaN(Number(val)), "Must be a valid number"),
+  recoveryPeriod: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, "Must be a positive number"),
+});
+
+export const insertDepreciationScheduleSchema = createInsertSchema(depreciationSchedules).omit({ id: true, createdAt: true }).extend({
+  currentYearDepreciation: z.string().refine((val) => !isNaN(Number(val)), "Must be a valid number"),
+  accumulatedDepreciation: z.string().refine((val) => !isNaN(Number(val)), "Must be a valid number"),
+  remainingBasis: z.string().refine((val) => !isNaN(Number(val)), "Must be a valid number"),
+});
+
+// Tax-related types
+export type DepreciationAsset = typeof depreciationAssets.$inferSelect;
+export type InsertDepreciationAsset = z.infer<typeof insertDepreciationAssetSchema>;
+export type DepreciationSchedule = typeof depreciationSchedules.$inferSelect;
+export type InsertDepreciationSchedule = z.infer<typeof insertDepreciationScheduleSchema>;
+
+// ============================================================================
+// USER CATEGORIES & MESSAGING SYSTEM (Added for role switching & in-app messaging)
+// ============================================================================
+
+// User Categories - Dynamic role categories that admins can create
+export const userCategories = pgTable("user_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(), // e.g., "RNs", "MDs", "Fellows", "Residents", "ODs"
+  description: text("description"),
+  color: varchar("color").default("#0080FF"), // For UI display
+  icon: varchar("icon").default("Users"), // Lucide icon name
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User Category Members - Maps users to categories (many-to-many)
+export const userCategoryMembers = pgTable("user_category_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").notNull().references(() => userCategories.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  displayRole: varchar("display_role"), // Optional: specific role within category, e.g., "Senior RN", "Chief Resident"
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Message Threads - Conversation threads between users
+export const messageThreads = pgTable("message_threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  subject: varchar("subject"),
+  isDirect: boolean("is_direct").notNull().default(true),
+  lastMessageAt: timestamp("last_message_at"),
+  caseId: varchar("case_id").references(() => smartCases.id),
+  quoteId: varchar("quote_id"),
+  customerId: varchar("customer_id"),
+  homeownerUserId: varchar("homeowner_user_id").references(() => users.id),
+  contractorUserId: varchar("contractor_user_id").references(() => users.id),
+  stage: varchar("stage").default("request"),
+  lastMessagePreview: text("last_message_preview"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Chat Messages - Individual messages within threads
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => messageThreads.id),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  body: text("body").notNull(),
+  attachments: text("attachments").array().default([]), // Array of attachment URLs
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Thread Participants - Maps users/categories to threads
+export const threadParticipants = pgTable("thread_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => messageThreads.id),
+  userId: varchar("user_id").references(() => users.id), // For individual participants
+  categoryId: varchar("category_id").references(() => userCategories.id), // For category-wide threads
+  lastReadAt: timestamp("last_read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Approval Policies - Admin auto-approval rules
+export const approvalPolicies = pgTable("approval_policies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  
+  // Trusted contractors
+  trustedContractorIds: text("trusted_contractor_ids").array().default([]),
+  
+  // Time preferences
+  autoApproveWeekdays: boolean("auto_approve_weekdays").default(true),
+  autoApproveWeekends: boolean("auto_approve_weekends").default(false),
+  autoApproveEvenings: boolean("auto_approve_evenings").default(false), // After 5pm
+  blockVacationDates: boolean("block_vacation_dates").default(false),
+  vacationStartDate: timestamp("vacation_start_date"),
+  vacationEndDate: timestamp("vacation_end_date"),
+  
+  // Cost thresholds
+  autoApproveCostLimit: decimal("auto_approve_cost_limit", { precision: 10, scale: 2 }), // Auto-approve under this amount
+  requireApprovalOver: decimal("require_approval_over", { precision: 10, scale: 2 }), // Always require approval over this
+  
+  // Urgency override
+  autoApproveEmergencies: boolean("auto_approve_emergencies").default(true),
+  
+  // Involvement mode
+  involvementMode: varchar("involvement_mode").notNull().default("balanced"), // hands-off, balanced, hands-on
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Appointment Proposals - Multi-slot proposals from contractors
+export const appointmentProposals = pgTable("appointment_proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  contractorId: varchar("contractor_id").notNull().references(() => vendors.id),
+  status: varchar("status").notNull().default("pending"), // pending, accepted, declined, countered, expired
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  estimatedDurationMinutes: integer("estimated_duration_minutes"),
+  notes: text("notes"),
+  
+  // Selected slot (when tenant picks one)
+  selectedSlotId: varchar("selected_slot_id"),
+  
+  // Auto-approval result
+  autoApproved: boolean("auto_approved").default(false),
+  autoApprovalReason: text("auto_approval_reason"),
+  
+  expiresAt: timestamp("expires_at"), // Proposals expire after 48 hours
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Proposal Slots - Individual time slots within a proposal
+export const proposalSlots = pgTable("proposal_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  proposalId: varchar("proposal_id").notNull().references(() => appointmentProposals.id),
+  slotNumber: integer("slot_number").notNull(), // 1, 2, or 3
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  isAvailableForTenant: boolean("is_available_for_tenant").default(true), // Checked against tenant calendar
+  conflictReason: text("conflict_reason"), // Why it conflicts with tenant calendar
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// CONTRACTOR SCHEDULING & TEAMS SYSTEM
+// ============================================================================
+
+// Contractor Teams/Crews
+export const teamSpecialtyEnum = pgEnum("team_specialty", ["Handyman", "HVAC", "Plumbing", "Electrical", "Roofing", "Landscaping", "Painting", "Carpentry", "General", "Other"]);
+export const jobUrgencyEnum = pgEnum("job_urgency", ["Low", "High", "Emergent"]);
+export const jobStatusEnum = pgEnum("job_status", ["Unscheduled", "Scheduled", "Pending Approval", "Needs Review", "Confirmed", "In Progress", "Completed", "Cancelled"]);
+export const counterProposalStatusEnum = pgEnum("counter_proposal_status", ["Pending", "Accepted", "Rejected"]);
+
+export const teams = pgTable("teams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(), // e.g., "HVAC Team A", "Plumbing Crew"
+  specialty: teamSpecialtyEnum("specialty").notNull(),
+  color: varchar("color").notNull().default("#3B82F6"), // Hex color for calendar display
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Scheduled Jobs for Contractor Calendar
+export const scheduledJobs = pgTable("scheduled_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  
+  // Scheduling details
+  scheduledStartAt: timestamp("scheduled_start_at", { withTimezone: true }),
+  scheduledEndAt: timestamp("scheduled_end_at", { withTimezone: true }),
+  isAllDay: boolean("is_all_day").default(false),
+  durationDays: integer("duration_days").default(1), // Number of days the job spans
+  
+  // Assignment
+  teamId: varchar("team_id").references(() => teams.id),
+  contractorId: varchar("contractor_id").references(() => vendors.id),
+  
+  // Links to existing entities
+  caseId: varchar("case_id").references(() => smartCases.id), // Link to smart case if applicable
+  propertyId: varchar("property_id").references(() => properties.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  
+  // Address for jobs
+  address: text("address"),
+  
+  // Status and priority
+  status: jobStatusEnum("status").default("Unscheduled"),
+  urgency: jobUrgencyEnum("urgency").default("Low"),
+  
+  // Tenant confirmation workflow
+  requiresTenantConfirmation: boolean("requires_tenant_confirmation").default(false),
+  tenantConfirmed: boolean("tenant_confirmed").default(false),
+  tenantConfirmedAt: timestamp("tenant_confirmed_at", { withTimezone: true }),
+  
+  // Notes
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tenant Counter-Proposals - When tenants propose alternative times
+export const counterProposals = pgTable("counter_proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  scheduledJobId: varchar("scheduled_job_id").notNull().references(() => scheduledJobs.id),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id),
+  
+  // Proposed availability slots (tenant can propose multiple time blocks)
+  availabilitySlots: jsonb("availability_slots").notNull(), // Array of {startAt: ISO, endAt: ISO}
+  reason: text("reason"), // Optional reason for counter-proposal
+  
+  status: counterProposalStatusEnum("status").default("Pending"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewedBy: varchar("reviewed_by").references(() => users.id), // Contractor or admin who reviewed
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// OMNICHANNEL COMMUNICATION SYSTEM
+// ============================================================================
+
+// Channel types for communication
+export const channelTypeEnum = pgEnum("channel_type", ["sms", "email", "voice", "web"]);
+export const messageDirectionEnum = pgEnum("message_direction", ["inbound", "outbound"]);
+export const messageStatusEnum = pgEnum("message_status", ["received", "processing", "processed", "replied", "failed", "archived"]);
+
+// Channel Messages - All communications across SMS, email, voice, web
+export const channelMessages = pgTable("channel_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  
+  // Channel information
+  channelType: channelTypeEnum("channel_type").notNull(),
+  direction: messageDirectionEnum("direction").notNull(),
+  status: messageStatusEnum("status").default("received"),
+  
+  // Sender/Recipient identification
+  fromPhone: varchar("from_phone"), // For SMS/voice
+  fromEmail: varchar("from_email"), // For email
+  toPhone: varchar("to_phone"), // For SMS/voice
+  toEmail: varchar("to_email"), // For email
+  
+  // Identified parties
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  contractorId: varchar("contractor_id").references(() => vendors.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  propertyId: varchar("property_id").references(() => properties.id),
+  
+  // Message content
+  subject: text("subject"), // For email
+  body: text("body").notNull(), // Message text or transcription
+  rawData: jsonb("raw_data"), // Original webhook payload
+  
+  // AI analysis
+  aiSentiment: varchar("ai_sentiment"), // positive, neutral, negative, frustrated, urgent
+  aiUrgencyScore: integer("ai_urgency_score"), // 1-10
+  aiCategory: varchar("ai_category"), // maintenance, complaint, inquiry, emergency
+  aiSummary: text("ai_summary"),
+  aiExtractedIssue: text("ai_extracted_issue"),
+  
+  // Related entities
+  caseId: varchar("case_id").references(() => smartCases.id), // Linked smart case
+  conversationThreadId: varchar("conversation_thread_id"), // Groups related messages
+  
+  // Maya response
+  mayaResponseSent: boolean("maya_response_sent").default(false),
+  mayaResponseBody: text("maya_response_body"),
+  mayaResponseSentAt: timestamp("maya_response_sent_at"),
+  
+  // Voice call specifics
+  callDuration: integer("call_duration"), // seconds
+  recordingUrl: varchar("recording_url"),
+  transcriptionUrl: varchar("transcription_url"),
+  
+  // Metadata
+  externalId: varchar("external_id"), // Twilio/SendGrid message ID
+  attachments: text("attachments").array().default([]),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+// Equipment Failure History - Track all maintenance for predictive analytics
+export const equipmentFailures = pgTable("equipment_failures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  
+  // Equipment identification
+  equipmentType: varchar("equipment_type").notNull(), // hvac, boiler, water_heater, roof, etc.
+  manufacturer: varchar("manufacturer"),
+  model: varchar("model"),
+  yearInstalled: integer("year_installed"),
+  
+  // Location
+  propertyId: varchar("property_id").references(() => properties.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  
+  // Failure details
+  failureDate: timestamp("failure_date").notNull(),
+  description: text("description"),
+  repairCost: decimal("repair_cost", { precision: 10, scale: 2 }),
+  wasReplaced: boolean("was_replaced").default(false),
+  
+  // Related case
+  caseId: varchar("case_id").references(() => smartCases.id),
+  
+  // Analytics metadata
+  ageAtFailure: integer("age_at_failure"), // years
+  seasonOfFailure: varchar("season_of_failure"), // winter, spring, summer, fall
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Predictive Insights - AI-generated predictions about equipment failures
+export const predictiveInsights = pgTable("predictive_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  
+  // What is predicted
+  insightType: varchar("insight_type").notNull(), // equipment_failure, high_maintenance_unit, problematic_contractor, etc.
+  equipmentType: varchar("equipment_type"), // hvac, boiler, water_heater, roof
+  
+  // Where
+  propertyId: varchar("property_id").references(() => properties.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  contractorId: varchar("contractor_id").references(() => vendors.id),
+  
+  // Prediction details
+  prediction: text("prediction").notNull(), // Human-readable prediction
+  confidence: decimal("confidence", { precision: 3, scale: 2 }), // 0-1 confidence score
+  predictedDate: timestamp("predicted_date"), // When failure is expected
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  
+  // Supporting data
+  basedOnDataPoints: integer("based_on_data_points"), // How many failures analyzed
+  reasoning: text("reasoning"), // Why this prediction
+  recommendations: text("recommendations").array().default([]),
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  wasDismissed: boolean("was_dismissed").default(false),
+  dismissedReason: text("dismissed_reason"),
+  
+  // Outcome tracking
+  didOccur: boolean("did_occur"),
+  actualDate: timestamp("actual_date"),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Equipment - Track installed equipment at properties for predictive maintenance
+export const equipment = pgTable("equipment", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  propertyId: varchar("property_id").notNull().references(() => properties.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  
+  // Equipment details
+  equipmentType: varchar("equipment_type").notNull(), // roof, water_heater, hvac, etc.
+  installYear: integer("install_year").notNull(),
+  manufacturer: varchar("manufacturer"),
+  model: varchar("model"),
+  
+  // Lifespan management
+  customLifespanYears: integer("custom_lifespan_years"), // Override default if set
+  useClimateAdjustment: boolean("use_climate_adjustment").default(true),
+  replacementCost: decimal("replacement_cost", { precision: 12, scale: 2 }), // Optional estimated replacement cost
+  
+  // Optional details
+  condition: varchar("condition"), // excellent, good, fair, poor
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Channel Settings - Configuration for omnichannel communication
+export const channelSettings = pgTable("channel_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id),
+  
+  // Phone/SMS settings
+  twilioPhoneNumber: varchar("twilio_phone_number"),
+  twilioAccountSid: varchar("twilio_account_sid"),
+  smsEnabled: boolean("sms_enabled").default(false),
+  voiceEnabled: boolean("voice_enabled").default(false),
+  
+  // Email settings
+  inboundEmailAddress: varchar("inbound_email_address"),
+  sendgridDomain: varchar("sendgrid_domain"),
+  emailEnabled: boolean("email_enabled").default(false),
+  
+  // Auto-response settings
+  autoResponseEnabled: boolean("auto_response_enabled").default(true),
+  businessHoursOnly: boolean("business_hours_only").default(false),
+  businessHoursStart: varchar("business_hours_start").default("09:00"),
+  businessHoursEnd: varchar("business_hours_end").default("17:00"),
+  
+  // Identity verification
+  requireIdentityVerification: boolean("require_identity_verification").default(true),
+  autoCreateCases: boolean("auto_create_cases").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Relations for new tables
+export const userCategoriesRelations = relations(userCategories, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [userCategories.orgId],
+    references: [organizations.id],
+  }),
+  members: many(userCategoryMembers),
+}));
+
+export const userCategoryMembersRelations = relations(userCategoryMembers, ({ one }) => ({
+  category: one(userCategories, {
+    fields: [userCategoryMembers.categoryId],
+    references: [userCategories.id],
+  }),
+  user: one(users, {
+    fields: [userCategoryMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const messageThreadsRelations = relations(messageThreads, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [messageThreads.orgId],
+    references: [organizations.id],
+  }),
+  chatMessages: many(chatMessages),
+  participants: many(threadParticipants),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  thread: one(messageThreads, {
+    fields: [chatMessages.threadId],
+    references: [messageThreads.id],
+  }),
+  sender: one(users, {
+    fields: [chatMessages.senderId],
+    references: [users.id],
+  }),
+}));
+
+export const threadParticipantsRelations = relations(threadParticipants, ({ one }) => ({
+  thread: one(messageThreads, {
+    fields: [threadParticipants.threadId],
+    references: [messageThreads.id],
+  }),
+  user: one(users, {
+    fields: [threadParticipants.userId],
+    references: [users.id],
+  }),
+  category: one(userCategories, {
+    fields: [threadParticipants.categoryId],
+    references: [userCategories.id],
+  }),
+}));
+
+// Teams and Scheduled Jobs Relations
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [teams.orgId],
+    references: [organizations.id],
+  }),
+  scheduledJobs: many(scheduledJobs),
+}));
+
+export const contractorTeamMembersRelations = relations(contractorTeamMembers, ({ one }) => ({
+  leadContractor: one(users, {
+    fields: [contractorTeamMembers.leadContractorUserId],
+    references: [users.id],
+    relationName: 'leadContractor',
+  }),
+  memberUser: one(users, {
+    fields: [contractorTeamMembers.memberUserId],
+    references: [users.id],
+    relationName: 'teamMemberUser',
+  }),
+}));
+
+export const appointmentsRelations = relations(appointments, ({ one }) => ({
+  smartCase: one(smartCases, { fields: [appointments.caseId], references: [smartCases.id] }),
+  contractor: one(vendors, { fields: [appointments.contractorId], references: [vendors.id] }),
+  organization: one(organizations, { fields: [appointments.orgId], references: [organizations.id] }),
+}));
+
+export const contactTeamMembersRelations = relations(contactTeamMembers, ({ one }) => ({
+  contractor: one(users, {
+    fields: [contactTeamMembers.contractorUserId],
+    references: [users.id],
+  }),
+}));
+
+export const scheduledJobsRelations = relations(scheduledJobs, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [scheduledJobs.orgId],
+    references: [organizations.id],
+  }),
+  team: one(teams, {
+    fields: [scheduledJobs.teamId],
+    references: [teams.id],
+  }),
+  contractor: one(vendors, {
+    fields: [scheduledJobs.contractorId],
+    references: [vendors.id],
+  }),
+  case: one(smartCases, {
+    fields: [scheduledJobs.caseId],
+    references: [smartCases.id],
+  }),
+  property: one(properties, {
+    fields: [scheduledJobs.propertyId],
+    references: [properties.id],
+  }),
+  unit: one(units, {
+    fields: [scheduledJobs.unitId],
+    references: [units.id],
+  }),
+}));
+
+// Contractor dismissed/passed cases
+export const contractorDismissedCases = pgTable("contractor_dismissed_cases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
+  caseId: varchar("case_id").notNull().references(() => smartCases.id),
+  dismissedAt: timestamp("dismissed_at").defaultNow().notNull(),
+  reason: varchar("reason"),
+});
+
+export const contractorDismissedCasesRelations = relations(contractorDismissedCases, ({ one }) => ({
+  contractor: one(users, {
+    fields: [contractorDismissedCases.contractorUserId],
+    references: [users.id],
+  }),
+  case: one(smartCases, {
+    fields: [contractorDismissedCases.caseId],
+    references: [smartCases.id],
+  }),
+}));
+
+// Insert schemas for new tables
+export const insertUserCategorySchema = createInsertSchema(userCategories).omit({ id: true, createdAt: true });
+export const insertUserCategoryMemberSchema = createInsertSchema(userCategoryMembers).omit({ id: true, createdAt: true });
+export const insertMessageThreadSchema = createInsertSchema(messageThreads).omit({ id: true, createdAt: true });
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+export const insertThreadParticipantSchema = createInsertSchema(threadParticipants).omit({ id: true, createdAt: true });
+export const insertApprovalPolicySchema = createInsertSchema(approvalPolicies).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAppointmentProposalSchema = createInsertSchema(appointmentProposals).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProposalSlotSchema = createInsertSchema(proposalSlots).omit({ id: true, createdAt: true });
+
+// Teams and Scheduled Jobs insert schemas
+export const insertTeamSchema = createInsertSchema(teams).omit({ id: true, createdAt: true });
+export const insertScheduledJobSchema = createInsertSchema(scheduledJobs).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  scheduledStartAt: z.union([z.date(), z.string().transform((str) => new Date(str)), z.null()]).optional(),
+  scheduledEndAt: z.union([z.date(), z.string().transform((str) => new Date(str)), z.null()]).optional(),
+  tenantConfirmedAt: z.union([z.date(), z.string().transform((str) => new Date(str)), z.null()]).optional(),
+  teamId: z.string().nullable().optional(),
+});
+
+// Multi-user auth system insert schemas
+export const insertContractorSpecialtySchema = createInsertSchema(contractorSpecialties).omit({ id: true, createdAt: true });
+export const insertContractorProfileSchema = createInsertSchema(contractorProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserContractorSpecialtySchema = createInsertSchema(userContractorSpecialties).omit({ id: true, createdAt: true });
+export const insertContractorOrgLinkSchema = createInsertSchema(contractorOrgLinks).omit({ id: true, createdAt: true });
+export const insertContractorCustomerSchema = createInsertSchema(contractorCustomers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  expiresAt: z.coerce.date().nullable().optional(),
+  sentAt: z.coerce.date().nullable().optional(),
+  approvedAt: z.coerce.date().nullable().optional(),
+  declinedAt: z.coerce.date().nullable().optional(),
+  availableStartDate: z.coerce.date().nullable().optional(),
+  availableEndDate: z.coerce.date().nullable().optional(),
+  customerId: z.string().nullable().optional(), // Optional for landlord quotes
+  caseId: z.string().nullable().optional(),
+  orgId: z.string().nullable().optional(),
+});
+export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit({ id: true, createdAt: true });
+export const insertFavoriteContractorSchema = createInsertSchema(favoriteContractors).omit({ id: true, createdAt: true });
+export const insertVerificationTokenSchema = createInsertSchema(verificationTokens).omit({ id: true, createdAt: true });
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({ id: true, createdAt: true });
+export const insertSmsOptOutSchema = createInsertSchema(smsOptOuts).omit({ id: true });
+export const insertContractorTeamMemberSchema = createInsertSchema(contractorTeamMembers).omit({ id: true, createdAt: true });
+export const insertContactTeamMemberSchema = createInsertSchema(contactTeamMembers).omit({ id: true, createdAt: true });
+export const insertJobOfferSchema = createInsertSchema(jobOffers).omit({ id: true, createdAt: true });
+
+// Multi-user auth system types
+export type ContractorSpecialty = typeof contractorSpecialties.$inferSelect;
+export type InsertContractorSpecialty = z.infer<typeof insertContractorSpecialtySchema>;
+export type ContractorProfile = typeof contractorProfiles.$inferSelect;
+export type InsertContractorProfile = z.infer<typeof insertContractorProfileSchema>;
+export type UserContractorSpecialty = typeof userContractorSpecialties.$inferSelect;
+export type InsertUserContractorSpecialty = z.infer<typeof insertUserContractorSpecialtySchema>;
+export type ContractorOrgLink = typeof contractorOrgLinks.$inferSelect;
+export type InsertContractorOrgLink = z.infer<typeof insertContractorOrgLinkSchema>;
+export type ContractorCustomer = typeof contractorCustomers.$inferSelect;
+export type InsertContractorCustomer = z.infer<typeof insertContractorCustomerSchema>;
+export type Quote = typeof quotes.$inferSelect;
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
+export type InsertQuoteLineItem = z.infer<typeof insertQuoteLineItemSchema>;
+export const insertQuoteCounterProposalSchema = createInsertSchema(quoteCounterProposals).omit({ id: true, createdAt: true }).extend({
+  proposedStartDate: z.coerce.date().nullable().optional(),
+  proposedEndDate: z.coerce.date().nullable().optional(),
+  respondedAt: z.coerce.date().nullable().optional(),
+});
+export type QuoteCounterProposal = typeof quoteCounterProposals.$inferSelect;
+export type InsertQuoteCounterProposal = z.infer<typeof insertQuoteCounterProposalSchema>;
+export type FavoriteContractor = typeof favoriteContractors.$inferSelect;
+export type InsertFavoriteContractor = z.infer<typeof insertFavoriteContractorSchema>;
+export type VerificationToken = typeof verificationTokens.$inferSelect;
+export type InsertVerificationToken = z.infer<typeof insertVerificationTokenSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type SmsOptOut = typeof smsOptOuts.$inferSelect;
+export type InsertSmsOptOut = z.infer<typeof insertSmsOptOutSchema>;
+export type ContractorTeamMember = typeof contractorTeamMembers.$inferSelect;
+export type InsertContractorTeamMember = z.infer<typeof insertContractorTeamMemberSchema>;
+export type ContactTeamMember = typeof contactTeamMembers.$inferSelect;
+export type InsertContactTeamMember = z.infer<typeof insertContactTeamMemberSchema>;
+export type JobOffer = typeof jobOffers.$inferSelect;
+export type InsertJobOffer = z.infer<typeof insertJobOfferSchema>;
+
+// Types for new tables
+export type UserCategory = typeof userCategories.$inferSelect;
+export type InsertUserCategory = z.infer<typeof insertUserCategorySchema>;
+export type UserCategoryMember = typeof userCategoryMembers.$inferSelect;
+export type InsertUserCategoryMember = z.infer<typeof insertUserCategoryMemberSchema>;
+export type MessageThread = typeof messageThreads.$inferSelect;
+export type InsertMessageThread = z.infer<typeof insertMessageThreadSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ThreadParticipant = typeof threadParticipants.$inferSelect;
+export type InsertThreadParticipant = z.infer<typeof insertThreadParticipantSchema>;
+export type ApprovalPolicy = typeof approvalPolicies.$inferSelect;
+export type InsertApprovalPolicy = z.infer<typeof insertApprovalPolicySchema>;
+export type AppointmentProposal = typeof appointmentProposals.$inferSelect;
+export type InsertAppointmentProposal = z.infer<typeof insertAppointmentProposalSchema>;
+export type ProposalSlot = typeof proposalSlots.$inferSelect;
+export type InsertProposalSlot = z.infer<typeof insertProposalSlotSchema>;
+
+// Teams and Scheduled Jobs types
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type ScheduledJob = typeof scheduledJobs.$inferSelect;
+export type InsertScheduledJob = z.infer<typeof insertScheduledJobSchema>;
+
+// Counter Proposals insert schemas and types
+export const insertCounterProposalSchema = createInsertSchema(counterProposals).omit({ id: true, createdAt: true }).extend({
+  availabilitySlots: z.array(z.object({
+    startAt: z.string(),
+    endAt: z.string()
+  }))
+});
+export type CounterProposal = typeof counterProposals.$inferSelect;
+export type InsertCounterProposal = z.infer<typeof insertCounterProposalSchema>;
+
+// Omnichannel insert schemas
+export const insertChannelMessageSchema = createInsertSchema(channelMessages).omit({ id: true, createdAt: true });
+export const insertEquipmentFailureSchema = createInsertSchema(equipmentFailures).omit({ id: true, createdAt: true });
+export const insertPredictiveInsightSchema = createInsertSchema(predictiveInsights).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertChannelSettingsSchema = createInsertSchema(channelSettings).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEquipmentSchema = createInsertSchema(equipment).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  replacementCost: z.union([z.string(), z.number()]).optional().transform(val => val !== undefined && val !== null ? String(val) : undefined)
+});
+
+// Omnichannel types
+export type ChannelMessage = typeof channelMessages.$inferSelect;
+export type InsertChannelMessage = z.infer<typeof insertChannelMessageSchema>;
+export type EquipmentFailure = typeof equipmentFailures.$inferSelect;
+export type InsertEquipmentFailure = z.infer<typeof insertEquipmentFailureSchema>;
+export type PredictiveInsight = typeof predictiveInsights.$inferSelect;
+export type InsertPredictiveInsight = z.infer<typeof insertPredictiveInsightSchema>;
+export type ChannelSettings = typeof channelSettings.$inferSelect;
+export type InsertChannelSettings = z.infer<typeof insertChannelSettingsSchema>;
+export type Equipment = typeof equipment.$inferSelect;
+export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;

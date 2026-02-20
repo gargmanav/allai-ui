@@ -1,0 +1,1163 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import Sidebar from "@/components/layout/sidebar";
+import Header from "@/components/layout/header";
+import ReminderForm from "@/components/forms/reminder-form";
+import PropertyAssistant from "@/components/ai/property-assistant";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bell, Plus, Clock, CheckCircle, Calendar, AlertTriangle, DollarSign, FileText, Wrench, Shield, Edit, Trash2, CalendarDays, Repeat, List } from "lucide-react";
+import type { Reminder, Property, OwnershipEntity, Lease, Unit, TenantGroup } from "@shared/schema";
+import { REMINDER_TYPE_COLORS, STATUS_COLORS, getReminderStatus, getStatusBadgeText, type ReminderType, type ReminderStatus } from "@/lib/colorTokens";
+
+export default function Reminders() {
+  const { toast } = useToast();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [pendingEditReminder, setPendingEditReminder] = useState<Reminder | null>(null);
+  const [isEditingSeries, setIsEditingSeries] = useState(false);
+  const [editMode, setEditMode] = useState<"future" | "all">("all"); // Proper state for bulk edit mode
+  const [deleteReminderId, setDeleteReminderId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("due");
+  const [entityFilter, setEntityFilter] = useState<string>("all");
+  const [propertyFilter, setPropertyFilter] = useState<string>("all");
+  const [unitFilter, setUnitFilter] = useState<string[]>([]);
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>();
+  const [customDateTo, setCustomDateTo] = useState<Date | undefined>();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const filter = params.get('filter');
+    
+    // Remap legacy 'due-soon' to 'due' for backward compatibility
+    if (filter === 'due-soon') {
+      setStatusFilter('due');
+      // Normalize URL to remove stale parameter
+      params.set('filter', 'due');
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    } else if (filter && ['due', 'all', 'Overdue', 'Completed', 'Cancelled'].includes(filter)) {
+      setStatusFilter(filter);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, isLoading, toast]);
+
+  const { data: reminders, isLoading: remindersLoading, error } = useQuery<Reminder[]>({
+    queryKey: ["/api/reminders"],
+    retry: false,
+  });
+  
+  // Scroll to specific reminder if reminderId is provided in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reminderId = params.get('reminderId');
+    
+    if (reminderId && reminders) {
+      const reminder = reminders.find(r => r.id === reminderId);
+      if (reminder) {
+        // Scroll to the reminder card
+        setTimeout(() => {
+          const element = document.querySelector(`[data-testid="reminder-card-${reminderId}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Add a brief highlight effect
+            element.classList.add('ring-2', 'ring-blue-500');
+            setTimeout(() => {
+              element.classList.remove('ring-2', 'ring-blue-500');
+            }, 2000);
+          }
+        }, 100);
+        // Clean up URL after scrolling
+        params.delete('reminderId');
+        const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [reminders]);
+
+  const { data: properties } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+    retry: false,
+  });
+
+  const { data: entities = [] } = useQuery<OwnershipEntity[]>({
+    queryKey: ["/api/entities"],
+    retry: false,
+  });
+
+  const { data: leases = [] } = useQuery<Lease[]>({
+    queryKey: ["/api/leases"],
+    retry: false,
+  });
+
+  const { data: units = [] } = useQuery<Unit[]>({
+    queryKey: ["/api/units"],
+    retry: false,
+  });
+
+  const { data: tenants = [] } = useQuery<TenantGroup[]>({
+    queryKey: ["/api/tenants"],
+    retry: false,
+  });
+
+  const createReminderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingReminder) {
+        if (isEditingSeries) {
+          // Use bulk edit mutation with proper state-managed mode
+          const response = await apiRequest("PUT", `/api/reminders/${editingReminder.id}/recurring?mode=${editMode}`, data);
+          return response.json();
+        } else {
+          const response = await apiRequest("PATCH", `/api/reminders/${editingReminder.id}`, data);
+          return response.json();
+        }
+      } else {
+        const response = await apiRequest("POST", "/api/reminders", data);
+        return response.json();
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setShowReminderForm(false);
+      setEditingReminder(null);
+      setPendingEditReminder(null);
+      setIsEditingSeries(false);
+      setEditMode("all"); // Reset edit mode
+      toast({
+        title: "Success",
+        description: editingReminder ? (isEditingSeries ? "Recurring reminder series updated successfully" : "Reminder updated successfully") : "Reminder created successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: editingReminder ? "Failed to update reminder" : "Failed to create reminder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const completeReminderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("PATCH", `/api/reminders/${id}`, { 
+        status: "Completed",
+        completedAt: new Date().toISOString(),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      toast({
+        title: "Success",
+        description: "Reminder marked as completed",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to complete reminder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateReminderMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/reminders/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setEditingReminder(null);
+      setShowReminderForm(false);
+      toast({
+        title: "Success",
+        description: "Reminder updated successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update reminder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteReminderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/reminders/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setDeleteReminderId(null);
+      toast({
+        title: "Success",
+        description: "Reminder deleted successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete reminder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkDeleteReminderMutation = useMutation({
+    mutationFn: async ({ reminderId, mode }: { reminderId: string; mode: "future" | "all" }) => {
+      const response = await apiRequest("DELETE", `/api/reminders/${reminderId}/recurring?mode=${mode}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setDeleteReminderId(null);
+      toast({
+        title: "Success",
+        description: "Recurring reminder series deleted successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete recurring reminder series",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkEditReminderMutation = useMutation({
+    mutationFn: async ({ reminderId, data, mode }: { reminderId: string; data: any; mode: "future" | "all" }) => {
+      const response = await apiRequest("PUT", `/api/reminders/${reminderId}/recurring?mode=${mode}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setShowReminderForm(false);
+      setEditingReminder(null);
+      setPendingEditReminder(null);
+      toast({
+        title: "Success",
+        description: "Recurring reminder series updated successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update recurring reminder series",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (isLoading || !isAuthenticated) {
+    return null;
+  }
+
+  if (error && isUnauthorizedError(error as Error)) {
+    return null;
+  }
+
+  const filteredProperties = properties || [];
+  
+  // Helper function to check if reminder is overdue
+  const isOverdue = (dueAt: Date | string) => {
+    return new Date(dueAt) < new Date();
+  };
+
+  // Get effective status - if status is null, calculate based on due date
+  const getEffectiveStatus = (reminder: any): string | null => {
+    if (reminder.status) {
+      return reminder.status; // Use stored status if present
+    }
+    // For null status, calculate based on due date
+    return isOverdue(reminder.dueAt) ? "Overdue" : null;
+  };
+  
+  // Helper function to check if reminder is due within specified days window
+  // Includes items up to 'days' overdue and up to 'days' in the future
+  const isDueWithinDays = (dueAt: Date | string, days: number) => {
+    const now = new Date();
+    const due = new Date(dueAt);
+    const timeDiff = due.getTime() - now.getTime();
+    const daysDiff = timeDiff / (1000 * 3600 * 24);
+    // Explicit directional bounds: -days to +days
+    return daysDiff >= -days && daysDiff <= days;
+  };
+
+  const filteredReminders = reminders?.filter(reminder => {
+    const typeMatch = typeFilter === "all" || reminder.type === typeFilter;
+    
+    // Get effective status for this reminder
+    const effectiveStatus = getEffectiveStatus(reminder);
+    
+    // Handle status filtering
+    let statusMatch = false;
+    if (statusFilter === "all") {
+      statusMatch = true;
+    } else if (statusFilter === "due") {
+      // Due means all active reminders (includes overdue and upcoming, excludes completed/cancelled)
+      statusMatch = !reminder.status || effectiveStatus === "Overdue";
+    } else if (statusFilter === "Overdue") {
+      // Overdue only - uses effective status (calculated or stored)
+      statusMatch = effectiveStatus === "Overdue";
+    } else {
+      // Completed, Cancelled use stored status
+      statusMatch = reminder.status === statusFilter;
+    }
+    
+    // Handle date filtering
+    let dateMatch = true;
+    const reminderDue = new Date(reminder.dueAt);
+    const now = new Date();
+    
+    if (dateFilter === "this-month") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      dateMatch = reminderDue >= startOfMonth && reminderDue <= endOfMonth;
+    } else if (dateFilter === "next-month") {
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      dateMatch = reminderDue >= startOfNextMonth && reminderDue <= endOfNextMonth;
+    } else if (dateFilter === "next-30-days") {
+      const next30Days = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+      dateMatch = reminderDue >= now && reminderDue <= next30Days;
+    } else if (dateFilter === "year-end") {
+      const endOfYear = new Date(now.getFullYear(), 11, 31);
+      dateMatch = reminderDue >= now && reminderDue <= endOfYear;
+    } else if (dateFilter === "custom" && customDateFrom && customDateTo) {
+      dateMatch = reminderDue >= customDateFrom && reminderDue <= customDateTo;
+    }
+    
+    let propertyMatch = false;
+    if (propertyFilter === "all") {
+      propertyMatch = true;
+    } else {
+      // Direct property match
+      if (reminder.scope === 'property' && reminder.scopeId === propertyFilter) {
+        propertyMatch = true;
+      }
+      // Entity match
+      else if (reminder.scope === 'entity' && reminder.scopeId === propertyFilter) {
+        propertyMatch = true;
+      }
+      // Lease match - check if lease belongs to units in this property
+      else if (reminder.scope === 'lease') {
+        const lease = leases?.find(l => l.id === reminder.scopeId);
+        if (lease) {
+          const unit = units?.find(u => u.id === lease.unitId);
+          if (unit && unit.propertyId === propertyFilter) {
+            propertyMatch = true;
+          }
+        }
+      }
+    }
+    
+    // Unit filtering logic - only apply if unit filter is active
+    let unitMatch = true;
+    if (unitFilter.length > 0) {
+      unitMatch = false;
+      
+      // Check if reminder is for a lease that matches our unit filter
+      if (reminder.scope === 'lease' && reminder.scopeId) {
+        const lease = leases?.find(l => l.id === reminder.scopeId);
+        if (lease) {
+          const unit = units?.find(u => u.id === lease.unitId);
+          if (unit && unitFilter.includes(unit.id)) {
+            unitMatch = true;
+          } else if (!unit && unitFilter.includes("common")) {
+            unitMatch = true;
+          }
+        }
+      }
+      // For property-scoped reminders, they apply to common areas
+      else if (reminder.scope === 'property' && unitFilter.includes("common")) {
+        unitMatch = true;
+      }
+    }
+    
+    return typeMatch && statusMatch && propertyMatch && unitMatch && dateMatch;
+  }) || [];
+
+  const reminderTypes = Array.from(new Set(reminders?.map(r => r.type).filter(Boolean))) || [];
+
+  const getTypeIcon = (type: string | null) => {
+    switch (type) {
+      case "rent": return <DollarSign className="h-4 w-4 text-green-600" />;
+      case "lease": return <FileText className="h-4 w-4 text-blue-600" />;
+      case "maintenance": return <Wrench className="h-4 w-4 text-yellow-600" />;
+      case "regulatory": return <Shield className="h-4 w-4 text-purple-600" />;
+      default: return <Bell className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusBadge = (status: string | null) => {
+    if (!status) return null;
+    switch (status) {
+      case "Overdue": return <Badge className="bg-red-100 text-red-800">Overdue</Badge>;
+      case "Completed": return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+      case "Cancelled": return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>;
+      default: return null;
+    }
+  };
+
+  const getTypeBadge = (type: string | null) => {
+    if (!type) return null;
+    
+    const typeColors: Record<string, string> = {
+      rent: "text-green-700 dark:text-green-400",
+      lease: "text-blue-700 dark:text-blue-400",
+      maintenance: "text-orange-700 dark:text-orange-400",
+      regulatory: "text-purple-700 dark:text-purple-400",
+      custom: "text-gray-700 dark:text-gray-400",
+      mortgage: "text-red-700 dark:text-red-400",
+      insurance: "text-cyan-700 dark:text-cyan-400",
+      property_tax: "text-indigo-700 dark:text-indigo-400",
+      hoa: "text-pink-700 dark:text-pink-400",
+      permit: "text-teal-700 dark:text-teal-400",
+    };
+    
+    const colorClass = typeColors[type] || "text-gray-700 dark:text-gray-400";
+    const displayName = type.replace(/_/g, ' ').split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+    
+    return (
+      <Badge variant="secondary" className={`bg-muted/30 border-0 text-xs ${colorClass}`}>
+        {displayName}
+      </Badge>
+    );
+  };
+
+  // Calculate summary card counts based on all reminders (not filtered)
+  const allReminders = reminders || [];
+  const overdueReminders = allReminders.filter(r => 
+    getEffectiveStatus(r) === "Overdue"
+  ).length;
+  const thisMonthReminders = allReminders.filter(r => {
+    const reminderDue = new Date(r.dueAt);
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return !r.status && reminderDue >= startOfMonth && reminderDue <= endOfMonth;
+  }).length;
+
+  return (
+    <div className="flex h-screen bg-background" data-testid="page-reminders">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Reminders" />
+        
+        <main className="flex-1 overflow-auto p-6 bg-muted/30">
+          {/* Maya AI Assistant */}
+          <div className="mb-8">
+            <PropertyAssistant
+              context="reminders"
+              exampleQuestions={[
+                "What reminders are due this week?",
+                "Which properties have overdue tasks?", 
+                "What maintenance reminders do I have coming up?",
+                "Show me all lease renewal reminders"
+              ]}
+            />
+          </div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Reminders</h1>
+              <p className="text-muted-foreground">Track key tasks and deadlines</p>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {/* Status Filter - First */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40" data-testid="select-status-filter">
+                  <SelectValue placeholder="Due Reminders" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="due">Due</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Overdue">Overdue</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Date Filter - Second */}
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-48" data-testid="select-date-filter">
+                  <SelectValue placeholder="All Dates" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dates</SelectItem>
+                  <SelectItem value="next-30-days">Next 30 Days</SelectItem>
+                  <SelectItem value="this-month">This Month</SelectItem>
+                  <SelectItem value="next-month">Next Month</SelectItem>
+                  <SelectItem value="year-end">Before Year End</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Property Filter - Third */}
+              <Select value={propertyFilter} onValueChange={(value) => {
+                setPropertyFilter(value);
+                setUnitFilter([]); // Reset unit filter when property changes
+              }}>
+                <SelectTrigger className="w-52" data-testid="select-property-filter">
+                  <SelectValue placeholder="All Properties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Properties</SelectItem>
+                  {filteredProperties.map((property) => (
+                    <SelectItem key={property.id} value={property.id}>
+                      {property.name || `${property.street}, ${property.city}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Unit Selection - only show for buildings with multiple units */}
+              {propertyFilter !== "all" && (() => {
+                const selectedProperty = properties?.find(p => p.id === propertyFilter);
+                const propertyUnits = units.filter(unit => unit.propertyId === propertyFilter);
+                const isBuilding = propertyUnits.length > 1;
+                
+                if (!isBuilding) return null;
+
+                const handleUnitToggle = (unitId: string) => {
+                  const newFilter = [...unitFilter];
+                  if (newFilter.includes(unitId)) {
+                    setUnitFilter(newFilter.filter(id => id !== unitId));
+                  } else {
+                    setUnitFilter([...newFilter, unitId]);
+                  }
+                };
+                
+                return (
+                  <div className="flex flex-col space-y-2 p-3 border rounded-md bg-muted/30">
+                    <span className="text-sm font-medium">Units (Optional - leave empty to apply to entire building)</span>
+                    <div className="grid grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={unitFilter.includes("common")}
+                          onChange={() => handleUnitToggle("common")}
+                          className="rounded border-gray-300"
+                          data-testid="checkbox-common-area"
+                        />
+                        <span className="text-sm">Common Area</span>
+                      </label>
+                      {propertyUnits.map((unit) => (
+                        <label key={unit.id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={unitFilter.includes(unit.id)}
+                            onChange={() => handleUnitToggle(unit.id)}
+                            className="rounded border-gray-300"
+                            data-testid={`checkbox-unit-${unit.id}`}
+                          />
+                          <span className="text-sm">{unit.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Type Filter - Fourth */}
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-44" data-testid="select-type-filter">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {reminderTypes.map((type) => (
+                    <SelectItem key={type} value={type!}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Entity Filter - Fifth */}
+              <Select value={entityFilter} onValueChange={(value) => {
+                setEntityFilter(value);
+                if (value !== "all") {
+                  setPropertyFilter("all");
+                }
+              }}>
+                <SelectTrigger className="w-44" data-testid="select-entity-filter">
+                  <SelectValue placeholder="All Entities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Entities</SelectItem>
+                  {entities.map((entity) => (
+                    <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Dialog open={showReminderForm} onOpenChange={setShowReminderForm}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-reminder" className="bg-blue-500/90 hover:bg-blue-600/92 text-white shadow-md shadow-blue-300/40 backdrop-blur-sm border border-blue-400/45">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Reminder
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingReminder ? "Edit Reminder" : "Create New Reminder"}</DialogTitle>
+                  </DialogHeader>
+                  <ReminderForm 
+                    properties={properties || []}
+                    entities={entities || []}
+                    units={units || []}
+                    reminder={editingReminder || undefined}
+                    userRole={user?.primaryRole}
+                    onSubmit={(data) => {
+                      createReminderMutation.mutate(data);
+                    }}
+                    onCancel={() => {
+                      setShowReminderForm(false);
+                      setEditingReminder(null);
+                    }}
+                    isLoading={createReminderMutation.isPending || updateReminderMutation.isPending}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          {/* Bulk Edit Dialog for Recurring Reminders */}
+          <Dialog open={!!pendingEditReminder} onOpenChange={() => setPendingEditReminder(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Recurring Reminder</DialogTitle>
+                <DialogDescription>
+                  This reminder is part of a recurring series. How would you like to edit it?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Button
+                  onClick={() => {
+                    setEditingReminder(pendingEditReminder);
+                    setIsEditingSeries(false);
+                    setShowReminderForm(true);
+                    setPendingEditReminder(null);
+                  }}
+                  className="w-full justify-start"
+                  variant="outline"
+                  data-testid="button-edit-single-reminder"
+                >
+                  Edit this reminder only
+                </Button>
+                <Button
+                  onClick={() => {
+                    setEditingReminder(pendingEditReminder);
+                    setIsEditingSeries(true);
+                    setEditMode("future"); // Proper state management
+                    setShowReminderForm(true);
+                    setPendingEditReminder(null);
+                  }}
+                  className="w-full justify-start"
+                  variant="outline"
+                  data-testid="button-edit-future-reminders"
+                >
+                  Edit this and all future reminders
+                </Button>
+                <Button
+                  onClick={() => {
+                    setEditingReminder(pendingEditReminder);
+                    setIsEditingSeries(true);
+                    setEditMode("all"); // Proper state management
+                    setShowReminderForm(true);
+                    setPendingEditReminder(null);
+                  }}
+                  className="w-full justify-start"
+                  variant="outline"
+                  data-testid="button-edit-series-reminder"
+                >
+                  Edit entire recurring series
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={!!deleteReminderId} onOpenChange={() => setDeleteReminderId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {(() => {
+                    const reminder = reminders?.find(r => r.id === deleteReminderId);
+                    const isRecurring = reminder?.isRecurring || reminder?.parentRecurringId;
+                    return isRecurring ? "Delete Recurring Reminder" : "Delete Reminder";
+                  })()}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {(() => {
+                    const reminder = reminders?.find(r => r.id === deleteReminderId);
+                    const isRecurring = reminder?.isRecurring || reminder?.parentRecurringId;
+                    if (isRecurring) {
+                      return "This reminder is part of a recurring series. How would you like to delete it?";
+                    } else {
+                      return "Are you sure you want to delete this reminder? This action cannot be undone.";
+                    }
+                  })()}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                {(() => {
+                  const reminder = reminders?.find(r => r.id === deleteReminderId);
+                  const isRecurring = reminder?.isRecurring || reminder?.parentRecurringId;
+                  
+                  if (isRecurring) {
+                    return (
+                      <div className="flex flex-col space-y-2 w-full">
+                        <AlertDialogAction
+                          onClick={() => {
+                            if (deleteReminderId) {
+                              deleteReminderMutation.mutate(deleteReminderId);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:border-red-300 w-full"
+                          data-testid="button-delete-single-reminder"
+                        >
+                          Delete this reminder only
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                          onClick={() => {
+                            if (deleteReminderId) {
+                              bulkDeleteReminderMutation.mutate({ reminderId: deleteReminderId, mode: "future" });
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:border-red-300 w-full"
+                          data-testid="button-delete-future-reminders"
+                        >
+                          Delete this and all future reminders
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                          onClick={() => {
+                            if (deleteReminderId) {
+                              bulkDeleteReminderMutation.mutate({ reminderId: deleteReminderId, mode: "all" });
+                            }
+                          }}
+                          className="bg-red-600 text-white hover:bg-red-700 w-full"
+                          data-testid="button-delete-series-reminder"
+                        >
+                          Delete entire recurring series
+                        </AlertDialogAction>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <AlertDialogAction
+                        onClick={() => {
+                          if (deleteReminderId) {
+                            deleteReminderMutation.mutate(deleteReminderId);
+                          }
+                        }}
+                        className="bg-red-600 text-white hover:bg-red-700"
+                        data-testid="button-confirm-delete"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    );
+                  }
+                })()}
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* View Toggle */}
+          <div className="flex items-center gap-2 mb-6" data-testid="view-toggle">
+            <Button
+              variant="default"
+              className="gap-2"
+              data-testid="button-list-view"
+            >
+              <List className="h-4 w-4" />
+              List
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/admin-calendar")}
+              className="gap-2"
+              data-testid="button-calendar-view"
+            >
+              <Calendar className="h-4 w-4" />
+              Calendar
+            </Button>
+          </div>
+
+          {/* Summary Cards - Clickable Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Card 
+              data-testid="card-overdue-reminders"
+              className="hover:shadow-lg transition-shadow rounded-2xl overflow-hidden"
+              style={{
+                background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                border: '2px solid rgba(255, 255, 255, 0.85)',
+                boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+              }}
+            >
+              <CardContent className="p-6">
+                <div 
+                  className="flex items-center cursor-pointer"
+                  onClick={() => {
+                    setStatusFilter("Overdue");
+                    setDateFilter("all");
+                  }}
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+                    <p className="text-2xl font-bold text-foreground" data-testid="text-overdue-count">
+                      {overdueReminders}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-violet-100/60 rounded-lg flex items-center justify-center">
+                    <AlertTriangle className="text-violet-600" />
+                  </div>
+                </div>
+                {overdueReminders > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-4 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const overdueIds = allReminders
+                        .filter(r => getEffectiveStatus(r) === "Overdue")
+                        .map(r => r.id);
+                      Promise.all(overdueIds.map(id => 
+                        completeReminderMutation.mutateAsync(id)
+                      )).then(() => {
+                        toast({
+                          title: "Success",
+                          description: `Cleared ${overdueIds.length} overdue reminder${overdueIds.length > 1 ? 's' : ''}`,
+                        });
+                      });
+                    }}
+                    disabled={completeReminderMutation.isPending}
+                    data-testid="button-clear-all-overdue"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Clear All Overdue
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card 
+              data-testid="card-total-reminders"
+              className="cursor-pointer hover:shadow-lg transition-shadow rounded-2xl overflow-hidden"
+              onClick={() => {
+                setStatusFilter("due");
+                setDateFilter("this-month");
+              }}
+              style={{
+                background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                border: '2px solid rgba(255, 255, 255, 0.85)',
+                boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+              }}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                    <p className="text-2xl font-bold text-foreground" data-testid="text-total-count">
+                      {thisMonthReminders}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100/60 rounded-lg flex items-center justify-center">
+                    <Bell className="text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* List View */}
+          {remindersLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} data-testid={`skeleton-reminder-${i}`}>
+                  <CardContent className="p-6">
+                    <div className="space-y-3">
+                      <div className="h-5 bg-muted animate-pulse rounded" />
+                      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                      <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredReminders.length > 0 ? (
+            <div className="space-y-4">
+              {filteredReminders.map((reminder, index) => {
+                const effectiveStatus = getEffectiveStatus(reminder);
+                return (
+                <Card key={reminder.id} className="group hover:shadow-md transition-shadow rounded-2xl overflow-hidden" data-testid={`card-reminder-${index}`} style={{
+                  background: 'radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)',
+                  backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                  border: '2px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 4px 16px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-amber-100/60 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+                          {getTypeIcon(reminder.type)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground" data-testid={`text-reminder-title-${index}`}>
+                            {reminder.title}
+                          </h3>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                            {reminder.scope === 'property' && reminder.scopeId && (
+                              <div>
+                                <span className="text-blue-600 font-medium">Property:</span>
+                                <span className="ml-1" data-testid={`text-reminder-property-${index}`}>
+                                  {(() => {
+                                    const property = properties?.find(p => p.id === reminder.scopeId);
+                                    return property ? (property.name || `${property.street}, ${property.city}`) : 'Property';
+                                  })()}
+                                </span>
+                              </div>
+                            )}
+                            {reminder.scope === 'entity' && reminder.scopeId && (
+                              <div>
+                                <span className="text-purple-600 font-medium">Entity:</span>
+                                <span className="ml-1" data-testid={`text-reminder-entity-${index}`}>
+                                  {entities?.find(e => e.id === reminder.scopeId)?.name || 'Entity'}
+                                </span>
+                              </div>
+                            )}
+                            {reminder.scope === 'lease' && reminder.scopeId && (
+                              <div>
+                                <span className="text-green-600 font-medium">Lease:</span>
+                                <span className="ml-1" data-testid={`text-reminder-lease-${index}`}>
+                                  {(() => {
+                                    const lease = leases?.find(l => l.id === reminder.scopeId);
+                                    if (!lease) return 'Lease';
+                                    
+                                    const unit = units?.find(u => u.id === lease.unitId);
+                                    const tenant = tenants?.find(t => t.id === lease.tenantGroupId);
+                                    const property = properties?.find(p => p.id === unit?.propertyId);
+                                    
+                                    if (unit && tenant && property) {
+                                      return `${property.name || property.street} Unit ${unit.label} - ${tenant.name}`;
+                                    } else if (unit && property) {
+                                      return `${property.name || property.street} Unit ${unit.label}`;
+                                    } else if (tenant) {
+                                      return `${tenant.name}`;
+                                    }
+                                    return 'Lease';
+                                  })()} 
+                                </span>
+                              </div>
+                            )}
+                            <span data-testid={`text-reminder-due-${index}`}>
+                              Due {new Date(reminder.dueAt).toLocaleDateString()}
+                            </span>
+                            {reminder.isRecurring && (
+                              <Badge variant="outline" className="text-blue-600 border-blue-600" data-testid={`badge-recurring-${index}`}>
+                                <Repeat className="h-3 w-3 mr-1" />
+                                {reminder.recurringFrequency}
+                              </Badge>
+                            )}
+                            {reminder.parentRecurringId && (
+                              <Badge variant="outline" className="text-purple-600 border-purple-600" data-testid={`badge-recurring-instance-${index}`}>
+                                Auto-generated
+                              </Badge>
+                            )}
+                          </div>
+                          {/* Type badge - faded at bottom with colored text */}
+                          <div className="mt-2">
+                            {getTypeBadge(reminder.type)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-3">
+                        {getStatusBadge(effectiveStatus)}
+                        
+                        {/* Edit/Delete Icons - subtle and only visible on hover */}
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600"
+                            onClick={() => {
+                              const isRecurring = reminder.isRecurring || reminder.parentRecurringId;
+                              if (isRecurring) {
+                                setPendingEditReminder(reminder);
+                              } else {
+                                setEditingReminder(reminder);
+                                setShowReminderForm(true);
+                              }
+                            }}
+                            data-testid={`button-edit-reminder-${index}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600"
+                            onClick={() => setDeleteReminderId(reminder.id)}
+                            data-testid={`button-delete-reminder-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {(!reminder.status || reminder.status === "Overdue") && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => completeReminderMutation.mutate(reminder.id)}
+                            disabled={completeReminderMutation.isPending}
+                            data-testid={`button-complete-reminder-${index}`}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Complete
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-between">
+                        {(reminder.leadDays || 0) > 0 && (
+                          <span data-testid={`text-reminder-lead-${index}`}>
+                            {reminder.leadDays} day(s) notice
+                          </span>
+                        )}
+                      </div>
+                      {reminder.completedAt && (
+                        <p className="text-green-600 mt-2" data-testid={`text-reminder-completed-${index}`}>
+                          Completed {new Date(reminder.completedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2" data-testid="text-no-reminders">No Reminders Set</h3>
+                <p className="text-muted-foreground mb-4">Create reminders to stay on top of important tasks and deadlines.</p>
+                <Button onClick={() => setShowReminderForm(true)} data-testid="button-add-first-reminder">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Reminder
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
