@@ -67,6 +67,7 @@ import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 import { LifecycleBar } from "@/components/contractor/lifecycle-bar";
+import { ContractorResponsePanel, SlaExtensionButton } from "@/components/contractor/response-panel";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work" | "maya";
 
@@ -764,6 +765,7 @@ function ContractorInner({ user }: { user: any }) {
   const [acceptQuoteStartDate, setAcceptQuoteStartDate] = useState("");
   const [acceptQuoteEndDate, setAcceptQuoteEndDate] = useState("");
   const [acceptQuoteEstDays, setAcceptQuoteEstDays] = useState("");
+  const [responsePanelCase, setResponsePanelCase] = useState<any>(null);
 
   // Accept case mutation (with optional pricing + availability)
   const acceptCaseMutation = useMutation({
@@ -1634,6 +1636,7 @@ function ContractorInner({ user }: { user: any }) {
 
         {/* New Jobs View - Maya Carousel Layout */}
         {view === ("newJobs" as ViewState) && (
+          <>
           <MayaCarouselLayout
             title={requestsFilter === "passed" ? "Passed Requests" : "New Job Requests"}
             subtitle={requestsFilter === "passed" ? "Requests you've passed on \u2022 Auto-clears after 30 days" : "Jobs waiting for your response"}
@@ -1702,10 +1705,10 @@ function ContractorInner({ user }: { user: any }) {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
+            acceptLabel={requestsFilter === "passed" ? "Restore" : "Respond"}
             onAccept={requestsFilter === "passed" 
               ? (item) => { restoreCaseMutation.mutate(item.id); }
-              : (item) => { openAcceptQuoteDialog(item); }
+              : (item) => { setResponsePanelCase(item); }
             }
             onDecline={requestsFilter === "passed" ? undefined : (item) => {
               dismissCaseMutation.mutate(item.id);
@@ -1713,6 +1716,17 @@ function ContractorInner({ user }: { user: any }) {
             emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No new job requests"}
           />
+          {responsePanelCase && (
+            <div className="mt-3 max-w-lg mx-auto">
+              <ContractorResponsePanel
+                caseId={responsePanelCase.id}
+                caseTitle={responsePanelCase.title}
+                onClose={() => setResponsePanelCase(null)}
+                onSuccess={() => setResponsePanelCase(null)}
+              />
+            </div>
+          )}
+          </>
         )}
 
         {/* Active Jobs View - Maya Carousel Layout */}
@@ -1875,6 +1889,7 @@ function ContractorInner({ user }: { user: any }) {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 flex flex-col min-h-0">
               {lifecycleGroup === "requests" && (
+                <>
                 <MayaCarouselLayout
                   lifecycleBar={
                     <LifecycleBar
@@ -1959,10 +1974,10 @@ function ContractorInner({ user }: { user: any }) {
                   categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
                   itemType="request"
                   onItemSelect={(item) => { handleSelectCase(item.id); }}
-                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
+                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Respond"}
                   onAccept={requestsFilter === "passed"
                     ? (item) => { restoreCaseMutation.mutate(item.id); }
-                    : (item) => { openAcceptQuoteDialog(item); }
+                    : (item) => { setResponsePanelCase(item); }
                   }
                   onDecline={requestsFilter === "passed" ? undefined : (item) => {
                     dismissCaseMutation.mutate(item.id);
@@ -1970,6 +1985,17 @@ function ContractorInner({ user }: { user: any }) {
                   emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
                   emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No requests in this stage"}
                 />
+                {responsePanelCase && (
+                  <div className="mt-3">
+                    <ContractorResponsePanel
+                      caseId={responsePanelCase.id}
+                      caseTitle={responsePanelCase.title}
+                      onClose={() => setResponsePanelCase(null)}
+                      onSuccess={() => setResponsePanelCase(null)}
+                    />
+                  </div>
+                )}
+                </>
               )}
               {lifecycleGroup === "quotes" && (
                 <MayaCarouselLayout
@@ -2443,11 +2469,11 @@ function ContractorInner({ user }: { user: any }) {
                 <div className="flex gap-3">
                   <Button 
                     className="flex-1 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
-                    onClick={() => openAcceptQuoteDialog(selectedCase)}
-                    disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
+                    onClick={() => setResponsePanelCase(selectedCase)}
+                    disabled={selectedCase.status === "In Progress" || selectedCase.status === "Confirmed"}
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept & Estimate"}
+                    {selectedCase.status === "In Progress" || selectedCase.status === "Confirmed" ? "Responded" : "Respond"}
                   </Button>
                   <Button variant="outline" className="rounded-full" onClick={() => setView("calendar")}>
                     Schedule
@@ -2455,6 +2481,17 @@ function ContractorInner({ user }: { user: any }) {
                 </div>
               </CardContent>
             </Card>
+
+            {responsePanelCase && responsePanelCase.id === selectedCase.id && (
+              <div className="mb-4">
+                <ContractorResponsePanel
+                  caseId={responsePanelCase.id}
+                  caseTitle={responsePanelCase.title}
+                  onClose={() => setResponsePanelCase(null)}
+                  onSuccess={() => setResponsePanelCase(null)}
+                />
+              </div>
+            )}
 
             {/* Job Details */}
             <Card className="mb-4">
