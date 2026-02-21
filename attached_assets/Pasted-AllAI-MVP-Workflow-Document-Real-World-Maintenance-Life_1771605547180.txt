@@ -1,0 +1,331 @@
+AllAI MVP Workflow Document
+Real-World Maintenance Lifecycle (Simplified, Buildable, and Fast)
+1) Where we are
+
+AllAI is building the end-to-end workflow that connects:
+
+Tenant/Homeowner (reports an issue + shares media)
+
+Landlord / Property Owner / Property Manager (PM) (authorizes work + controls cost + selects level of involvement)
+
+Contractor (responds, schedules, performs work, invoices)
+
+The challenge we’re solving is real-world variability:
+
+Sometimes contractors can quote remotely based on Maya triage + photos/video.
+
+Other times contractors must do a Site Visit (Diagnostic) (which may be free or paid) and only then can provide a quote.
+
+Different landlords want different control levels (hands-off vs hands-on).
+
+The MVP goal is to mimic real life while keeping the product simple.
+
+2) What we’re trying to do
+
+Build one unified case lifecycle that:
+
+Adapts based on landlord involvement mode and contractor relationship
+
+Handles both:
+
+Remote quote and
+
+Site Visit (Diagnostic) with a required quote afterward
+
+Minimizes steps:
+
+Contractor responds in one step (“Quote + Availability” or “Request Site Visit + Availability”)
+
+Landlord approvals are 0–1 clicks in most cases
+
+Avoids branching into many separate workflows
+
+3) Core simplification (the MVP insight)
+
+We will NOT build multiple workflows.
+
+We will build:
+
+One case lifecycle (state machine)
+
+One contractor response model
+
+One approval rule based on hands-off/balanced/hands-on + threshold
+
+Everything else is a “skip” or “continue” within the same lifecycle.
+
+4) Landlord involvement modes (definition)
+Hands-Off
+
+“Just handle it”
+
+Auto-approve when under the cost threshold (rules below)
+
+Balanced
+
+“Use my preferred contractor, but I want one approval step”
+
+Usually one approval before confirming the job
+
+Hands-On
+
+“Get me 2–3 options and I’ll pick”
+
+Requires quote comparison and selection
+
+5) Contractor relationship (definition)
+
+Trusted/Favorite (Preferred): known contractor landlord prefers
+
+Open quoting: multiple contractors asked to respond (2–3 max in MVP)
+
+6) Contractor responses (MVP)
+
+Contractors only need four response options:
+
+Send Quote + Availability
+
+price (fixed or range)
+
+earliest availability windows
+
+optional notes
+
+Request Site Visit (Diagnostic) + Availability
+
+site visit fee: $0 or paid (flat fee; hourly optional later)
+
+earliest availability windows
+
+optional notes/questions
+
+Need More Info
+
+1–3 clarifying questions
+
+request more photos/video/audio
+
+Pass / Decline
+
+Important naming:
+In UI we use Site Visit (Diagnostic) or Service Call (contractor-friendly).
+We avoid “evaluation” as the main term.
+
+7) Site Visit (Diagnostic) policy (MVP)
+
+To keep this simple and consistent:
+
+Policy
+
+If a Site Visit (Diagnostic) occurs:
+
+Contractor must submit a final Quote within 3 business days of the site visit.
+
+Contractor may request an extension (one-click + reason + new ETA).
+
+If quote is overdue, the case becomes Quote Overdue and triggers reminders.
+
+This avoids complex “authorization/caps” logic for MVP while still matching real-life expectations.
+
+8) Auto-approval rule (hands-off)
+
+Auto-approval is allowed only when:
+
+✅ Landlord mode = Hands-Off
+✅ Contractor = Trusted/Favorite (Preferred) (or your chosen “trusted” tier)
+✅ Quote amount ≤ landlord’s Not-to-Exceed threshold
+
+If all true → the system auto-confirms and schedules.
+
+If quote exceeds threshold → landlord approval is required.
+
+9) The unified case lifecycle (single state machine)
+
+This is the one lifecycle used for all scenarios:
+
+New (Intake)
+
+Awaiting Contractor Response
+
+Awaiting Approval (only when needed)
+
+Confirmed (job awarded to a contractor)
+
+Scheduled
+
+In Progress
+
+Completed
+
+Invoiced
+
+Paid (optional MVP)
+
+Note on “Confirmed”
+
+We use Confirmed, not “Assigned,” because “Assigned” is ambiguous.
+Confirmed = the contractor has the job and should act.
+
+10) Lifecycle visualization (words + arrows)
+A) Landlord / PM lifecycle (MVP)
+1) Standard path (remote quote)
+
+New Request
+→ Sent to contractor(s)
+→ Contractor responds with Quote + Availability
+→ (If approval needed) Awaiting Approval
+→ Confirmed (contractor awarded)
+→ Scheduled
+→ In Progress
+→ Completed
+→ Invoiced
+→ Paid (optional)
+
+2) Site Visit (Diagnostic) path (simple MVP)
+
+New Request
+→ Sent to contractor(s)
+→ Contractor requests Site Visit (Diagnostic) + Fee + Availability
+→ Landlord approves site visit (always required unless you later add “auto-approve site visit”)
+→ Confirmed (Diagnostic visit)
+→ Scheduled (site visit date)
+→ Site visit completed
+→ Awaiting Quote (3 business day SLA)
+→ Quote received
+→ (Hands-off under threshold) Auto-Approve OR Awaiting Approval
+→ Confirmed (repair job)
+→ Scheduled / In Progress / Completed / Invoiced
+
+3) Hands-on multi-quote path
+
+New Request
+→ Sent to 2–3 contractors
+→ Collect Quotes + Availability (and/or Site Visit requests)
+→ Awaiting Approval (compare & choose)
+→ Confirmed (winner)
+→ Notify others (not selected)
+→ Scheduled → In Progress → Completed → Invoiced
+
+B) Contractor lifecycle (MVP)
+Contractor receives a case
+
+Incoming Request
+→ Contractor selects ONE action:
+
+Send Quote + Availability
+→ waits for approval (if required)
+→ Confirmed Job
+→ Scheduled
+→ In Progress
+→ Completed
+→ Send Invoice
+
+Request Site Visit (Diagnostic) + Availability (+ fee)
+→ waits for landlord approval
+→ Confirmed (Diagnostic)
+→ Perform Site Visit
+→ Submit Quote within 3 business days (or request extension)
+→ waits for approval (or auto-approval if hands-off + under threshold)
+→ Confirmed Job
+→ Scheduled
+→ In Progress → Completed → Invoice
+
+Need More Info
+→ ask 1–3 questions / request media
+→ returns to Send Quote or Request Site Visit
+
+Pass
+→ case closed for that contractor
+
+11) Routing logic (who gets the request)
+
+This decides whether it feels like real life.
+
+Hands-Off
+
+Send to 1 contractor
+
+Prefer Trusted/Favorite if exists; else best match
+
+Balanced
+
+Send to 1 contractor
+
+Prefer Favorite if exists; else best match
+
+Typically requires one approval (unless later auto-approved rules)
+
+Hands-On
+
+Send to 2–3 contractors
+
+Landlord compares and chooses
+
+12) Status + UI copy changes needed (high impact)
+Contractor-side buttons
+
+Send Quote
+
+Request Site Visit (Diagnostic) (or “Request Service Call”)
+
+Need More Info
+
+Pass
+
+Landlord-side buttons
+
+Approve & Confirm
+
+Ask Contractor
+
+Get More Quotes (hands-on only)
+
+Status language (keep tight)
+
+New
+
+Awaiting Contractor
+
+Awaiting Approval
+
+Confirmed
+
+Scheduled
+
+In Progress
+
+Completed
+
+Invoiced
+
+Paid (optional)
+
+Add one SLA status for site visit quotes
+
+Awaiting Quote (Due in 3 business days)
+
+Quote Overdue (if late)
+
+13) What we are explicitly NOT building in MVP (to stay lean)
+
+Complex “authorization / cap” systems (can be Phase 2)
+
+Hourly billing tracking or timecards
+
+Multi-step quote negotiation threads
+
+Complex surcharge modeling (after-hours, weekend) beyond a simple line item or note
+
+14) MVP success criteria
+
+Contractor can respond in one step in most cases
+
+Landlord approvals are 0 clicks in hands-off under threshold and 1 click in balanced most of the time
+
+Only hands-on requires multi-quote comparison
+
+Site visits are supported cleanly via:
+
+“Request Site Visit (Diagnostic)” response, and
+
+“Quote due within 3 business days” rule
