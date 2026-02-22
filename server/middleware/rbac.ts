@@ -21,22 +21,35 @@ export interface AuthenticatedRequest extends Request {
 
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
+    let userId: string | undefined;
+    let sessionId: string | undefined;
+    let viewAsOrgId: string | undefined;
+
+    // Check Bearer token FIRST (per-tab auth via sessionStorage)
     const authHeader = req.headers.authorization;
     const refreshToken = authHeader?.replace('Bearer ', '');
-    
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Authentication required' });
+    if (refreshToken) {
+      const session = await validateSession(refreshToken);
+      if (session.valid && session.userId) {
+        userId = session.userId;
+        sessionId = session.sessionId;
+        viewAsOrgId = session.viewAsOrgId;
+      }
+    }
+
+    // Fallback to session cookie (shared across tabs)
+    if (!userId && (req as any).session?.userId) {
+      userId = (req as any).session.userId;
+      sessionId = (req as any).session.sessionId;
     }
     
-    const session = await validateSession(refreshToken);
-    
-    if (!session.valid || !session.userId) {
-      return res.status(401).json({ error: 'Invalid or expired session' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
     
     // Get user details
     const user = await db.query.users.findFirst({
-      where: eq(users.id, session.userId),
+      where: eq(users.id, userId),
     });
     
     if (!user) {
@@ -86,10 +99,9 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     }
     
     req.userId = user.id;
-    req.sessionId = session.sessionId;
+    req.sessionId = sessionId;
     
     // Check if superadmin is impersonating an organization (from session data)
-    const viewAsOrgId = session.viewAsOrgId;
     const effectiveOrgId = (user.isPlatformSuperAdmin && viewAsOrgId) ? viewAsOrgId : orgMembership?.orgId;
     
     // Debug logging for impersonation
@@ -98,7 +110,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
         userId: user.id,
         viewAsOrgId,
         effectiveOrgId,
-        sessionId: session.sessionId,
+        sessionId,
       });
     }
     
