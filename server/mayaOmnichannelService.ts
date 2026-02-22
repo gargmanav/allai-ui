@@ -112,7 +112,7 @@ export class MayaOmnichannelService {
     }
 
     // Determine involvement mode
-    const involvementMode = approvalPolicy?.involvementMode || 'balanced';
+    const involvementMode = approvalPolicy?.involvementMode || 'hands-on';
     
     let systemPrompt = `You are Maya, a friendly and empathetic AI property management assistant. Your role is to help tenants and contractors communicate with property managers efficiently.
 

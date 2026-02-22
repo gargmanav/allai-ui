@@ -1427,7 +1427,7 @@ export const approvalPolicies = pgTable("approval_policies", {
   autoApproveEmergencies: boolean("auto_approve_emergencies").default(true),
   
   // Involvement mode
-  involvementMode: varchar("involvement_mode").notNull().default("balanced"), // hands-off, balanced, hands-on
+  involvementMode: varchar("involvement_mode").notNull().default("hands-on"), // hands-off, balanced, hands-on
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

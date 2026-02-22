@@ -6570,7 +6570,7 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
     }
   });
 
-  // Approval Policy routes
+  // Approval Policy routes - SINGLETON: one policy per org, auto-created with "hands-on" default
   app.get('/api/approval-policies', isAuthenticated, async (req: any, res) => {
     try {
       const org = await storage.getUserOrganization(req.user.claims.sub);
@@ -6578,7 +6578,24 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
         return res.status(404).json({ message: "Organization not found" });
       }
       
-      const policies = await storage.getApprovalPolicies(org.id);
+      let policies = await storage.getApprovalPolicies(org.id);
+      
+      if (policies.length === 0) {
+        const defaultPolicy = await storage.createApprovalPolicy({
+          orgId: org.id,
+          name: "My Approval Policy",
+          isActive: true,
+          involvementMode: "hands-on",
+          trustedContractorIds: [],
+          autoApproveWeekdays: true,
+          autoApproveWeekends: false,
+          autoApproveEvenings: false,
+          blockVacationDates: false,
+          autoApproveEmergencies: true,
+        });
+        policies = [defaultPolicy];
+      }
+      
       res.json(policies);
     } catch (error) {
       console.error("Error fetching approval policies:", error);
@@ -6591,6 +6608,11 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
       const org = await storage.getUserOrganization(req.user.claims.sub);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const existing = await storage.getApprovalPolicies(org.id);
+      if (existing.length > 0) {
+        return res.status(409).json({ message: "Only one approval policy is allowed per organization. Please edit the existing policy instead." });
       }
 
       const { insertApprovalPolicySchema } = await import("@shared/schema");
@@ -6614,7 +6636,6 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      // Verify policy belongs to user's organization
       const existingPolicy = await storage.getApprovalPolicy(req.params.id);
       if (!existingPolicy) {
         return res.status(404).json({ message: "Policy not found" });
@@ -6626,15 +6647,7 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
       const { insertApprovalPolicySchema } = await import("@shared/schema");
       const validatedData = insertApprovalPolicySchema.partial().parse(req.body);
       
-      // SINGLE-ACTIVE CONSTRAINT: If activating this policy, deactivate all others first
-      if (validatedData.isActive === true) {
-        const allPolicies = await storage.getApprovalPolicies(org.id);
-        for (const otherPolicy of allPolicies) {
-          if (otherPolicy.id !== req.params.id && otherPolicy.isActive) {
-            await storage.updateApprovalPolicy(otherPolicy.id, { isActive: false });
-          }
-        }
-      }
+      validatedData.isActive = true;
       
       const policy = await storage.updateApprovalPolicy(req.params.id, validatedData);
       res.json(policy);
@@ -6651,30 +6664,7 @@ I've analyzed this as a ${triageResult.category.toLowerCase()} issue that should
   });
 
   app.delete('/api/approval-policies/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const org = await storage.getUserOrganization(req.user.claims.sub);
-      if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
-      }
-
-      // Verify policy belongs to user's organization
-      const existingPolicy = await storage.getApprovalPolicy(req.params.id);
-      if (!existingPolicy) {
-        return res.status(404).json({ message: "Policy not found" });
-      }
-      if (existingPolicy.orgId !== org.id) {
-        return res.status(403).json({ message: "Unauthorized to delete this policy" });
-      }
-
-      await storage.deleteApprovalPolicy(req.params.id);
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("Error deleting approval policy:", error);
-      if (error.message === "Policy not found") {
-        return res.status(404).json({ message: "Policy not found" });
-      }
-      res.status(500).json({ message: "Failed to delete approval policy" });
-    }
+    return res.status(403).json({ message: "Cannot delete the approval policy. Each organization must have exactly one policy." });
   });
 
   // Appointment Proposal routes
