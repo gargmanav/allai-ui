@@ -763,11 +763,12 @@ function ContractorInner({ user }: { user: any }) {
   const [acceptQuotePriceTbd, setAcceptQuotePriceTbd] = useState(false);
   const [acceptQuoteStartDate, setAcceptQuoteStartDate] = useState("");
   const [acceptQuoteEndDate, setAcceptQuoteEndDate] = useState("");
-  const [acceptQuoteEstDays, setAcceptQuoteEstDays] = useState("");
+  const [acceptQuoteEstDays, setAcceptQuoteEstDays] = useState("1");
+  const [acceptQuoteTimeSlot, setAcceptQuoteTimeSlot] = useState("");
 
   // Accept case mutation (with optional pricing + availability)
   const acceptCaseMutation = useMutation({
-    mutationFn: async (data: { caseId: string; quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number }) => {
+    mutationFn: async (data: { caseId: string; quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number; preferredTimeSlot?: string }) => {
       return await apiRequest("POST", `/api/contractor/accept-case`, data);
     },
     onSuccess: () => {
@@ -780,7 +781,8 @@ function ContractorInner({ user }: { user: any }) {
       setAcceptQuotePriceTbd(false);
       setAcceptQuoteStartDate("");
       setAcceptQuoteEndDate("");
-      setAcceptQuoteEstDays("");
+      setAcceptQuoteEstDays("1");
+      setAcceptQuoteTimeSlot("");
       toast({ title: "Job Accepted", description: "You've accepted this job." });
     },
     onError: (error: any) => {
@@ -795,7 +797,8 @@ function ContractorInner({ user }: { user: any }) {
     setAcceptQuotePriceTbd(false);
     setAcceptQuoteStartDate("");
     setAcceptQuoteEndDate("");
-    setAcceptQuoteEstDays("");
+    setAcceptQuoteEstDays("1");
+    setAcceptQuoteTimeSlot("");
     setAcceptQuoteDialogOpen(true);
   };
 
@@ -806,8 +809,8 @@ function ContractorInner({ user }: { user: any }) {
       quotedPrice: acceptQuotePriceTbd ? undefined : acceptQuotePrice || undefined,
       priceTbd: acceptQuotePriceTbd,
       availableStartDate: acceptQuoteStartDate || undefined,
-      availableEndDate: acceptQuoteEndDate || undefined,
       estimatedDays: acceptQuoteEstDays ? parseInt(acceptQuoteEstDays) : undefined,
+      preferredTimeSlot: acceptQuoteTimeSlot || undefined,
     });
   };
 
@@ -1702,7 +1705,7 @@ function ContractorInner({ user }: { user: any }) {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
+            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept"}
             onAccept={requestsFilter === "passed" 
               ? (item) => { restoreCaseMutation.mutate(item.id); }
               : (item) => { openAcceptQuoteDialog(item); }
@@ -2447,7 +2450,7 @@ function ContractorInner({ user }: { user: any }) {
                     disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept & Estimate"}
+                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept"}
                   </Button>
                   <Button variant="outline" className="rounded-full" onClick={() => setView("calendar")}>
                     Schedule
@@ -2590,7 +2593,7 @@ function ContractorInner({ user }: { user: any }) {
       <Dialog open={acceptQuoteDialogOpen} onOpenChange={setAcceptQuoteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Send Estimate</DialogTitle>
+            <DialogTitle>Accept Job</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
@@ -2651,39 +2654,42 @@ function ContractorInner({ user }: { user: any }) {
                 <Calendar className="h-4 w-4 text-slate-400" />
                 <Label className="text-sm font-medium text-slate-600">Availability <span className="text-xs font-normal text-slate-400">(optional)</span></Label>
               </div>
+              <div>
+                <Label className="text-xs text-slate-500 mb-1 block">Anticipated start</Label>
+                <Input
+                  type="date"
+                  value={acceptQuoteStartDate}
+                  onChange={(e) => setAcceptQuoteStartDate(e.target.value)}
+                  className="text-sm"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-slate-500 mb-1 block">Earliest start</Label>
+                  <Label className="text-xs text-slate-500 mb-1 block">Estimated days to complete</Label>
                   <Input
-                    type="date"
-                    value={acceptQuoteStartDate}
-                    onChange={(e) => setAcceptQuoteStartDate(e.target.value)}
+                    type="number"
+                    placeholder="1"
+                    value={acceptQuoteEstDays}
+                    onChange={(e) => setAcceptQuoteEstDays(e.target.value)}
                     className="text-sm"
-                    min={new Date().toISOString().split('T')[0]}
+                    min="1"
+                    step="1"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-500 mb-1 block">Latest start</Label>
-                  <Input
-                    type="date"
-                    value={acceptQuoteEndDate}
-                    onChange={(e) => setAcceptQuoteEndDate(e.target.value)}
-                    className="text-sm"
-                    min={acceptQuoteStartDate || new Date().toISOString().split('T')[0]}
-                  />
+                  <Label className="text-xs text-slate-500 mb-1 block">Preferred time</Label>
+                  <select
+                    value={acceptQuoteTimeSlot}
+                    onChange={(e) => setAcceptQuoteTimeSlot(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">Any time</option>
+                    <option value="morning">Morning (8am–12pm)</option>
+                    <option value="afternoon">Afternoon (12–4pm)</option>
+                    <option value="evening">Early Evening (4–8pm)</option>
+                  </select>
                 </div>
-              </div>
-              <div className="w-1/2">
-                <Label className="text-xs text-slate-500 mb-1 block">Estimated days to complete</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 2"
-                  value={acceptQuoteEstDays}
-                  onChange={(e) => setAcceptQuoteEstDays(e.target.value)}
-                  className="text-sm"
-                  min="1"
-                  step="1"
-                />
               </div>
             </div>
           </div>
@@ -2694,9 +2700,9 @@ function ContractorInner({ user }: { user: any }) {
             <Button 
               className="bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
               onClick={submitAcceptQuote}
-              disabled={acceptCaseMutation.isPending || (!acceptQuotePriceTbd && !acceptQuotePrice)}
+              disabled={acceptCaseMutation.isPending}
             >
-              {acceptCaseMutation.isPending ? "Sending..." : "Send Estimate"}
+              {acceptCaseMutation.isPending ? "Accepting..." : "Accept"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3003,7 +3003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Case not found" });
       }
       
-      if (smartCase.assignedContractorId) {
+      if (smartCase.assignedContractorId && smartCase.assignedContractorId !== userId) {
         return res.status(400).json({ message: "Case already assigned to another contractor" });
       }
       

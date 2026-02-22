@@ -351,7 +351,7 @@ router.get('/assigned-cases', requireAuth, requireRole('contractor'), async (req
 router.post('/accept-case', requireAuth, requireRole('contractor'), async (req: AuthenticatedRequest, res) => {
   try {
     const contractorUserId = req.user!.id;
-    const { caseId, quotedPrice, priceTbd, availableStartDate, availableEndDate, estimatedDays } = req.body;
+    const { caseId, quotedPrice, priceTbd, availableStartDate, estimatedDays, preferredTimeSlot } = req.body;
     
     if (!caseId) {
       return res.status(400).json({ error: 'Case ID is required' });
@@ -361,8 +361,8 @@ router.post('/accept-case', requireAuth, requireRole('contractor'), async (req: 
       quotedPrice: quotedPrice ? String(quotedPrice) : undefined,
       priceTbd: !!priceTbd,
       availableStartDate: availableStartDate || undefined,
-      availableEndDate: availableEndDate || undefined,
       estimatedDays: estimatedDays ? parseInt(estimatedDays) : undefined,
+      preferredTimeSlot: preferredTimeSlot || undefined,
     });
     
     if (!result.success) {

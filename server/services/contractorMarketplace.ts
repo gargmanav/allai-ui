@@ -111,9 +111,8 @@ export async function canContractorAcceptCase(contractorUserId: string, caseId: 
     return { canAccept: false, reason: 'Case not found' };
   }
   
-  // Check if already assigned
-  if (caseItem.assignedContractorId) {
-    return { canAccept: false, reason: 'Case already assigned' };
+  if (caseItem.assignedContractorId && caseItem.assignedContractorId !== contractorUserId) {
+    return { canAccept: false, reason: 'Case already assigned to another contractor' };
   }
   
   // Check favorite restriction (unless urgent)
@@ -133,7 +132,7 @@ export async function canContractorAcceptCase(contractorUserId: string, caseId: 
   return { canAccept: true };
 }
 
-export async function acceptCase(contractorUserId: string, caseId: string, options?: { quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number }): Promise<{ success: boolean; error?: string }> {
+export async function acceptCase(contractorUserId: string, caseId: string, options?: { quotedPrice?: string; priceTbd?: boolean; availableStartDate?: string; availableEndDate?: string; estimatedDays?: number; preferredTimeSlot?: string }): Promise<{ success: boolean; error?: string }> {
   // Verify contractor can accept
   const { canAccept, reason } = await canContractorAcceptCase(contractorUserId, caseId);
   
@@ -159,25 +158,34 @@ export async function acceptCase(contractorUserId: string, caseId: string, optio
         updateSet.priceTbd = false;
       }
       
-      // Assign case to contractor with WHERE clause ensuring it's still unassigned
       const updated = await tx.update(smartCases)
         .set(updateSet)
         .where(and(
           eq(smartCases.id, caseId),
-          isNull(smartCases.assignedContractorId) // Prevents double-assign race
+          or(
+            isNull(smartCases.assignedContractorId),
+            eq(smartCases.assignedContractorId, contractorUserId)
+          )
         ))
         .returning();
       
-      // If no rows updated, case was already assigned
       if (updated.length === 0) {
         throw new Error('Case already assigned to another contractor');
       }
       
       const caseItem = updated[0];
       
-      // Create a quote record when price is provided (not TBD)
+      if (options?.availableStartDate) {
+        await tx.update(smartCases)
+          .set({ scheduledStartAt: new Date(options.availableStartDate) })
+          .where(eq(smartCases.id, caseId));
+      }
+
       if (options?.quotedPrice && !options?.priceTbd) {
         const priceStr = String(parseFloat(options.quotedPrice) || 0);
+        const timeSlotNote = options?.preferredTimeSlot 
+          ? `Preferred time: ${options.preferredTimeSlot === 'morning' ? 'Morning (8am–12pm)' : options.preferredTimeSlot === 'afternoon' ? 'Afternoon (12–4pm)' : options.preferredTimeSlot === 'evening' ? 'Early Evening (4–8pm)' : options.preferredTimeSlot}`
+          : undefined;
         await tx.insert(quotes).values({
           contractorId: contractorUserId,
           caseId: caseItem.id,
@@ -189,8 +197,8 @@ export async function acceptCase(contractorUserId: string, caseId: string, optio
           total: priceStr,
           sentAt: new Date(),
           availableStartDate: options?.availableStartDate ? new Date(options.availableStartDate) : undefined,
-          availableEndDate: options?.availableEndDate ? new Date(options.availableEndDate) : undefined,
           estimatedDays: options?.estimatedDays || undefined,
+          internalNotes: timeSlotNote,
         });
       }
       

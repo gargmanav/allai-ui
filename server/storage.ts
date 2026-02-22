@@ -4214,8 +4214,8 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Case not found');
       }
       
-      if (smartCase.assignedContractorId) {
-        throw new Error('Case already assigned');
+      if (smartCase.assignedContractorId && smartCase.assignedContractorId !== contractorUserId) {
+        throw new Error('Case already assigned to another contractor');
       }
       
       if (smartCase.restrictToFavorites && !smartCase.isUrgent) {
@@ -4243,12 +4243,15 @@ export class DatabaseStorage implements IStorage {
         })
         .where(and(
           eq(smartCases.id, caseId),
-          isNull(smartCases.assignedContractorId)
+          or(
+            isNull(smartCases.assignedContractorId),
+            eq(smartCases.assignedContractorId, contractorUserId)
+          )
         ))
         .returning();
 
       if (!updatedCase) {
-        throw new Error('Case already assigned or not found');
+        throw new Error('Case already assigned to another contractor');
       }
 
       await tx.insert(jobOffers)
