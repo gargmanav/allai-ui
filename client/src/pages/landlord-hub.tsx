@@ -1954,7 +1954,7 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                         {selectedCase.assignedContractorName}
                                       </span>
                                       <span className="text-[10px] text-emerald-600/70">
-                                        {selectedCase.status === "Scheduled" ? "Job confirmed - awaiting schedule" :
+                                        {selectedCase.status === "Scheduled" ? "Appointment confirmed — waiting for contractor to head out" :
                                          selectedCase.status === "In Review" && selectedCase.scheduledStartAt ? "Date proposed — awaiting your confirmation" :
                                          selectedCase.status === "In Review" ? "Awaiting quote & availability" :
                                          selectedCase.status === "In Progress" ? "Contractor is on the way" :
@@ -1997,25 +1997,23 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                               {selectedCase.status === "In Review" && (
                                 <Button
                                   className="h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
-                                  onClick={() => statusMutation.mutate({ caseId: selectedCase.id, status: "Scheduled" })}
+                                  onClick={() => statusMutation.mutate({ caseId: String(selectedCase.id), status: "Scheduled" })}
                                   disabled={statusMutation.isPending}
                                 >
                                   {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                                   Confirm
                                 </Button>
                               )}
-                              {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && selectedCase.status !== "In Review" && (
+                              {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && selectedCase.status !== "In Review" && selectedCase.status !== "New" && (
                                 <Button
-                                  className="h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
+                                  className="h-11 touch-manipulation bg-rose-100/60 hover:bg-rose-100/80 text-rose-700 border border-rose-200/60"
                                   onClick={() => {
-                                    const idx = STATUS_CYCLE.indexOf(selectedCase.status as any);
-                                    const next = idx >= 0 && idx < STATUS_CYCLE.length - 1 ? STATUS_CYCLE[idx + 1] : "Resolved";
-                                    statusMutation.mutate({ caseId: selectedCase.id, status: next });
+                                    statusMutation.mutate({ caseId: String(selectedCase.id), status: "Resolved" });
                                   }}
                                   disabled={statusMutation.isPending}
                                 >
                                   {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                                  Confirm
+                                  Resolve Case
                                 </Button>
                               )}
                             </div>
