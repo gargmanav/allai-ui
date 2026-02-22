@@ -22,6 +22,9 @@ export function useAuth() {
         await fetch("/api/logout", { method: "GET", credentials: "include" });
       } catch {}
     } finally {
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('sessionId');
+      sessionStorage.removeItem('user');
       queryClient.clear();
       window.location.href = "/";
     }

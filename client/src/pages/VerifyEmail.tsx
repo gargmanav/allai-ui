@@ -31,9 +31,9 @@ export default function VerifyEmail() {
       .then(data => {
         if (data.success) {
           // Store session
-          localStorage.setItem('refreshToken', data.session.refreshToken);
-          localStorage.setItem('sessionId', data.session.sessionId);
-          localStorage.setItem('user', JSON.stringify(data.user));
+          sessionStorage.setItem('refreshToken', data.session.refreshToken);
+          sessionStorage.setItem('sessionId', data.session.sessionId);
+          sessionStorage.setItem('user', JSON.stringify(data.user));
           
           setStatus('success');
           

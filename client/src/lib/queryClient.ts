@@ -18,8 +18,7 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
   
-  // Add refresh token from localStorage if available
-  const refreshToken = localStorage.getItem('refreshToken');
+  const refreshToken = sessionStorage.getItem('refreshToken');
   if (refreshToken) {
     headers["Authorization"] = `Bearer ${refreshToken}`;
   }
@@ -43,8 +42,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
     
-    // Add refresh token from localStorage if available
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = sessionStorage.getItem('refreshToken');
     if (refreshToken) {
       headers["Authorization"] = `Bearer ${refreshToken}`;
     }

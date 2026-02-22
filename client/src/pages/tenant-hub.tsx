@@ -271,7 +271,7 @@ export default function TenantHub() {
           const formData = new FormData();
           selectedPhotos.forEach(p => formData.append("photos", p.file));
           const headers: Record<string, string> = {};
-          const refreshToken = localStorage.getItem("refreshToken");
+          const refreshToken = sessionStorage.getItem("refreshToken");
           if (refreshToken) {
             headers["Authorization"] = `Bearer ${refreshToken}`;
           }

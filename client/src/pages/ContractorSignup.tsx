@@ -155,8 +155,8 @@ export default function ContractorSignup() {
     },
     onSuccess: (data) => {
       // Store session
-      localStorage.setItem('refreshToken', data.session.refreshToken);
-      localStorage.setItem('sessionId', data.session.sessionId);
+      sessionStorage.setItem('refreshToken', data.session.refreshToken);
+      sessionStorage.setItem('sessionId', data.session.sessionId);
       toast({
         title: 'Welcome!',
         description: 'Your contractor account is ready.',
