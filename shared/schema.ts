@@ -616,20 +616,7 @@ export const maintenanceReminders = pgTable("maintenance_reminders", {
 });
 
 // Smart Cases
-export const caseStatusEnum = pgEnum("case_status", [
-  "New",
-  "Awaiting Contractor",
-  "In Review",
-  "Awaiting Approval",
-  "Confirmed",
-  "Scheduled",
-  "In Progress",
-  "On Hold",
-  "Awaiting Quote",
-  "Resolved",
-  "Closed",
-  "Invoiced",
-]);
+export const caseStatusEnum = pgEnum("case_status", ["New", "In Review", "Scheduled", "In Progress", "On Hold", "Resolved", "Closed"]);
 export const casePriorityEnum = pgEnum("case_priority", ["Normal", "High", "Urgent"]);
 
 export const smartCases = pgTable("smart_cases", {
@@ -663,16 +650,8 @@ export const smartCases = pgTable("smart_cases", {
   postedAt: timestamp("posted_at"), // When job was posted to marketplace
   timeoutNotificationSent: boolean("timeout_notification_sent").default(false), // 4-hour timeout notification
   isUrgent: boolean("is_urgent").default(false), // Emergency bypass for favorites restriction
-  priceTbd: boolean("price_tbd").default(false),
-  quotedPrice: decimal("quoted_price", { precision: 10, scale: 2 }),
-  isDiagnosticPhase: boolean("is_diagnostic_phase").default(false),
-  diagnosticFee: decimal("diagnostic_fee", { precision: 10, scale: 2 }),
-  diagnosticVisitDate: timestamp("diagnostic_visit_date"),
-  diagnosticCompletedAt: timestamp("diagnostic_completed_at"),
-  quoteSlaDeadline: timestamp("quote_sla_deadline"),
-  quoteTurnaroundDays: integer("quote_turnaround_days").default(3),
-  slaExtensionCount: integer("sla_extension_count").default(0),
-  contractorResponseType: varchar("contractor_response_type"),
+  priceTbd: boolean("price_tbd").default(false), // Price to be discussed - set when contractor accepts without quoting
+  quotedPrice: decimal("quoted_price", { precision: 10, scale: 2 }), // Quick price set during accept & quote flow
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -695,63 +674,6 @@ export const jobOffers = pgTable("job_offers", {
 }, (table) => [
   index("idx_job_offers_contractor").on(table.contractorUserId, table.status, table.expiresAt),
 ]);
-
-// Contractor Responses - The 4-button response system for incoming cases
-export const contractorResponseTypeEnum = pgEnum("contractor_response_type", [
-  "quote",
-  "diagnostic_visit",
-  "need_more_info",
-  "pass",
-]);
-
-export const contractorResponses = pgTable("contractor_responses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  caseId: varchar("case_id").notNull().references(() => smartCases.id),
-  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
-  orgId: varchar("org_id").references(() => organizations.id),
-  responseType: contractorResponseTypeEnum("response_type").notNull(),
-  quotedPrice: decimal("quoted_price", { precision: 10, scale: 2 }),
-  availableStartDate: timestamp("available_start_date"),
-  availableEndDate: timestamp("available_end_date"),
-  estimatedDays: integer("estimated_days"),
-  diagnosticFee: decimal("diagnostic_fee", { precision: 10, scale: 2 }),
-  quoteTurnaroundDays: integer("quote_turnaround_days").default(3),
-  questions: jsonb("questions"),
-  notes: text("notes"),
-  passReason: varchar("pass_reason"),
-  status: varchar("status").default("pending"),
-  respondedAt: timestamp("responded_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => [
-  index("idx_contractor_responses_case").on(table.caseId, table.contractorUserId),
-]);
-
-export const contractorResponsesRelations = relations(contractorResponses, ({ one }) => ({
-  case: one(smartCases, { fields: [contractorResponses.caseId], references: [smartCases.id] }),
-  contractor: one(users, { fields: [contractorResponses.contractorUserId], references: [users.id] }),
-  organization: one(organizations, { fields: [contractorResponses.orgId], references: [organizations.id] }),
-}));
-
-// SLA Extension Requests - Contractor requests for more time to submit quotes
-export const slaExtensionRequests = pgTable("sla_extension_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  caseId: varchar("case_id").notNull().references(() => smartCases.id),
-  contractorUserId: varchar("contractor_user_id").notNull().references(() => users.id),
-  reason: varchar("reason").notNull(),
-  requestedDeadline: timestamp("requested_deadline").notNull(),
-  previousDeadline: timestamp("previous_deadline").notNull(),
-  extensionNumber: integer("extension_number").notNull().default(1),
-  status: varchar("status").default("pending"),
-  approvedBy: varchar("approved_by").references(() => users.id),
-  respondedAt: timestamp("responded_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const slaExtensionRequestsRelations = relations(slaExtensionRequests, ({ one }) => ({
-  case: one(smartCases, { fields: [slaExtensionRequests.caseId], references: [smartCases.id] }),
-  contractor: one(users, { fields: [slaExtensionRequests.contractorUserId], references: [users.id] }),
-  approver: one(users, { fields: [slaExtensionRequests.approvedBy], references: [users.id] }),
-}));
 
 // Case media
 export const caseMedia = pgTable("case_media", {
@@ -1191,8 +1113,6 @@ export const smartCasesRelations = relations(smartCases, ({ one, many }) => ({
   media: many(caseMedia),
   events: many(caseEvents),
   quotes: many(quotes),
-  contractorResponses: many(contractorResponses),
-  slaExtensionRequests: many(slaExtensionRequests),
 }));
 
 // Quote relations
@@ -2091,22 +2011,3 @@ export type ChannelSettings = typeof channelSettings.$inferSelect;
 export type InsertChannelSettings = z.infer<typeof insertChannelSettingsSchema>;
 export type Equipment = typeof equipment.$inferSelect;
 export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
-
-// Contractor Response insert schemas and types
-export const insertContractorResponseSchema = createInsertSchema(contractorResponses).omit({ id: true, createdAt: true }).extend({
-  availableStartDate: z.coerce.date().nullable().optional(),
-  availableEndDate: z.coerce.date().nullable().optional(),
-  respondedAt: z.coerce.date().nullable().optional(),
-  questions: z.array(z.string()).nullable().optional(),
-});
-export type ContractorResponse = typeof contractorResponses.$inferSelect;
-export type InsertContractorResponse = z.infer<typeof insertContractorResponseSchema>;
-
-// SLA Extension Request insert schemas and types
-export const insertSlaExtensionRequestSchema = createInsertSchema(slaExtensionRequests).omit({ id: true, createdAt: true }).extend({
-  requestedDeadline: z.coerce.date(),
-  previousDeadline: z.coerce.date(),
-  respondedAt: z.coerce.date().nullable().optional(),
-});
-export type SlaExtensionRequest = typeof slaExtensionRequests.$inferSelect;
-export type InsertSlaExtensionRequest = z.infer<typeof insertSlaExtensionRequestSchema>;

@@ -123,7 +123,6 @@ interface MayaCarouselLayoutProps {
   onStartJob?: (item: Item) => void;
   onCompleteJob?: (item: Item, data: { completionNotes?: string }) => void;
   acceptLabel?: string;
-  customActions?: { id: string; label: string; icon: React.ReactNode; className: string; onClick: (item: Item) => void }[];
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
   itemType: "request" | "quote" | "job";
@@ -151,7 +150,6 @@ export function MayaCarouselLayout({
   onStartJob,
   onCompleteJob,
   acceptLabel = "Accept",
-  customActions,
   emptyIcon,
   emptyMessage = "No items found",
   itemType,
@@ -1250,36 +1248,21 @@ export function MayaCarouselLayout({
                     </div>
                   </div>
                   <CardContent className="p-4">
-                    <div className={`flex items-center gap-2 mb-4 ${customActions ? 'flex-wrap' : ''}`}>
-                      {customActions ? (
-                        customActions.map(action => (
-                          <Button
-                            key={action.id}
-                            className={`flex-1 min-w-[calc(50%-0.5rem)] h-10 touch-manipulation text-sm ${action.className}`}
-                            onClick={() => action.onClick(selectedItem)}
-                          >
-                            {action.icon}
-                            <span className="ml-1.5">{action.label}</span>
-                          </Button>
-                        ))
-                      ) : (
-                        <>
-                          {onSendQuote && !onAccept && (
-                            <Button className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
-                              <Send className="h-4 w-4 mr-2" /> Quote
-                            </Button>
-                          )}
-                          {onAccept && (
-                            <Button className={`flex-1 h-11 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
-                              {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />} {acceptLabel}
-                            </Button>
-                          )}
-                          {onDecline && (
-                            <Button variant="outline" className="flex-1 h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDecline(selectedItem)}>
-                              <X className="h-4 w-4 mr-2" /> Pass
-                            </Button>
-                          )}
-                        </>
+                    <div className="flex items-center gap-3 mb-4">
+                      {onSendQuote && !onAccept && (
+                        <Button className="flex-1 h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
+                          <Send className="h-4 w-4 mr-2" /> Quote
+                        </Button>
+                      )}
+                      {onAccept && (
+                        <Button className={`flex-1 h-11 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
+                          {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />} {acceptLabel}
+                        </Button>
+                      )}
+                      {onDecline && (
+                        <Button variant="outline" className="flex-1 h-11 touch-manipulation border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDecline(selectedItem)}>
+                          <X className="h-4 w-4 mr-2" /> Pass
+                        </Button>
                       )}
                     </div>
 
@@ -1668,55 +1651,38 @@ export function MayaCarouselLayout({
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            {customActions ? (
-                              customActions.map(action => (
-                                <Button
-                                  key={action.id}
-                                  size="sm"
-                                  variant="ghost"
-                                  className={`h-8 w-8 p-0 touch-manipulation ${action.className}`}
-                                  onClick={(e) => { e.stopPropagation(); action.onClick(item); }}
-                                  title={action.label}
-                                >
-                                  {action.icon}
-                                </Button>
-                              ))
-                            ) : (
-                              <>
-                                {onSendQuote && !onAccept && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-8 w-8 p-0 text-violet-600 hover:bg-violet-50 touch-manipulation"
-                                    onClick={(e) => { e.stopPropagation(); onSendQuote(item); }}
-                                    title="Send Quote"
-                                  >
-                                    <Send className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {onAccept && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className={`h-8 w-8 p-0 touch-manipulation ${acceptLabel === "Restore" ? "text-blue-600 hover:bg-blue-50" : "text-violet-600 hover:bg-violet-50"}`}
-                                    onClick={(e) => { e.stopPropagation(); onAccept(item); }}
-                                    title={acceptLabel}
-                                  >
-                                    {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                                  </Button>
-                                )}
-                                {onDecline && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 touch-manipulation"
-                                    onClick={(e) => { e.stopPropagation(); onDecline(item); }}
-                                    title="Pass on this request"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </>
+                            {onSendQuote && !onAccept && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 text-violet-600 hover:bg-violet-50 touch-manipulation"
+                                onClick={(e) => { e.stopPropagation(); onSendQuote(item); }}
+                                title="Send Quote"
+                              >
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {onAccept && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className={`h-8 w-8 p-0 touch-manipulation ${acceptLabel === "Restore" ? "text-blue-600 hover:bg-blue-50" : "text-violet-600 hover:bg-violet-50"}`}
+                                onClick={(e) => { e.stopPropagation(); onAccept(item); }}
+                                title={acceptLabel}
+                              >
+                                {acceptLabel === "Restore" ? <CheckCircle className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                              </Button>
+                            )}
+                            {onDecline && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 touch-manipulation"
+                                onClick={(e) => { e.stopPropagation(); onDecline(item); }}
+                                title="Pass on this request"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
                             )}
                             <Button 
                               size="sm" 
@@ -1798,32 +1764,16 @@ export function MayaCarouselLayout({
                       </Button>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">{selectedItem.description || "No description provided"}</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {customActions ? (
-                        customActions.map(action => (
-                          <Button
-                            key={action.id}
-                            size="sm"
-                            className={`h-9 touch-manipulation text-xs ${action.className}`}
-                            onClick={() => action.onClick(selectedItem)}
-                          >
-                            {action.icon}
-                            <span className="ml-1">{action.label}</span>
-                          </Button>
-                        ))
-                      ) : (
-                        <>
-                          {onSendQuote && !onAccept && (
-                            <Button size="sm" className="h-9 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
-                              <Send className="h-3 w-3 mr-1" /> Quote
-                            </Button>
-                          )}
-                          {onAccept && (
-                            <Button size="sm" className={`h-9 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
-                              {acceptLabel === "Restore" ? <CheckCircle className="h-3 w-3 mr-1" /> : <Send className="h-3 w-3 mr-1" />} {acceptLabel}
-                            </Button>
-                          )}
-                        </>
+                    <div className="flex gap-2">
+                      {onSendQuote && !onAccept && (
+                        <Button size="sm" className="h-9 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60" onClick={() => onSendQuote(selectedItem)}>
+                          <Send className="h-3 w-3 mr-1" /> Quote
+                        </Button>
+                      )}
+                      {onAccept && (
+                        <Button size="sm" className={`h-9 touch-manipulation ${acceptLabel === "Restore" ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60" : "bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"}`} onClick={() => onAccept(selectedItem)}>
+                          {acceptLabel === "Restore" ? <CheckCircle className="h-3 w-3 mr-1" /> : <Send className="h-3 w-3 mr-1" />} {acceptLabel}
+                        </Button>
                       )}
                     </div>
                     {itemType === "job" && (

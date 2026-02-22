@@ -42,8 +42,7 @@ import {
   Trash2,
   Phone,
   UserPlus,
-  Loader2,
-  X
+  Loader2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -68,7 +67,6 @@ import { TeamView } from "@/components/contractor/team-view";
 import { ThreadChat } from "@/components/contractor/thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "@/components/contractor/maya-photo-analysis";
 import { LifecycleBar } from "@/components/contractor/lifecycle-bar";
-import { ContractorResponsePanel, SlaExtensionButton } from "@/components/contractor/response-panel";
 
 type ViewState = "landing" | "jobDetail" | "pastJobs" | "calendar" | "schedule" | "quotes" | "customers" | "newJobs" | "activeJobs" | "messages" | "team" | "work" | "maya";
 
@@ -766,44 +764,6 @@ function ContractorInner({ user }: { user: any }) {
   const [acceptQuoteStartDate, setAcceptQuoteStartDate] = useState("");
   const [acceptQuoteEndDate, setAcceptQuoteEndDate] = useState("");
   const [acceptQuoteEstDays, setAcceptQuoteEstDays] = useState("");
-  const [responsePanelCase, setResponsePanelCase] = useState<any>(null);
-  const [responsePanelMode, setResponsePanelMode] = useState<"quote" | "diagnostic" | "need_info" | "pass" | null>(null);
-
-  const openResponsePanel = (item: any, mode: "quote" | "diagnostic" | "need_info" | "pass") => {
-    setResponsePanelCase(item);
-    setResponsePanelMode(mode);
-  };
-
-  const requestActions = [
-    {
-      id: "quote",
-      label: "Quote",
-      icon: <DollarSign className="h-4 w-4" />,
-      className: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60",
-      onClick: (item: any) => openResponsePanel(item, "quote"),
-    },
-    {
-      id: "diagnostic",
-      label: "Diagnose",
-      icon: <Search className="h-4 w-4" />,
-      className: "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60",
-      onClick: (item: any) => openResponsePanel(item, "diagnostic"),
-    },
-    {
-      id: "need_info",
-      label: "Ask Info",
-      icon: <MessageSquare className="h-4 w-4" />,
-      className: "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/60",
-      onClick: (item: any) => openResponsePanel(item, "need_info"),
-    },
-    {
-      id: "pass",
-      label: "Pass",
-      icon: <X className="h-4 w-4" />,
-      className: "bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60",
-      onClick: (item: any) => openResponsePanel(item, "pass"),
-    },
-  ];
 
   // Accept case mutation (with optional pricing + availability)
   const acceptCaseMutation = useMutation({
@@ -1674,7 +1634,6 @@ function ContractorInner({ user }: { user: any }) {
 
         {/* New Jobs View - Maya Carousel Layout */}
         {view === ("newJobs" as ViewState) && (
-          <>
           <MayaCarouselLayout
             title={requestsFilter === "passed" ? "Passed Requests" : "New Job Requests"}
             subtitle={requestsFilter === "passed" ? "Requests you've passed on \u2022 Auto-clears after 30 days" : "Jobs waiting for your response"}
@@ -1743,30 +1702,17 @@ function ContractorInner({ user }: { user: any }) {
             categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
             itemType="request"
             onItemSelect={(item) => { handleSelectCase(item.id); }}
-            {...(requestsFilter === "passed" 
-              ? {
-                  acceptLabel: "Restore",
-                  onAccept: (item: any) => { restoreCaseMutation.mutate(item.id); },
-                }
-              : {
-                  customActions: requestActions,
-                }
-            )}
+            acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
+            onAccept={requestsFilter === "passed" 
+              ? (item) => { restoreCaseMutation.mutate(item.id); }
+              : (item) => { openAcceptQuoteDialog(item); }
+            }
+            onDecline={requestsFilter === "passed" ? undefined : (item) => {
+              dismissCaseMutation.mutate(item.id);
+            }}
             emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
             emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No new job requests"}
           />
-          {responsePanelCase && (
-            <div className="mt-3 max-w-lg mx-auto">
-              <ContractorResponsePanel
-                caseId={responsePanelCase.id}
-                caseTitle={responsePanelCase.title}
-                initialMode={responsePanelMode}
-                onClose={() => { setResponsePanelCase(null); setResponsePanelMode(null); }}
-                onSuccess={() => { setResponsePanelCase(null); setResponsePanelMode(null); }}
-              />
-            </div>
-          )}
-          </>
         )}
 
         {/* Active Jobs View - Maya Carousel Layout */}
@@ -1929,7 +1875,6 @@ function ContractorInner({ user }: { user: any }) {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 flex flex-col min-h-0">
               {lifecycleGroup === "requests" && (
-                <>
                 <MayaCarouselLayout
                   lifecycleBar={
                     <LifecycleBar
@@ -2014,30 +1959,17 @@ function ContractorInner({ user }: { user: any }) {
                   categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
                   itemType="request"
                   onItemSelect={(item) => { handleSelectCase(item.id); }}
-                  {...(requestsFilter === "passed"
-                    ? {
-                        acceptLabel: "Restore",
-                        onAccept: (item: any) => { restoreCaseMutation.mutate(item.id); },
-                      }
-                    : {
-                        customActions: requestActions,
-                      }
-                  )}
+                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
+                  onAccept={requestsFilter === "passed"
+                    ? (item) => { restoreCaseMutation.mutate(item.id); }
+                    : (item) => { openAcceptQuoteDialog(item); }
+                  }
+                  onDecline={requestsFilter === "passed" ? undefined : (item) => {
+                    dismissCaseMutation.mutate(item.id);
+                  }}
                   emptyIcon={<Briefcase className="h-12 w-12 mx-auto opacity-50" />}
                   emptyMessage={requestsFilter === "passed" ? "No passed requests" : "No requests in this stage"}
                 />
-                {responsePanelCase && (
-                  <div className="mt-3">
-                    <ContractorResponsePanel
-                      caseId={responsePanelCase.id}
-                      caseTitle={responsePanelCase.title}
-                      initialMode={responsePanelMode}
-                      onClose={() => { setResponsePanelCase(null); setResponsePanelMode(null); }}
-                      onSuccess={() => { setResponsePanelCase(null); setResponsePanelMode(null); }}
-                    />
-                  </div>
-                )}
-                </>
               )}
               {lifecycleGroup === "quotes" && (
                 <MayaCarouselLayout
@@ -2508,41 +2440,21 @@ function ContractorInner({ user }: { user: any }) {
                     </Badge>
                   </div>
                 </div>
-                {selectedCase.status === "In Progress" || selectedCase.status === "Confirmed" ? (
-                  <div className="flex gap-3">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Responded</Badge>
-                    <Button variant="outline" size="sm" className="rounded-full" onClick={() => setView("calendar")}>
-                      Schedule
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {requestActions.map(action => (
-                      <Button
-                        key={action.id}
-                        className={`flex-1 min-w-[calc(50%-0.5rem)] h-10 rounded-full text-sm ${action.className}`}
-                        onClick={() => openResponsePanel(selectedCase, action.id as any)}
-                      >
-                        {action.icon}
-                        <span className="ml-1.5">{action.label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                )}
+                <div className="flex gap-3">
+                  <Button 
+                    className="flex-1 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                    onClick={() => openAcceptQuoteDialog(selectedCase)}
+                    disabled={acceptCaseMutation.isPending || selectedCase.status === "In Progress"}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {selectedCase.status === "In Progress" ? "Accepted" : "Accept & Estimate"}
+                  </Button>
+                  <Button variant="outline" className="rounded-full" onClick={() => setView("calendar")}>
+                    Schedule
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-
-            {responsePanelCase && responsePanelCase.id === selectedCase.id && (
-              <div className="mb-4">
-                <ContractorResponsePanel
-                  caseId={responsePanelCase.id}
-                  caseTitle={responsePanelCase.title}
-                  initialMode={responsePanelMode}
-                  onClose={() => { setResponsePanelCase(null); setResponsePanelMode(null); }}
-                  onSuccess={() => { setResponsePanelCase(null); setResponsePanelMode(null); }}
-                />
-              </div>
-            )}
 
             {/* Job Details */}
             <Card className="mb-4">
