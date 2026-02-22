@@ -2743,7 +2743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (isCompleted) {
               tenantMessage = `Great news! Your maintenance request "${smartCase.title}" has been completed.`;
             } else if (updateData.status === 'In Progress') {
-              tenantMessage = `Good news! The contractor has started working on your maintenance request "${smartCase.title}".`;
+              tenantMessage = `Your contractor is on the way! They're heading to your location for "${smartCase.title}".`;
             } else if (isOnHold) {
               tenantMessage = `Your maintenance request "${smartCase.title}" is currently on hold. We'll notify you when it's rescheduled.`;
             } else if (isInReview) {
