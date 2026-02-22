@@ -42,7 +42,8 @@ import {
   User,
   CalendarDays,
   CircleDot,
-  Lock
+  Lock,
+  Navigation
 } from "lucide-react";
 
 type ViewState = "landing" | "triage" | "pickTime" | "pastRequests" | "requestDetail" | "chat";
@@ -1251,7 +1252,7 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                             return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
                           })()}`
                         : "Work has been scheduled";
-                      if (step === 3) return "Work is underway";
+                      if (step === 3) return `${selectedRequest.assignedContractorName || "Your contractor"} is on the way!`;
                       return "Work complete";
                     })()}
                   </p>
@@ -1276,6 +1277,20 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                   <div>
                     <p className="text-sm font-medium">{selectedRequest.assignedContractorName}</p>
                     <p className="text-xs text-muted-foreground">Assigned contractor</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedRequest.status === "In Progress" && (
+              <div className="px-4 py-2">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/80 border border-blue-200/60 animate-pulse">
+                  <Navigation className="h-5 w-5 text-blue-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-700">
+                      {selectedRequest.assignedContractorName || "Your contractor"} is on the way!
+                    </p>
+                    <p className="text-xs text-blue-500 mt-0.5">They'll arrive shortly — please make sure the area is accessible</p>
                   </div>
                 </div>
               </div>

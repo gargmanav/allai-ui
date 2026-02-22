@@ -1957,7 +1957,7 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                         {selectedCase.status === "Scheduled" ? "Job confirmed - awaiting schedule" :
                                          selectedCase.status === "In Review" && selectedCase.scheduledStartAt ? "Date proposed — awaiting your confirmation" :
                                          selectedCase.status === "In Review" ? "Awaiting quote & availability" :
-                                         selectedCase.status === "In Progress" ? "Work in progress" :
+                                         selectedCase.status === "In Progress" ? "Contractor is on the way" :
                                          selectedCase.status === "Resolved" || selectedCase.status === "Closed" ? "Completed" :
                                          selectedCase.status === "New" ? "Sent to contractor - awaiting response" :
                                          "Assigned"}

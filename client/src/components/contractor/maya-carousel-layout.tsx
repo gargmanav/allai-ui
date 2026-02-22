@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive, Home, Map } from "lucide-react";
+import { Sparkles, CheckCircle, Calendar, DollarSign, Clock, ArrowRight, Send, MapPin, User, Phone, FileText, Search, X, LayoutGrid, List, MessageCircle, ChevronRight, Bot, Loader2, AlertTriangle, FileEdit, Plus, Trash2, Save, Archive, Home, Map, Navigation } from "lucide-react";
 import { ThreadChat } from "./thread-chat";
 import { MayaPhotoAnalysis, PhotoAnalysisButton } from "./maya-photo-analysis";
 import { JobMapView } from "./job-map-view";
@@ -1420,7 +1420,7 @@ export function MayaCarouselLayout({
                               setJobActionLoading(false);
                             }}
                           >
-                            {jobActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ArrowRight className="h-4 w-4 mr-2" /> Start Work</>}
+                            {jobActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Navigation className="h-4 w-4 mr-2" /> On My Way</>}
                           </Button>
                         )}
                         {selectedItem.status === "In Progress" && onCompleteJob && (
@@ -1888,7 +1888,7 @@ export function MayaCarouselLayout({
                             disabled={jobActionLoading}
                             onClick={async () => { setJobActionLoading(true); await onStartJob(selectedItem); setJobActionLoading(false); }}
                           >
-                            {jobActionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><ArrowRight className="h-3 w-3 mr-1" /> Start Work</>}
+                            {jobActionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Navigation className="h-3 w-3 mr-1" /> On My Way</>}
                           </Button>
                         )}
                         {selectedItem.status === "In Progress" && onCompleteJob && (

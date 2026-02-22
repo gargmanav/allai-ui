@@ -196,7 +196,7 @@ const CaseCard = ({
                 disabled={updateCaseStatus.isPending}
                 data-testid={`button-start-case-${case_.id}`}
               >
-                Start Work
+                On My Way
               </Button>
             )}
             {case_.status === "In Progress" && (
