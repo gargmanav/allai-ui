@@ -256,7 +256,7 @@ router.post('/cases/:caseId/start-job', requireAuth, requireRole('contractor'), 
         where: and(eq(messageThreads.caseId, caseId), eq(messageThreads.contractorUserId, contractorUserId)),
       });
       if (thread) {
-        const body = `${contractorName} is on the way! They're heading to your location now.`;
+        const body = `${contractorName} is on the way! They're heading to your location now. Please make sure the area is accessible.`;
         await db.insert(chatMessages).values({ threadId: thread.id, senderId: contractorUserId, body, isRead: false });
         await db.update(messageThreads).set({ lastMessageAt: new Date(), lastMessagePreview: body.substring(0, 100) }).where(eq(messageThreads.id, thread.id));
       }

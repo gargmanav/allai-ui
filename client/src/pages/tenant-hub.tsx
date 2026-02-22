@@ -1282,19 +1282,6 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
               </div>
             )}
 
-            {selectedRequest.status === "In Progress" && (
-              <div className="px-4 py-2">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/80 border border-blue-200/60 animate-pulse">
-                  <Navigation className="h-5 w-5 text-blue-600 shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-blue-700">
-                      {selectedRequest.assignedContractorName || "Your contractor"} is on the way!
-                    </p>
-                    <p className="text-xs text-blue-500 mt-0.5">They'll arrive shortly — please make sure the area is accessible</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {selectedRequest.scheduledStartAt && (
               <div className="px-4 py-2">
