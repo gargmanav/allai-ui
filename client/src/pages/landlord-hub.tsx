@@ -1994,13 +1994,27 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                 {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LayoutGrid className="h-4 w-4 mr-1" />}
                                 Advance Status
                               </Button>
-                              {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
+                              {selectedCase.status === "In Review" && (
                                 <Button
                                   className="h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
-                                  onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
-                                  disabled={closeMutation.isPending}
+                                  onClick={() => statusMutation.mutate({ caseId: selectedCase.id, status: "Scheduled" })}
+                                  disabled={statusMutation.isPending}
                                 >
-                                  {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                                  {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                                  Confirm
+                                </Button>
+                              )}
+                              {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && selectedCase.status !== "In Review" && (
+                                <Button
+                                  className="h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
+                                  onClick={() => {
+                                    const idx = STATUS_CYCLE.indexOf(selectedCase.status as any);
+                                    const next = idx >= 0 && idx < STATUS_CYCLE.length - 1 ? STATUS_CYCLE[idx + 1] : "Resolved";
+                                    statusMutation.mutate({ caseId: selectedCase.id, status: next });
+                                  }}
+                                  disabled={statusMutation.isPending}
+                                >
+                                  {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                                   Confirm
                                 </Button>
                               )}
