@@ -1180,7 +1180,7 @@ export function MayaCarouselLayout({
                           </div>
                         )}
                       </div>
-                      <span className={`text-sm mt-1 font-bold ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
+                      <span className={`mt-1 font-bold ${item.priceTbd ? "text-[10px] text-amber-700" : "text-sm"} ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
                         {displayPrice(item)}
                       </span>
                       <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
@@ -1190,9 +1190,16 @@ export function MayaCarouselLayout({
                         itemType === "quote" ? (
                           <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
                         ) : (
-                          <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                            {displayJobStatus(item)}
-                          </span>
+                          <>
+                            <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+                              {displayJobStatus(item)}
+                            </span>
+                            {item.status === "In Review" && getProposedDateLabel(item) && (
+                              <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                                <Calendar className="h-2.5 w-2.5" /> Proposed: {getProposedDateLabel(item)}
+                              </span>
+                            )}
+                          </>
                         )
                       )}
                       {item.city && (
@@ -1251,7 +1258,7 @@ export function MayaCarouselLayout({
                           )}
                         </div>
                         <div>
-                          <h3 className="font-bold text-lg">{displayPrice(selectedItem)}</h3>
+                          <h3 className={`font-bold ${selectedItem.priceTbd ? "text-base text-amber-700" : "text-lg"}`}>{displayPrice(selectedItem)}</h3>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                               {selectedItem.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
@@ -1260,6 +1267,11 @@ export function MayaCarouselLayout({
                           </div>
                           {selectedItem.city && (
                             <p className="text-xs text-muted-foreground">{selectedItem.city}</p>
+                          )}
+                          {getProposedDateLabel(selectedItem) && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                              <Calendar className="h-3 w-3" /> Proposed: {getProposedDateLabel(selectedItem)}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1304,11 +1316,10 @@ export function MayaCarouselLayout({
                               </p>
                             </div>
                             <Button
-                              variant="outline"
-                              className="w-full h-9 text-sm"
+                              className="w-full h-9 text-sm bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
                               onClick={() => setConfirmJobOpen(true)}
                             >
-                              <Calendar className="h-3.5 w-3.5 mr-2" /> Update Proposed Date or Quote
+                              <Calendar className="h-3.5 w-3.5 mr-2" /> Revise Details
                             </Button>
                           </div>
                         )}
@@ -1847,10 +1858,10 @@ export function MayaCarouselLayout({
                                 Proposed {getProposedDateLabel(selectedItem)} — awaiting landlord
                               </p>
                             </div>
-                            <Button size="sm" variant="outline" className="w-full h-8 text-xs"
+                            <Button size="sm" className="w-full h-8 text-xs bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
                               onClick={() => { setConfirmJobOpen(true); }}
                             >
-                              <Calendar className="h-3 w-3 mr-1" /> Update Proposal
+                              <Calendar className="h-3 w-3 mr-1" /> Revise Details
                             </Button>
                           </div>
                         )}

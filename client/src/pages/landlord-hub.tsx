@@ -1996,12 +1996,12 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                               </Button>
                               {selectedCase.status !== "Resolved" && selectedCase.status !== "Closed" && (
                                 <Button
-                                  className="h-11 touch-manipulation bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200/60"
+                                  className="h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
                                   onClick={() => closeMutation.mutate({ caseId: selectedCase.id })}
                                   disabled={closeMutation.isPending}
                                 >
                                   {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                                  Resolve
+                                  Confirm
                                 </Button>
                               )}
                             </div>
