@@ -81,6 +81,8 @@ interface Item {
   availableStartDate?: string;
   availableEndDate?: string;
   estimatedDays?: number;
+  priceTbd?: boolean;
+  scheduledStartAt?: string;
 }
 
 interface MayaRecommendation {
@@ -105,6 +107,22 @@ interface QuoteLineItemLocal {
   unitPrice: number;
   total: number;
   displayOrder: number;
+}
+
+function displayPrice(item: Item): string {
+  if (item.priceTbd) return "TBD";
+  return `$${(item.estimatedValue || 0).toLocaleString()}`;
+}
+
+function displayJobStatus(item: Item): string {
+  if (item.status === "In Review") {
+    if (item.scheduledStartAt || item.caseScheduledStartAt || item.availableStartDate) {
+      return "Awaiting Confirmation";
+    }
+    return "Awaiting Confirmation";
+  }
+  if (item.status === "Resolved") return "Completed";
+  return item.status;
 }
 
 interface MayaCarouselLayoutProps {
@@ -1157,7 +1175,7 @@ export function MayaCarouselLayout({
                         )}
                       </div>
                       <span className={`text-sm mt-1 font-bold ${isSelected ? "text-slate-800" : "text-slate-700"}`}>
-                        ${(item.estimatedValue || 0).toLocaleString()}
+                        {displayPrice(item)}
                       </span>
                       <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                         {item.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
@@ -1167,7 +1185,7 @@ export function MayaCarouselLayout({
                           <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
                         ) : (
                           <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                            {item.status === "In Review" ? "Awaiting Scheduling" : item.status === "Resolved" ? "Completed" : item.status}
+                            {displayJobStatus(item)}
                           </span>
                         )
                       )}
@@ -1227,7 +1245,7 @@ export function MayaCarouselLayout({
                           )}
                         </div>
                         <div>
-                          <h3 className="font-bold text-lg">${(selectedItem.estimatedValue || 0).toLocaleString()}</h3>
+                          <h3 className="font-bold text-lg">{displayPrice(selectedItem)}</h3>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                               {selectedItem.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
@@ -1403,11 +1421,15 @@ export function MayaCarouselLayout({
                       <div>
                         <span className="text-muted-foreground">Value:</span>
                         <p className="font-bold text-slate-800">
-                          {selectedItem.aiTriageJson?.estimatedCost && (selectedItem.estimatedValue || 0) > 0 && !selectedItem.total
+                          {selectedItem.priceTbd ? "TBD" 
+                            : selectedItem.aiTriageJson?.estimatedCost && (selectedItem.estimatedValue || 0) > 0 && !selectedItem.total
                             ? selectedItem.aiTriageJson.estimatedCost
                             : `$${(selectedItem.estimatedValue || 0).toLocaleString()}`
                           }
                         </p>
+                        {selectedItem.priceTbd && selectedItem.aiTriageJson?.estimatedCost && (
+                          <p className="text-xs text-muted-foreground">Estimated by Maya: {selectedItem.aiTriageJson.estimatedCost}</p>
+                        )}
                       </div>
                       {selectedItem.phone && (
                         <div className="flex items-center gap-2">
@@ -1592,7 +1614,7 @@ export function MayaCarouselLayout({
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <p className="font-bold truncate">${(item.estimatedValue || 0).toLocaleString()}</p>
+                                <p className="font-bold truncate">{displayPrice(item)}</p>
                                 <span className={`text-[10px] font-medium ${item.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                                   {item.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                                 </span>
@@ -1644,7 +1666,7 @@ export function MayaCarouselLayout({
                           </td>
                         )}
                         <td className="px-3 py-3 text-right">
-                          <span className="font-medium text-slate-700">${(item.estimatedValue || 0).toLocaleString()}</span>
+                          <span className="font-medium text-slate-700">{displayPrice(item)}</span>
                         </td>
                         <td className="px-3 py-3 text-center hidden md:table-cell">
                           <Badge className={`${getStatusBadge(item.status)} border-0`}>{item.status}</Badge>
@@ -1750,7 +1772,7 @@ export function MayaCarouselLayout({
                           )}
                         </div>
                         <div>
-                          <h4 className="font-bold">${(selectedItem.estimatedValue || 0).toLocaleString()}</h4>
+                          <h4 className="font-bold">{displayPrice(selectedItem)}</h4>
                           <div className="flex items-center gap-1.5">
                             <span className={`text-[10px] font-medium ${selectedItem.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                               {selectedItem.isExistingCustomer ? 'Existing Customer' : 'New Customer'}

@@ -88,7 +88,7 @@ interface ChatMessage {
 
 const STATUS_STEPS = [
   { id: "submitted", label: "Submitted", icon: FileText },
-  { id: "assigned", label: "Assigned", icon: User },
+  { id: "assigned", label: "Under Review", icon: User },
   { id: "scheduled", label: "Scheduled", icon: CalendarDays },
   { id: "in_progress", label: "In Progress", icon: Wrench },
   { id: "completed", label: "Completed", icon: CheckCircle },

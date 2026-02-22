@@ -154,6 +154,9 @@ interface MaintenanceCase {
   property?: { id: string; name?: string; address?: string } | null;
   unit?: { id: string; unitNumber?: string } | null;
   reporterUserId?: string;
+  priceTbd?: boolean;
+  scheduledStartAt?: string;
+  quotedPrice?: string | number;
 }
 
 interface ContractorRecommendation {
@@ -1919,7 +1922,7 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                 </div>
                                 <div>
                                   <h3 className="font-bold text-lg">
-                                    {selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD"}
+                                    {selectedCase.priceTbd ? "TBD" : selectedCase.quotedPrice ? `$${parseFloat(String(selectedCase.quotedPrice)).toLocaleString()}` : selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD"}
                                   </h3>
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">{selectedCase.category || "General"}</span>
@@ -1952,12 +1955,19 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                       </span>
                                       <span className="text-[10px] text-emerald-600/70">
                                         {selectedCase.status === "Scheduled" ? "Job confirmed - awaiting schedule" :
+                                         selectedCase.status === "In Review" && selectedCase.scheduledStartAt ? "Date proposed — awaiting your confirmation" :
                                          selectedCase.status === "In Review" ? "Awaiting quote & availability" :
                                          selectedCase.status === "In Progress" ? "Work in progress" :
                                          selectedCase.status === "Resolved" || selectedCase.status === "Closed" ? "Completed" :
                                          selectedCase.status === "New" ? "Sent to contractor - awaiting response" :
                                          "Assigned"}
                                       </span>
+                                      {selectedCase.scheduledStartAt && selectedCase.status === "In Review" && (
+                                        <span className="text-[10px] text-violet-600 font-medium flex items-center gap-1 mt-0.5">
+                                          <Calendar className="h-3 w-3" />
+                                          Proposed: {new Date(selectedCase.scheduledStartAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -2002,8 +2012,13 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                 <p className="text-sm font-medium">{selectedCase.reporter ? `${selectedCase.reporter.firstName || ''} ${selectedCase.reporter.lastName || ''}`.trim() || "Unknown" : "Walk-in Request"}</p>
                               </div>
                               <div>
-                                <span className="text-xs text-muted-foreground">Value:</span>
-                                <p className="text-sm font-medium text-blue-600">{selectedCase.aiTriageJson?.estimatedCost || (selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD")}</p>
+                                <span className="text-xs text-muted-foreground">{selectedCase.priceTbd ? "Price:" : "Value:"}</span>
+                                <p className="text-sm font-medium text-blue-600">
+                                  {selectedCase.priceTbd ? "TBD" : selectedCase.quotedPrice ? `$${parseFloat(String(selectedCase.quotedPrice)).toLocaleString()}` : (selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD")}
+                                </p>
+                                {selectedCase.aiTriageJson?.estimatedCost && (
+                                  <p className="text-[10px] text-muted-foreground">Estimated by Maya: {selectedCase.aiTriageJson.estimatedCost}</p>
+                                )}
                               </div>
                             </div>
 
@@ -2178,7 +2193,7 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                     <div className="flex gap-4">
                                       {selectedCase.aiTriageJson.estimatedCost && (
                                         <div>
-                                          <span className="text-xs text-slate-500 block">Est. Cost</span>
+                                          <span className="text-xs text-slate-500 block">Maya's Estimate</span>
                                           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{selectedCase.aiTriageJson.estimatedCost}</p>
                                         </div>
                                       )}

@@ -548,6 +548,8 @@ function ContractorInner({ user }: { user: any }) {
         photoUrl,
         city,
         isExistingCustomer,
+        priceTbd: !!(c as any).priceTbd,
+        scheduledStartAt: (c as any).scheduledStartAt || null,
         latitude: prop?.latitude || null,
         longitude: prop?.longitude || null,
         address: prop?.address || (c as any).locationText || null,
@@ -627,7 +629,7 @@ function ContractorInner({ user }: { user: any }) {
       new: `${newJobsCount} new request${newJobsCount !== 1 ? 's' : ''} waiting for your response`,
       draft: `${draftQuotesCount} draft quote${draftQuotesCount !== 1 ? 's' : ''} to finalize`,
       sent: `${sentQuotesCount + reviewingCount} quote${(sentQuotesCount + reviewingCount) !== 1 ? 's' : ''} sent — awaiting response`,
-      awaiting: `${needsConfirmationCount} job${needsConfirmationCount !== 1 ? 's' : ''} awaiting scheduling`,
+      awaiting: `${needsConfirmationCount} job${needsConfirmationCount !== 1 ? 's' : ''} awaiting confirmation`,
       scheduled: `${scheduledCount} job${scheduledCount !== 1 ? 's' : ''} scheduled`,
       in_progress: `${inProgressCount} job${inProgressCount !== 1 ? 's' : ''} in progress`,
       completed: `${completedJobsCount} job${completedJobsCount !== 1 ? 's' : ''} completed`,
@@ -1751,13 +1753,15 @@ function ContractorInner({ user }: { user: any }) {
               photoUrl: job.photoUrl,
               city: job.city,
               isExistingCustomer: job.isExistingCustomer,
+              priceTbd: job.priceTbd,
+              scheduledStartAt: job.scheduledStartAt,
               reporterUserId: (job as any).reporterUserId,
               orgId: (job as any).orgId,
               aiTriageJson: (job as any).aiTriageJson,
               media: (job as any).media,
             }))}
             filterTabs={[
-              { id: "in review", label: "Awaiting Scheduling", count: jobs.filter(j => j.status === "In Review").length },
+              { id: "in review", label: "Awaiting Confirmation", count: jobs.filter(j => j.status === "In Review").length },
               { id: "scheduled", label: "Scheduled", count: jobs.filter(j => j.status === "Scheduled" || j.status === "Confirmed").length },
               { id: "in progress", label: "In Progress", count: jobs.filter(j => j.status === "In Progress").length },
               { id: "completed", label: "Completed", count: completedJobsCount },
@@ -2544,7 +2548,7 @@ function ContractorInner({ user }: { user: any }) {
                     <div className="flex gap-4">
                       {(selectedCase as any).aiTriageJson.estimatedCost && (
                         <div>
-                          <span className="text-xs text-slate-500 block">Est. Cost</span>
+                          <span className="text-xs text-slate-500 block">Maya's Estimate</span>
                           <p className="text-sm font-medium text-slate-700">{(selectedCase as any).aiTriageJson.estimatedCost}</p>
                         </div>
                       )}
