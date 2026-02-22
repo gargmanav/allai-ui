@@ -16,12 +16,13 @@ interface ResponsePanelProps {
   caseTitle: string;
   onClose: () => void;
   onSuccess?: () => void;
+  initialMode?: ResponseMode;
 }
 
 type ResponseMode = null | "quote" | "diagnostic" | "need_info" | "pass";
 
-export function ContractorResponsePanel({ caseId, caseTitle, onClose, onSuccess }: ResponsePanelProps) {
-  const [mode, setMode] = useState<ResponseMode>(null);
+export function ContractorResponsePanel({ caseId, caseTitle, onClose, onSuccess, initialMode = null }: ResponsePanelProps) {
+  const [mode, setMode] = useState<ResponseMode>(initialMode);
   const { toast } = useToast();
 
   const quoteMutation = useMutation({
