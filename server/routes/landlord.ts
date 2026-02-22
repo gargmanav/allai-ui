@@ -867,26 +867,23 @@ router.post('/cases/:caseId/assign', requireAuth, requireRole('org_admin'), asyn
       (involvementMode === 'balanced' && isTrusted && isUnderThreshold && isEmergency && autoEmergency)
     );
 
-    const newStatus = shouldAutoConfirm ? 'Scheduled' : 'In Review';
     const flowPath = shouldAutoConfirm ? 'auto-confirmed' : (involvementMode === 'hands-off' ? 'quote-optional' : 'quote-required');
 
     const [updated] = await db.update(smartCases)
       .set({
         assignedContractorId: contractorUserId,
-        status: newStatus,
+        status: 'New',
         updatedAt: new Date(),
       })
       .where(eq(smartCases.id, caseId))
       .returning();
 
-    const eventDesc = shouldAutoConfirm
-      ? `Job auto-confirmed and assigned to ${vendor.name} (${involvementMode} mode, trusted contractor, under $${autoApproveCostLimit} threshold)`
-      : `Contractor ${vendor.name} assigned by landlord (${involvementMode} mode)`;
+    const eventDesc = `Contractor ${vendor.name} assigned by landlord (${involvementMode} mode${shouldAutoConfirm ? ', auto-confirm eligible' : ''})`;
 
     await db.insert(caseEvents)
       .values({
         caseId,
-        type: shouldAutoConfirm ? 'job_auto_confirmed' : 'contractor_assigned',
+        type: 'contractor_assigned',
         description: eventDesc,
       });
 
@@ -894,10 +891,8 @@ router.post('/cases/:caseId/assign', requireAuth, requireRole('org_admin'), asyn
       await notificationService.notifyContractor(
         {
           type: 'case_assigned',
-          title: shouldAutoConfirm ? 'New Confirmed Job' : 'New Job Assignment',
-          message: shouldAutoConfirm
-            ? `You have a confirmed job: ${updated.title}. Schedule and start when ready.`
-            : `You've been assigned to case: ${updated.title}. Please review and provide your quote.`,
+          title: 'New Job Request',
+          message: `You've been assigned a new request: ${updated.title}. Please review and respond.`,
         },
         vendor.userId,
         orgId
