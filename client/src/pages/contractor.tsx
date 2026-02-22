@@ -175,6 +175,15 @@ export default function Contractor() {
     );
   }
 
+  if (user && user.primaryRole !== 'contractor') {
+    const dest = user.primaryRole === 'tenant' ? '/tenant-hub' 
+      : user.primaryRole === 'platform_super_admin' ? '/admin-dashboard'
+      : user.primaryRole === 'property_owner' ? '/homeowner'
+      : '/landlord';
+    window.location.href = dest;
+    return null;
+  }
+
   return <ContractorInner user={user || { id: "demo", email: "contractor@demo.com", firstName: "Demo", lastName: "Contractor" }} />;
 }
 

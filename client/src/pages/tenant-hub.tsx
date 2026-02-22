@@ -138,8 +138,40 @@ function getStatusBadgeColor(status: string) {
   }
 }
 
-export default function TenantHub() {
-  const { user, logout } = useAuth();
+function TenantHubGuard() {
+  const { user, isLoading, logout } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    window.location.href = '/';
+    return null;
+  }
+
+  if (user.primaryRole !== 'tenant') {
+    const dest = user.primaryRole === 'contractor' ? '/contractor'
+      : user.primaryRole === 'platform_super_admin' ? '/admin-dashboard'
+      : user.primaryRole === 'property_owner' ? '/homeowner'
+      : '/landlord';
+    window.location.href = dest;
+    return null;
+  }
+
+  return <TenantHubInner user={user} logout={logout} />;
+}
+
+export default TenantHubGuard;
+
+function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 

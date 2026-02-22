@@ -87,18 +87,20 @@ function Router() {
 
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <>
-          <Route path="/" component={LandingPage} />
-          <Route path="/landing" component={Landing} />
-          <Route path="/login" component={Login} />
-          <Route path="/property-owner-signup" component={PropertyOwnerSignup} />
-          <Route path="/contractor-signup" component={ContractorSignup} />
-          <Route path="/auth/verify-email" component={VerifyEmail} />
-          <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
-          <Route component={LandingPage} />
-        </>
-      ) : (
+      <Route path="/landing" component={Landing} />
+      <Route path="/login" component={Login} />
+      <Route path="/property-owner-signup" component={PropertyOwnerSignup} />
+      <Route path="/contractor-signup" component={ContractorSignup} />
+      <Route path="/auth/verify-email" component={VerifyEmail} />
+      <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
+
+      <Route path="/tenant-hub" component={TenantHub} />
+      <Route path="/contractor" component={Contractor} />
+      <Route path="/landlord" component={LandlordHub} />
+      <Route path="/homeowner" component={Homeowner} />
+      <Route path="/admin-dashboard" component={AdminDashboard} />
+
+      {isAuthenticated ? (
         <>
           <Route path="/" component={RoleBasedHome} />
           <Route path="/portfolio" component={Portfolio} />
@@ -120,13 +122,7 @@ function Router() {
           <Route path="/quotes" component={Quotes} />
           <Route path="/quotes/new" component={QuoteForm} />
           <Route path="/quotes/:id" component={QuoteForm} />
-          <Route path="/quote-approval/:id/:token" component={QuoteApproval} />
           <Route path="/favorite-contractors" component={FavoriteContractors} />
-          <Route path="/homeowner" component={Homeowner} />
-          <Route path="/tenant-hub" component={TenantHub} />
-          <Route path="/contractor" component={Contractor} />
-          <Route path="/landlord" component={LandlordHub} />
-          <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin-calendar" component={AdminCalendar} />
           <Route path="/expenses" component={Expenses} />
           <Route path="/revenue" component={Revenue} />
@@ -140,6 +136,11 @@ function Router() {
           <Route path="/inbox" component={Inbox} />
           <Route path="/channel-settings" component={ChannelSettings} />
           <Route component={NotFound} />
+        </>
+      ) : (
+        <>
+          <Route path="/" component={LandingPage} />
+          <Route component={LandingPage} />
         </>
       )}
     </Switch>

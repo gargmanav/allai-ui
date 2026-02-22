@@ -417,8 +417,39 @@ const FROSTED_CARD_CLASS =
 const SIDEBAR_BTN_CLASS =
   "group w-full justify-start gap-3 h-11 rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-violet-500/25 hover:to-blue-500/25 hover:shadow-[0_0_16px_rgba(139,92,246,0.3)] active:from-violet-500/35 active:to-blue-500/35 touch-manipulation";
 
-export default function LandlordHub() {
+function LandlordHubGuard() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    window.location.href = '/';
+    return null;
+  }
+
+  if (user.primaryRole === 'contractor' || user.primaryRole === 'tenant' || user.primaryRole === 'platform_super_admin') {
+    const dest = user.primaryRole === 'contractor' ? '/contractor'
+      : user.primaryRole === 'tenant' ? '/tenant-hub'
+      : '/admin-dashboard';
+    window.location.href = dest;
+    return null;
+  }
+
+  return <LandlordHubInner user={user} isAuthenticated={isAuthenticated} isLoading={isLoading} logout={logout} />;
+}
+
+export default LandlordHubGuard;
+
+function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: any; isAuthenticated: boolean; isLoading: boolean; logout: () => void }) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
