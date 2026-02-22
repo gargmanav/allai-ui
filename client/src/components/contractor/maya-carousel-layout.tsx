@@ -1328,7 +1328,7 @@ export function MayaCarouselLayout({
                             className="w-full h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => setConfirmJobOpen(true)}
                           >
-                            <Calendar className="h-4 w-4 mr-2" /> Propose Date & Details
+                            <Calendar className="h-4 w-4 mr-2" /> Revise Details
                           </Button>
                         )}
                         {selectedItem.status === "Scheduled" && onConfirmJob && !confirmJobOpen && (
@@ -1341,7 +1341,7 @@ export function MayaCarouselLayout({
                         )}
                         {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && confirmJobOpen && (
                           <div className="space-y-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50/50">
-                            <p className="text-sm font-medium text-emerald-800">{(selectedItem.scheduledStartAt || selectedItem.caseScheduledStartAt || selectedItem.availableStartDate) ? "Update Proposal" : "Propose Date & Details"}</p>
+                            <p className="text-sm font-medium text-emerald-800">Revise Details</p>
                             <div>
                               <Label className="text-xs text-slate-600">Start Date</Label>
                               <Input
@@ -1869,7 +1869,7 @@ export function MayaCarouselLayout({
                           <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => { setConfirmJobOpen(true); }}
                           >
-                            <Calendar className="h-3 w-3 mr-1" /> Propose Date
+                            <Calendar className="h-3 w-3 mr-1" /> Revise Details
                           </Button>
                         )}
                         {selectedItem.status === "Scheduled" && onConfirmJob && (
