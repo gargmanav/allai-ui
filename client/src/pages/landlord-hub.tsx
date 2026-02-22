@@ -1922,7 +1922,7 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                 </div>
                                 <div>
                                   <h3 className="font-bold text-lg">
-                                    {selectedCase.priceTbd ? "TBD" : selectedCase.quotedPrice ? `$${parseFloat(String(selectedCase.quotedPrice)).toLocaleString()}` : selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD"}
+                                    {selectedCase.priceTbd ? "Pricing Pending" : selectedCase.quotedPrice ? `$${parseFloat(String(selectedCase.quotedPrice)).toLocaleString()}` : selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD"}
                                   </h3>
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">{selectedCase.category || "General"}</span>
@@ -2012,12 +2012,24 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                                 <p className="text-sm font-medium">{selectedCase.reporter ? `${selectedCase.reporter.firstName || ''} ${selectedCase.reporter.lastName || ''}`.trim() || "Unknown" : "Walk-in Request"}</p>
                               </div>
                               <div>
-                                <span className="text-xs text-muted-foreground">{selectedCase.priceTbd ? "Price:" : "Value:"}</span>
-                                <p className="text-sm font-medium text-blue-600">
-                                  {selectedCase.priceTbd ? "TBD" : selectedCase.quotedPrice ? `$${parseFloat(String(selectedCase.quotedPrice)).toLocaleString()}` : (selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD")}
-                                </p>
-                                {selectedCase.aiTriageJson?.estimatedCost && (
-                                  <p className="text-[10px] text-muted-foreground">Estimated by Maya: {selectedCase.aiTriageJson.estimatedCost}</p>
+                                <span className="text-xs text-muted-foreground">{selectedCase.priceTbd ? "Pricing:" : "Value:"}</span>
+                                {selectedCase.priceTbd ? (
+                                  <>
+                                    <p className="text-sm font-medium text-amber-600">After diagnostic visit</p>
+                                    <p className="text-[10px] text-muted-foreground">Your contractor will discuss pricing with you after their visit</p>
+                                    {selectedCase.aiTriageJson?.estimatedCost && (
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">Maya's estimate: {selectedCase.aiTriageJson.estimatedCost}</p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-sm font-medium text-blue-600">
+                                      {selectedCase.quotedPrice ? `$${parseFloat(String(selectedCase.quotedPrice)).toLocaleString()}` : (selectedCase.estimatedCost ? `$${parseFloat(String(selectedCase.estimatedCost)).toLocaleString()}` : "TBD")}
+                                    </p>
+                                    {selectedCase.aiTriageJson?.estimatedCost && !selectedCase.quotedPrice && (
+                                      <p className="text-[10px] text-muted-foreground">Estimated by Maya: {selectedCase.aiTriageJson.estimatedCost}</p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>

@@ -1671,6 +1671,7 @@ function ContractorInner({ user }: { user: any }) {
                   photoUrl: job.photoUrl,
                   city: job.city,
                   isExistingCustomer: job.isExistingCustomer,
+                  priceTbd: job.priceTbd,
                   reporterUserId: (job as any).reporterUserId,
                   orgId: (job as any).orgId,
                   aiTriageJson: (job as any).aiTriageJson,
@@ -1695,6 +1696,7 @@ function ContractorInner({ user }: { user: any }) {
                   photoUrl: job.photoUrl,
                   city: job.city,
                   isExistingCustomer: job.isExistingCustomer,
+                  priceTbd: job.priceTbd,
                   reporterUserId: (job as any).reporterUserId,
                   orgId: (job as any).orgId,
                   aiTriageJson: (job as any).aiTriageJson,
@@ -1926,6 +1928,7 @@ function ContractorInner({ user }: { user: any }) {
                         photoUrl: job.photoUrl,
                         city: job.city,
                         isExistingCustomer: job.isExistingCustomer,
+                        priceTbd: job.priceTbd,
                         reporterUserId: (job as any).reporterUserId,
                         orgId: (job as any).orgId,
                         aiTriageJson: (job as any).aiTriageJson,
@@ -1950,6 +1953,7 @@ function ContractorInner({ user }: { user: any }) {
                         photoUrl: job.photoUrl,
                         city: job.city,
                         isExistingCustomer: job.isExistingCustomer,
+                        priceTbd: job.priceTbd,
                         reporterUserId: (job as any).reporterUserId,
                         orgId: (job as any).orgId,
                         aiTriageJson: (job as any).aiTriageJson,
@@ -2101,6 +2105,7 @@ function ContractorInner({ user }: { user: any }) {
                     photoUrl: job.photoUrl,
                     city: job.city,
                     isExistingCustomer: job.isExistingCustomer,
+                    priceTbd: job.priceTbd,
                     reporterUserId: (job as any).reporterUserId,
                     orgId: (job as any).orgId,
                     aiTriageJson: (job as any).aiTriageJson,
@@ -2405,7 +2410,9 @@ function ContractorInner({ user }: { user: any }) {
                         <Home className={`h-5 w-5 ${isSelected ? job.textColor : "text-gray-400"}`} />
                       )}
                     </div>
-                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">${job.estimatedValue.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      {job.priceTbd ? <span className="text-amber-700 text-xs">After visit</span> : `$${job.estimatedValue.toLocaleString()}`}
+                    </span>
                     <span className={`text-[10px] font-medium ${job.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                       {job.isExistingCustomer ? 'Existing Customer' : 'New Customer'}
                     </span>
@@ -2430,7 +2437,13 @@ function ContractorInner({ user }: { user: any }) {
                       )}
                     </div>
                     <div>
-                      <div className="font-bold text-lg">${selectedCase.estimatedValue.toLocaleString()}</div>
+                      <div className="font-bold text-lg">
+                        {selectedCase.priceTbd ? (
+                          <span className="text-amber-700 text-base">Price after visit</span>
+                        ) : (
+                          <span>${selectedCase.estimatedValue.toLocaleString()}</span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-medium ${selectedCase.isExistingCustomer ? 'text-blue-500' : 'text-emerald-500'}`}>
                           {selectedCase.isExistingCustomer ? 'Existing Customer' : 'New Customer'}

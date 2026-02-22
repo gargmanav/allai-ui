@@ -110,15 +110,21 @@ interface QuoteLineItemLocal {
 }
 
 function displayPrice(item: Item): string {
-  if (item.priceTbd) return "TBD";
+  if (item.priceTbd) return "Price after visit";
   return `$${(item.estimatedValue || 0).toLocaleString()}`;
+}
+
+function getProposedDateLabel(item: Item): string | null {
+  const dateStr = item.scheduledStartAt || item.caseScheduledStartAt || item.availableStartDate;
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function displayJobStatus(item: Item): string {
   if (item.status === "In Review") {
-    if (item.scheduledStartAt || item.caseScheduledStartAt || item.availableStartDate) {
-      return "Awaiting Confirmation";
-    }
+    const dateLabel = getProposedDateLabel(item);
+    if (dateLabel) return dateLabel;
     return "Awaiting Confirmation";
   }
   if (item.status === "Resolved") return "Completed";
@@ -1286,17 +1292,45 @@ export function MayaCarouselLayout({
 
                     {itemType === "job" && (
                       <div className="mb-4">
-                        {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && !confirmJobOpen && (
+                        {selectedItem.status === "In Review" && (selectedItem.scheduledStartAt || selectedItem.caseScheduledStartAt || selectedItem.availableStartDate) && !confirmJobOpen && (
+                          <div className="space-y-2">
+                            <div className="p-3 rounded-lg bg-amber-50/60 border border-amber-200/50">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Clock className="h-3.5 w-3.5 text-amber-500" />
+                                <span className="text-xs font-semibold text-amber-700">Awaiting Landlord Confirmation</span>
+                              </div>
+                              <p className="text-xs text-amber-600">
+                                You proposed {getProposedDateLabel(selectedItem)}. The landlord will review and confirm.
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              className="w-full h-9 text-sm"
+                              onClick={() => setConfirmJobOpen(true)}
+                            >
+                              <Calendar className="h-3.5 w-3.5 mr-2" /> Update Proposed Date or Quote
+                            </Button>
+                          </div>
+                        )}
+                        {selectedItem.status === "In Review" && !(selectedItem.scheduledStartAt || selectedItem.caseScheduledStartAt || selectedItem.availableStartDate) && onConfirmJob && !confirmJobOpen && (
                           <Button
                             className="w-full h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => setConfirmJobOpen(true)}
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" /> {selectedItem.status === "Scheduled" ? "Add Schedule" : "Confirm Job"}
+                            <Calendar className="h-4 w-4 mr-2" /> Propose Date & Details
+                          </Button>
+                        )}
+                        {selectedItem.status === "Scheduled" && onConfirmJob && !confirmJobOpen && (
+                          <Button
+                            className="w-full h-11 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
+                            onClick={() => setConfirmJobOpen(true)}
+                          >
+                            <Calendar className="h-4 w-4 mr-2" /> Update Schedule
                           </Button>
                         )}
                         {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && confirmJobOpen && (
                           <div className="space-y-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50/50">
-                            <p className="text-sm font-medium text-emerald-800">Confirm & Schedule</p>
+                            <p className="text-sm font-medium text-emerald-800">{(selectedItem.scheduledStartAt || selectedItem.caseScheduledStartAt || selectedItem.availableStartDate) ? "Update Proposal" : "Propose Date & Details"}</p>
                             <div>
                               <Label className="text-xs text-slate-600">Start Date</Label>
                               <Input
@@ -1420,15 +1454,21 @@ export function MayaCarouselLayout({
                       </div>
                       <div>
                         <span className="text-muted-foreground">Value:</span>
-                        <p className="font-bold text-slate-800">
-                          {selectedItem.priceTbd ? "TBD" 
-                            : selectedItem.aiTriageJson?.estimatedCost && (selectedItem.estimatedValue || 0) > 0 && !selectedItem.total
-                            ? selectedItem.aiTriageJson.estimatedCost
-                            : `$${(selectedItem.estimatedValue || 0).toLocaleString()}`
-                          }
-                        </p>
-                        {selectedItem.priceTbd && selectedItem.aiTriageJson?.estimatedCost && (
-                          <p className="text-xs text-muted-foreground">Estimated by Maya: {selectedItem.aiTriageJson.estimatedCost}</p>
+                        {selectedItem.priceTbd ? (
+                          <>
+                            <p className="text-sm font-medium text-amber-700">Price after diagnostic visit</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">You chose to determine pricing on-site</p>
+                            {selectedItem.aiTriageJson?.estimatedCost && (
+                              <p className="text-xs text-muted-foreground">Maya's estimate: {selectedItem.aiTriageJson.estimatedCost}</p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="font-bold text-slate-800">
+                            {selectedItem.aiTriageJson?.estimatedCost && (selectedItem.estimatedValue || 0) > 0 && !selectedItem.total
+                              ? selectedItem.aiTriageJson.estimatedCost
+                              : `$${(selectedItem.estimatedValue || 0).toLocaleString()}`
+                            }
+                          </p>
                         )}
                       </div>
                       {selectedItem.phone && (
@@ -1800,11 +1840,32 @@ export function MayaCarouselLayout({
                     </div>
                     {itemType === "job" && (
                       <div className="mt-3">
-                        {(selectedItem.status === "In Review" || selectedItem.status === "Scheduled") && onConfirmJob && (
+                        {selectedItem.status === "In Review" && (selectedItem.scheduledStartAt || selectedItem.caseScheduledStartAt || selectedItem.availableStartDate) && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-md bg-amber-50/60 border border-amber-200/50">
+                              <p className="text-[11px] text-amber-600">
+                                Proposed {getProposedDateLabel(selectedItem)} — awaiting landlord
+                              </p>
+                            </div>
+                            <Button size="sm" variant="outline" className="w-full h-8 text-xs"
+                              onClick={() => { setConfirmJobOpen(true); }}
+                            >
+                              <Calendar className="h-3 w-3 mr-1" /> Update Proposal
+                            </Button>
+                          </div>
+                        )}
+                        {selectedItem.status === "In Review" && !(selectedItem.scheduledStartAt || selectedItem.caseScheduledStartAt || selectedItem.availableStartDate) && onConfirmJob && (
                           <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
                             onClick={() => { setConfirmJobOpen(true); }}
                           >
-                            <CheckCircle className="h-3 w-3 mr-1" /> {selectedItem.status === "Scheduled" ? "Add Schedule" : "Confirm Job"}
+                            <Calendar className="h-3 w-3 mr-1" /> Propose Date
+                          </Button>
+                        )}
+                        {selectedItem.status === "Scheduled" && onConfirmJob && (
+                          <Button size="sm" className="w-full h-9 touch-manipulation bg-emerald-100/60 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/60 backdrop-blur-sm"
+                            onClick={() => { setConfirmJobOpen(true); }}
+                          >
+                            <Calendar className="h-3 w-3 mr-1" /> Update Schedule
                           </Button>
                         )}
                         {selectedItem.status === "Scheduled" && onStartJob && (
