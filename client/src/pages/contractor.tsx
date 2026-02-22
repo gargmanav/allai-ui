@@ -1962,7 +1962,7 @@ function ContractorInner({ user }: { user: any }) {
                   categories={["Plumbing", "HVAC", "Electrical", "General Maintenance", "Appliance Repair", "Roofing", "Painting"]}
                   itemType="request"
                   onItemSelect={(item) => { handleSelectCase(item.id); }}
-                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept & Estimate"}
+                  acceptLabel={requestsFilter === "passed" ? "Restore" : "Accept"}
                   onAccept={requestsFilter === "passed"
                     ? (item) => { restoreCaseMutation.mutate(item.id); }
                     : (item) => { openAcceptQuoteDialog(item); }
