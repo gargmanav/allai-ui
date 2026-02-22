@@ -1205,10 +1205,12 @@ export default function TenantHub() {
                   <p className="text-xs text-slate-500">
                     {(() => {
                       const step = getStatusStep(selectedRequest.status);
-                      if (step === 0) return "Your request has been submitted and is being reviewed";
+                      if (step === 0) return selectedRequest.assignedContractorId
+                        ? "Your request has been forwarded to a contractor for review"
+                        : "Your request has been submitted and is being reviewed";
                       if (step === 1) return selectedRequest.assignedContractorName
-                        ? `${selectedRequest.assignedContractorName} has been assigned to your request`
-                        : "A contractor is being assigned to your request";
+                        ? `${selectedRequest.assignedContractorName} is working on your request`
+                        : "A contractor is reviewing your request";
                       if (step === 2) return selectedRequest.scheduledStartAt
                         ? `Work scheduled for ${(() => {
                             const iso = typeof selectedRequest.scheduledStartAt === 'string' ? selectedRequest.scheduledStartAt : new Date(selectedRequest.scheduledStartAt).toISOString();
@@ -1294,7 +1296,7 @@ export default function TenantHub() {
                   <span className="text-[10px] text-muted-foreground">AI Advisor</span>
                 </button>
 
-                {selectedRequest.assignedContractorId && (
+                {selectedRequest.assignedContractorId && selectedRequest.status !== "New" && (
                   <>
                     <div className="relative flex items-center justify-center px-2">
                       <div
@@ -1337,10 +1339,10 @@ export default function TenantHub() {
                   </>
                 )}
 
-                {!selectedRequest.assignedContractorId && (
+                {(!selectedRequest.assignedContractorId || selectedRequest.status === "New") && (
                   <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    Waiting for contractor assignment...
+                    {selectedRequest.assignedContractorId ? "Contractor is reviewing your request..." : "Waiting for contractor assignment..."}
                   </div>
                 )}
               </div>
@@ -1471,7 +1473,7 @@ export default function TenantHub() {
                     </div>
                   )}
 
-                  {!showMayaPanel && selectedRequest.assignedContractorId && (
+                  {!showMayaPanel && selectedRequest.assignedContractorId && selectedRequest.status !== "New" && (
                     <div className="space-y-4">
                       <div
                         className="rounded-2xl p-4 border border-violet-200/40"
@@ -1503,16 +1505,16 @@ export default function TenantHub() {
                     </div>
                   )}
 
-                  {!showMayaPanel && !selectedRequest.assignedContractorId && (
+                  {!showMayaPanel && (!selectedRequest.assignedContractorId || selectedRequest.status === "New") && (
                     <div className="text-center py-8 text-muted-foreground">
                       <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Waiting for a contractor to be assigned</p>
-                      <p className="text-xs mt-1">Your property manager is reviewing your request</p>
+                      <p className="text-sm">{selectedRequest.assignedContractorId ? "A contractor is reviewing your request" : "Waiting for a contractor to be assigned"}</p>
+                      <p className="text-xs mt-1">{selectedRequest.assignedContractorId ? "You'll be notified once they accept" : "Your property manager is reviewing your request"}</p>
                     </div>
                   )}
                 </ScrollArea>
 
-                {!showMayaPanel && selectedRequest.assignedContractorId && selectedRequest && (
+                {!showMayaPanel && selectedRequest.assignedContractorId && selectedRequest.status !== "New" && selectedRequest && (
                   <div className="p-4 border-t">
                     <ThreadChat
                       caseId={selectedRequest.id}

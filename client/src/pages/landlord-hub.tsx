@@ -1924,6 +1924,7 @@ export default function LandlordHub() {
                                          selectedCase.status === "In Review" ? "Awaiting quote & availability" :
                                          selectedCase.status === "In Progress" ? "Work in progress" :
                                          selectedCase.status === "Resolved" || selectedCase.status === "Closed" ? "Completed" :
+                                         selectedCase.status === "New" ? "Sent to contractor - awaiting response" :
                                          "Assigned"}
                                       </span>
                                     </div>
