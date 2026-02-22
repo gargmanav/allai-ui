@@ -42,7 +42,8 @@ import {
   Trash2,
   Phone,
   UserPlus,
-  Loader2
+  Loader2,
+  X
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
