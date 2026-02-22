@@ -1191,14 +1191,18 @@ export function MayaCarouselLayout({
                           <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${getStatusBadge(item.status)}`}>{item.status}</span>
                         ) : (
                           <>
-                            <span className={`text-[10px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                              {displayJobStatus(item)}
-                            </span>
-                            {item.status === "In Review" && getProposedDateLabel(item) && (
-                              <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                                <Calendar className="h-2.5 w-2.5" /> Proposed: {getProposedDateLabel(item)}
+                            {getProposedDateLabel(item) && (
+                              <span className="text-[10px] font-medium text-slate-800">
+                                {getProposedDateLabel(item)}
                               </span>
                             )}
+                            <span className={`text-[9px] ${item.status === "In Review" ? "text-amber-600 font-medium" : item.status === "Resolved" || item.status === "Completed" ? "text-green-600 font-medium" : item.status === "In Progress" ? "text-blue-600 font-medium" : item.status === "Scheduled" || item.status === "Confirmed" ? "text-violet-600 font-medium" : "text-muted-foreground"}`}>
+                              {item.status === "In Review" && getProposedDateLabel(item) ? "Proposed" :
+                               item.status === "Scheduled" || item.status === "Confirmed" ? "Scheduled" :
+                               item.status === "In Progress" ? "In Progress" :
+                               item.status === "Resolved" || item.status === "Completed" ? "Completed" :
+                               displayJobStatus(item)}
+                            </span>
                           </>
                         )
                       )}
