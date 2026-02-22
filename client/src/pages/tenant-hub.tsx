@@ -41,7 +41,8 @@ import {
   Search,
   User,
   CalendarDays,
-  CircleDot
+  CircleDot,
+  Lock
 } from "lucide-react";
 
 type ViewState = "landing" | "triage" | "pickTime" | "pastRequests" | "requestDetail" | "chat";
@@ -1334,40 +1335,48 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                       <div
                         className="w-[2px] h-16 rounded-full"
                         style={{
-                          background: "linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.3) 20%, rgba(139, 92, 246, 0.5) 50%, rgba(139, 92, 246, 0.3) 80%, transparent 100%)",
-                          boxShadow: "0 0 8px rgba(139, 92, 246, 0.2)",
+                          background: selectedRequest.status === "In Review"
+                            ? "linear-gradient(180deg, transparent 0%, rgba(156, 163, 175, 0.3) 20%, rgba(156, 163, 175, 0.4) 50%, rgba(156, 163, 175, 0.3) 80%, transparent 100%)"
+                            : "linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.3) 20%, rgba(139, 92, 246, 0.5) 50%, rgba(139, 92, 246, 0.3) 80%, transparent 100%)",
+                          boxShadow: selectedRequest.status === "In Review" ? "none" : "0 0 8px rgba(139, 92, 246, 0.2)",
                         }}
                       />
                     </div>
 
-                    <button
-                      onClick={() => setShowMayaPanel(false)}
-                      className="flex flex-col items-center min-w-[80px] group"
+                    <div
+                      className={`flex flex-col items-center min-w-[80px] ${selectedRequest.status === "In Review" ? "opacity-50 cursor-not-allowed" : "group cursor-pointer"}`}
+                      onClick={() => { if (selectedRequest.status !== "In Review") setShowMayaPanel(false); }}
                     >
                       <div
                         className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
-                          !showMayaPanel ? "ring-2 ring-violet-300/60 scale-105" : "hover:scale-105"
+                          selectedRequest.status === "In Review" ? "" : (!showMayaPanel ? "ring-2 ring-violet-300/60 scale-105" : "hover:scale-105")
                         }`}
                         style={{
-                          background: !showMayaPanel
-                            ? "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.15), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,248,255,0.95))"
-                            : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))",
+                          background: selectedRequest.status === "In Review"
+                            ? "linear-gradient(180deg, rgba(240,240,240,0.9), rgba(230,230,230,0.95))"
+                            : (!showMayaPanel
+                              ? "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.15), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,248,255,0.95))"
+                              : "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.8), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,240,245,0.95))"),
                           backdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
                           WebkitBackdropFilter: "blur(48px) saturate(180%) brightness(1.02)",
-                          boxShadow: !showMayaPanel
-                            ? "0 6px 20px rgba(139, 92, 246, 0.1), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)"
-                            : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)",
+                          boxShadow: selectedRequest.status === "In Review"
+                            ? "inset 0 2px 4px rgba(255,255,255,0.5), 0 2px 6px rgba(0,0,0,0.05)"
+                            : (!showMayaPanel
+                              ? "0 6px 20px rgba(139, 92, 246, 0.1), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03)"
+                              : "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.06)"),
                         }}
                       >
-                        <span className={`text-sm font-bold transition-colors duration-300 ${!showMayaPanel ? "text-violet-600" : "text-gray-500"}`}>
+                        <span className={`text-sm font-bold transition-colors duration-300 ${selectedRequest.status === "In Review" ? "text-gray-400" : (!showMayaPanel ? "text-violet-600" : "text-gray-500")}`}>
                           {selectedRequest.assignedContractorName?.charAt(0).toUpperCase() || "C"}
                         </span>
                       </div>
-                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${!showMayaPanel ? "text-violet-600" : "text-foreground"}`}>
+                      <span className={`text-xs mt-2 font-medium truncate max-w-[70px] transition-colors duration-300 ${selectedRequest.status === "In Review" ? "text-gray-400" : (!showMayaPanel ? "text-violet-600" : "text-foreground")}`}>
                         {selectedRequest.assignedContractorName?.split(' ')[0] || "Contractor"}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">Message</span>
-                    </button>
+                      <span className="text-[10px] text-muted-foreground">
+                        {selectedRequest.status === "In Review" ? "Pending" : "Message"}
+                      </span>
+                    </div>
                   </>
                 )}
 
@@ -1520,11 +1529,13 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                           <div
                             className="w-12 h-12 rounded-full flex items-center justify-center"
                             style={{
-                              background: "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.12), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,246,255,0.95))",
+                              background: selectedRequest.status === "In Review"
+                                ? "linear-gradient(180deg, rgba(240,240,240,0.9), rgba(230,230,230,0.95))"
+                                : "radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.12), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,246,255,0.95))",
                               boxShadow: "inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(139, 92, 246, 0.08)",
                             }}
                           >
-                            <span className="text-sm font-bold text-violet-600">
+                            <span className={`text-sm font-bold ${selectedRequest.status === "In Review" ? "text-gray-400" : "text-violet-600"}`}>
                               {selectedRequest.assignedContractorName?.charAt(0).toUpperCase() || "C"}
                             </span>
                           </div>
@@ -1534,6 +1545,13 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                           </div>
                         </div>
                       </div>
+                      {selectedRequest.status === "In Review" && (
+                        <div className="text-center py-4 px-6 rounded-xl bg-slate-50 border border-slate-200/60">
+                          <Lock className="h-5 w-5 mx-auto mb-2 text-slate-400" />
+                          <p className="text-sm text-slate-600 font-medium">Messaging not available yet</p>
+                          <p className="text-xs text-slate-400 mt-1">You'll be able to message your contractor once the appointment is confirmed by your property manager.</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1546,7 +1564,7 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                   )}
                 </ScrollArea>
 
-                {!showMayaPanel && selectedRequest.assignedContractorId && selectedRequest.status !== "New" && selectedRequest && (
+                {!showMayaPanel && selectedRequest.assignedContractorId && selectedRequest.status !== "New" && selectedRequest.status !== "In Review" && selectedRequest && (
                   <div className="p-4 border-t">
                     <ThreadChat
                       caseId={selectedRequest.id}
