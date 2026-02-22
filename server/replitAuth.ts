@@ -187,15 +187,7 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  // Check session-based auth first (new multi-user system with magic links)
-  if (req.session?.userId) {
-    if (!req.user) {
-      req.user = { claims: { sub: req.session.userId } } as any;
-    }
-    return next();
-  }
-
-  // Check Authorization Bearer token (refresh token from magic link login)
+  // Check Authorization Bearer token FIRST (per-tab auth via sessionStorage)
   const authHeader = req.headers.authorization;
   const bearerToken = authHeader?.replace('Bearer ', '');
   if (bearerToken) {
@@ -207,6 +199,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       }
       return next();
     }
+  }
+
+  // Fallback to session cookie (shared across tabs)
+  if (req.session?.userId) {
+    if (!req.user) {
+      req.user = { claims: { sub: req.session.userId } } as any;
+    }
+    return next();
   }
 
   // Fallback to legacy Replit Auth (Passport.js OIDC)

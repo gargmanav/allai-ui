@@ -308,20 +308,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Current user endpoint - supports both session-based and legacy Replit Auth
   app.get('/api/auth/user', async (req: any, res) => {
     try {
-      // Try session-based auth first (new multi-user system)
-      let userId = req.session?.userId;
-      
-      // Try Authorization Bearer token (refresh token from magic link login)
-      if (!userId) {
-        const authHeader = req.headers.authorization;
-        const refreshToken = authHeader?.replace('Bearer ', '');
-        if (refreshToken) {
-          const { validateSession } = await import('./services/sessionService');
-          const session = await validateSession(refreshToken);
-          if (session.valid && session.userId) {
-            userId = session.userId;
-          }
+      // Check Authorization Bearer token FIRST (per-tab auth via sessionStorage)
+      let userId: string | undefined;
+      const authHeader = req.headers.authorization;
+      const refreshToken = authHeader?.replace('Bearer ', '');
+      if (refreshToken) {
+        const { validateSession } = await import('./services/sessionService');
+        const session = await validateSession(refreshToken);
+        if (session.valid && session.userId) {
+          userId = session.userId;
         }
+      }
+      
+      // Fallback to session cookie (shared across tabs)
+      if (!userId) {
+        userId = req.session?.userId;
       }
       
       // Fallback to legacy Replit Auth if no session
