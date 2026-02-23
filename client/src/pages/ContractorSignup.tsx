@@ -9,16 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, ChevronDown, ChevronRight, Loader2, Check, User, Mail, Phone, Shield, Wrench, Zap, ArrowLeft } from 'lucide-react';
+import { Building2, Loader2, Check, User, Mail, Phone, Shield, Wrench, Zap, ArrowLeft, Search, CheckCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const TIER_NAMES: Record<string, string> = {
-  tier1: 'Tier 1: Essential Services',
-  tier2: 'Tier 2: Specialized Trades',
-  tier3: 'Tier 3: Premium Services',
-  tier4: 'Tier 4: Emergency Services',
-  tier5: 'Tier 5: Technology & Security',
-  tier6: 'Tier 6: Specialty Services',
+const CATEGORY_LABELS: Record<string, string> = {
+  tier1: 'Core Trades',
+  tier2: 'Specialized Trades',
+  tier3: 'Premium & Technical',
+  tier4: 'Home Improvement',
+  tier5: 'Outdoor & Heavy',
+  tier6: 'Compliance & Safety',
 };
 
 type SignupStep = 'email' | 'verify-phone' | 'specialties' | 'complete';
@@ -63,7 +63,7 @@ export default function ContractorSignup() {
   const [userId, setUserId] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedSpecialties, setSelectedSpecialties] = useState<Set<string>>(new Set());
-  const [expandedTiers, setExpandedTiers] = useState<Set<string>>(new Set(['tier1']));
+  const [skillSearch, setSkillSearch] = useState('');
   const [fadeIn, setFadeIn] = useState(true);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -184,14 +184,19 @@ export default function ContractorSignup() {
     specialtiesForm.setValue('specialtyIds', Array.from(newSelected));
   };
 
-  const toggleTier = (tier: string) => {
-    const newExpanded = new Set(expandedTiers);
-    if (newExpanded.has(tier)) {
-      newExpanded.delete(tier);
-    } else {
-      newExpanded.add(tier);
-    }
-    setExpandedTiers(newExpanded);
+  const toggleCategory = (tier: string, filteredSpecs?: any[]) => {
+    const specsToToggle = filteredSpecs || (specialtiesByTier[tier] || []) as any[];
+    const allSelected = specsToToggle.every((s: any) => selectedSpecialties.has(s.id));
+    const newSelected = new Set(selectedSpecialties);
+    specsToToggle.forEach((s: any) => {
+      if (allSelected) {
+        newSelected.delete(s.id);
+      } else {
+        newSelected.add(s.id);
+      }
+    });
+    setSelectedSpecialties(newSelected);
+    specialtiesForm.setValue('specialtyIds', Array.from(newSelected));
   };
 
   return (
@@ -429,8 +434,28 @@ export default function ContractorSignup() {
             {step === 'specialties' && (
               <Form {...specialtiesForm}>
                 <form onSubmit={specialtiesForm.handleSubmit((data) => completeMutation.mutate(data))} className="space-y-4">
-                  <div className="text-center mb-2">
-                    <p className="text-sm text-gray-500">Choose the services you provide</p>
+                  <div className="text-center mb-1">
+                    <p className="text-sm text-gray-500">Tap any and all services you provide</p>
+                  </div>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search skills... (e.g. roof, snow, plumbing)"
+                      value={skillSearch}
+                      onChange={(e) => setSkillSearch(e.target.value)}
+                      className="pl-9 h-10 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl text-sm"
+                    />
+                    {skillSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setSkillSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
 
                   {specialtiesLoading ? (
@@ -438,48 +463,81 @@ export default function ContractorSignup() {
                       <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white/60 p-3">
-                      {Object.entries(specialtiesByTier).sort().map(([tier, specs]) => (
-                        <div key={tier} className="rounded-lg border border-gray-100 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => toggleTier(tier)}
-                            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-blue-50/50 transition-colors"
-                            data-testid={`toggle-tier-${tier}`}
-                          >
-                            <span className="font-medium text-sm text-gray-700">{TIER_NAMES[tier]}</span>
-                            {expandedTiers.has(tier) ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
-                          </button>
-                          {expandedTiers.has(tier) && (
-                            <div className="px-4 pb-3 space-y-2 bg-gray-50/50">
-                              {(specs as any[]).map((specialty) => (
-                                <div key={specialty.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={specialty.id}
-                                    checked={selectedSpecialties.has(specialty.id)}
-                                    onCheckedChange={() => toggleSpecialty(specialty.id)}
-                                    data-testid={`checkbox-specialty-${specialty.id}`}
-                                    className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-                                  />
-                                  <label htmlFor={specialty.id} className="text-sm cursor-pointer text-gray-600">
-                                    {specialty.name}
-                                    {specialty.description && (
-                                      <span className="text-gray-400 ml-1.5">— {specialty.description}</span>
-                                    )}
-                                  </label>
-                                </div>
-                              ))}
+                    <div className="space-y-3 max-h-80 overflow-y-auto rounded-xl border border-gray-200 bg-white/60 p-3">
+                      {Object.entries(specialtiesByTier).sort().map(([tier, specs]) => {
+                        const filtered = (specs as any[]).filter((s: any) =>
+                          !skillSearch || s.name.toLowerCase().includes(skillSearch.toLowerCase())
+                        );
+                        if (filtered.length === 0) return null;
+                        const allSelected = filtered.every((s: any) => selectedSpecialties.has(s.id));
+                        return (
+                          <div key={tier}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                {CATEGORY_LABELS[tier] || tier}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => toggleCategory(tier, filtered)}
+                                className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors flex items-center gap-1 ${
+                                  allSelected
+                                    ? 'text-blue-600 bg-blue-100 hover:bg-blue-200'
+                                    : 'text-gray-500 hover:text-blue-500 hover:bg-blue-50'
+                                }`}
+                              >
+                                <CheckCheck className="h-3 w-3" />
+                                {allSelected ? 'Deselect all' : 'Select all'}
+                              </button>
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            <div className="flex flex-wrap gap-1.5 mb-3">
+                              {filtered.map((specialty: any) => {
+                                const isSelected = selectedSpecialties.has(specialty.id);
+                                const isSearchMatch = skillSearch && specialty.name.toLowerCase().includes(skillSearch.toLowerCase());
+                                return (
+                                  <button
+                                    key={specialty.id}
+                                    type="button"
+                                    onClick={() => toggleSpecialty(specialty.id)}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-gradient-to-r from-sky-400 to-blue-500 text-white border-blue-400 shadow-sm shadow-blue-500/20'
+                                        : isSearchMatch
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200 ring-1 ring-blue-300'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                                    }`}
+                                  >
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                    {specialty.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {skillSearch && Object.entries(specialtiesByTier).every(([_, specs]) =>
+                        (specs as any[]).every((s: any) => !s.name.toLowerCase().includes(skillSearch.toLowerCase()))
+                      ) && (
+                        <p className="text-center text-sm text-gray-400 py-4">
+                          No skills match "{skillSearch}"
+                        </p>
+                      )}
                     </div>
                   )}
 
                   {selectedSpecialties.size > 0 && (
-                    <p className="text-xs text-blue-500 font-medium">
-                      {selectedSpecialties.size} {selectedSpecialties.size === 1 ? 'specialty' : 'specialties'} selected
-                    </p>
+                    <div className="flex items-center justify-between px-1">
+                      <p className="text-xs text-blue-500 font-semibold">
+                        {selectedSpecialties.size} {selectedSpecialties.size === 1 ? 'skill' : 'skills'} selected
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedSpecialties(new Set()); specialtiesForm.setValue('specialtyIds', []); }}
+                        className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                      >
+                        Clear all
+                      </button>
+                    </div>
                   )}
 
                   <FormField
