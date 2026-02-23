@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile } from 'lucide-react';
+import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile, Lightbulb } from 'lucide-react';
 import ghassan from "@assets/IMG_9883_1762612867473.jpeg";
 import nihal from "@assets/IMG_9884_1762612867472.jpeg";
 import omar from "@assets/image_1771811659808.png";
@@ -14,6 +15,159 @@ const FROSTED_CARD_STYLE = {
   boxShadow:
     "inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)",
 };
+
+const FEATURE_INSIGHTS = {
+  Triage: [
+    "AI resolved 73% of issues without a site visit",
+    "Average diagnosis time: under 3 minutes",
+    "Tenants get instant troubleshooting guidance",
+    "Smart escalation catches urgent issues fast",
+  ],
+  Schedule: [
+    "Average scheduling time: under 2 minutes",
+    "Automatic contractor-tenant coordination",
+    "Smart matching based on specialty & availability",
+    "Zero phone tag — all handled by AI",
+  ],
+  Relax: [
+    "Tenants report 4.8/5 satisfaction rating",
+    "Call volume reduced by 60% on average",
+    "Faster resolutions = happier tenants",
+    "Automated follow-ups ensure quality work",
+  ],
+};
+
+function RotatingInsightBubble({ messages, visible }: { messages: string[]; visible: boolean }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [show, setShow] = useState(true);
+
+  useEffect(() => {
+    if (!visible) {
+      setCurrentIndex(0);
+      setShow(true);
+      return;
+    }
+    const interval = setInterval(() => {
+      setShow(false);
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % messages.length);
+        setShow(true);
+      }, 200);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [visible, messages.length]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 z-50 pointer-events-none">
+      <div
+        className="relative animate-in fade-in-0 zoom-in-95 duration-200"
+        style={{
+          filter: 'drop-shadow(0 8px 24px rgba(99, 102, 241, 0.25)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))',
+        }}
+      >
+        <div
+          className="relative px-4 py-3 min-w-[200px] max-w-[280px]"
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 50%, rgba(243,244,255,0.92) 100%)',
+            borderRadius: '20px',
+            border: '2px solid rgba(255, 255, 255, 0.9)',
+            boxShadow: 'inset 0 2px 8px rgba(255, 255, 255, 0.8), inset 0 -2px 8px rgba(99, 102, 241, 0.08)',
+          }}
+        >
+          <div
+            className="absolute inset-0 rounded-[20px]"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 50%)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div className="relative flex items-center gap-2 mb-2 pb-2 border-b border-indigo-100/50">
+            <div
+              className="relative flex items-center justify-center w-6 h-6 rounded-full"
+              style={{
+                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)',
+                boxShadow: '0 0 12px rgba(251, 191, 36, 0.5), 0 2px 4px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              <Lightbulb className="w-3.5 h-3.5 text-amber-700" />
+              <div
+                className="absolute inset-0 rounded-full animate-pulse"
+                style={{
+                  background: 'radial-gradient(circle, rgba(251, 191, 36, 0.3) 0%, transparent 70%)',
+                }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-gray-700 tracking-tight">Quick Insight</span>
+          </div>
+          <div className="relative text-sm text-gray-600">
+            <p
+              className="transition-all duration-200"
+              style={{
+                opacity: show ? 1 : 0,
+                transform: show ? 'translateY(0)' : 'translateY(-4px)',
+              }}
+            >
+              {messages[currentIndex]}
+            </p>
+          </div>
+
+          <div className="flex justify-center gap-1 mt-2 pt-1.5 border-t border-indigo-100/30">
+            {messages.map((_, i) => (
+              <div
+                key={i}
+                className="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                style={{
+                  background: i === currentIndex
+                    ? 'linear-gradient(135deg, #818cf8, #6366f1)'
+                    : 'rgba(199, 210, 254, 0.5)',
+                  transform: i === currentIndex ? 'scale(1.3)' : 'scale(1)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute left-1/2 -translate-x-1/2 top-full flex flex-col items-center">
+          <div
+            className="w-4 h-4 -mt-2 rotate-45"
+            style={{
+              background: 'linear-gradient(135deg, rgba(243,244,255,0.92) 0%, rgba(248,250,255,0.95) 100%)',
+              border: '2px solid rgba(255, 255, 255, 0.9)',
+              borderTop: 'none',
+              borderLeft: 'none',
+              boxShadow: '2px 2px 4px rgba(99, 102, 241, 0.1)',
+            }}
+          />
+          <div className="flex flex-col items-center gap-1 mt-1">
+            <div
+              className="w-2.5 h-2.5 rounded-full"
+              style={{
+                background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(243,244,255,0.9) 100%)',
+                boxShadow: '0 2px 6px rgba(99, 102, 241, 0.2), inset 0 1px 2px rgba(255,255,255,0.8)',
+              }}
+            />
+            <div
+              className="w-1.5 h-1.5 rounded-full"
+              style={{
+                background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(243,244,255,0.85) 100%)',
+                boxShadow: '0 2px 4px rgba(99, 102, 241, 0.15), inset 0 1px 2px rgba(255,255,255,0.7)',
+              }}
+            />
+            <div
+              className="w-1 h-1 rounded-full"
+              style={{
+                background: 'linear-gradient(145deg, rgba(255,255,255,0.85) 0%, rgba(243,244,255,0.8) 100%)',
+                boxShadow: '0 1px 3px rgba(99, 102, 241, 0.1)',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const roles = [
   {
@@ -114,6 +268,8 @@ const steps = [
 ];
 
 export default function LandingPage() {
+  const [hoveredFeature, setHoveredFeature] = useState<string | null>(null);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -291,20 +447,30 @@ export default function LandingPage() {
         <section className="mb-24 landing-fade-in landing-fade-in-delay-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
-              { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
-              { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
+              { emoji: "🔍", title: "Triage" as const, desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
+              { emoji: "📅", title: "Schedule" as const, desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
+              { emoji: "😌", title: "Relax" as const, desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
             ].map((item, index) => (
               <div
                 key={item.title}
-                className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40`}
-                style={FROSTED_CARD_STYLE}
+                className="relative"
+                onMouseEnter={() => setHoveredFeature(item.title)}
+                onMouseLeave={() => setHoveredFeature(null)}
               >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
-                  <span className="text-2xl">{item.emoji}</span>
+                <RotatingInsightBubble
+                  messages={FEATURE_INSIGHTS[item.title]}
+                  visible={hoveredFeature === item.title}
+                />
+                <div
+                  className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40 transition-all duration-300 cursor-default ${hoveredFeature === item.title ? 'scale-[1.05] -translate-y-2 shadow-[0_20px_50px_rgba(99,102,241,0.2)]' : ''}`}
+                  style={FROSTED_CARD_STYLE}
+                >
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
+                    <span className="text-2xl">{item.emoji}</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
