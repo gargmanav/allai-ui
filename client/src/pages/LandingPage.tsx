@@ -623,29 +623,56 @@ export default function LandingPage() {
         </section>
 
         <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
-          <div className="border-t border-gray-200 dark:border-gray-800 pt-16 pb-8 text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-              Home Repairs. Handled.
-            </h2>
-            <p className="text-xl md:text-2xl font-semibold text-gray-600 dark:text-gray-300 mb-10">
-              From diagnosis to contractor scheduling — no phone tag, no back-and-forth.
-            </p>
-            <div className="flex items-center justify-center gap-4 flex-wrap">
-              <Button
-                className="rounded-full px-8 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300"
-                onClick={() => window.open("https://allai.chat", "_blank")}
-              >
-                <MessageCircle className="h-5 w-5 mr-2" />
-                Chat with Allai
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-full px-8 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold text-base transition-all duration-300"
-                onClick={() => window.open("tel:+1234567890")}
-              >
-                <Phone className="h-5 w-5 mr-2" />
-                Call Now
-              </Button>
+          <div className="relative overflow-hidden rounded-3xl max-w-4xl mx-auto px-8 py-16 md:py-20 text-center"
+            style={{
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 50%, rgba(243,244,255,0.92) 100%)',
+              border: '2px solid rgba(255, 255, 255, 0.9)',
+              boxShadow: 'inset 0 2px 8px rgba(255, 255, 255, 0.8), inset 0 -2px 8px rgba(99, 102, 241, 0.08), 0 20px 60px rgba(99, 102, 241, 0.12), 0 8px 24px rgba(0, 0, 0, 0.06)',
+            }}
+          >
+            <div
+              className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl"
+              style={{
+                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
+                animation: 'pulseGlow 4s ease-in-out infinite',
+              }}
+            />
+            <div
+              className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full blur-3xl"
+              style={{
+                background: 'radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%)',
+                animation: 'pulseGlow 5s ease-in-out infinite 1s',
+              }}
+            />
+
+            <div className="relative">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                <span className="text-gray-900 dark:text-gray-100">Home Repairs. </span>
+                <span className="landing-gradient-text">Handled.</span>
+              </h2>
+              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-2">
+                From diagnosis to contractor scheduling —
+              </p>
+              <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 mb-10">
+                No phone tag, no back-and-forth.
+              </p>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <Button
+                  className="rounded-full px-8 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300 hover:scale-105"
+                  onClick={() => window.open("https://allai.chat", "_blank")}
+                >
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  Chat with Allai
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-8 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold text-base transition-all duration-300 hover:scale-105"
+                  onClick={() => window.open("tel:+1234567890")}
+                >
+                  <Phone className="h-5 w-5 mr-2" />
+                  Call Now
+                </Button>
+              </div>
             </div>
           </div>
         </section>
