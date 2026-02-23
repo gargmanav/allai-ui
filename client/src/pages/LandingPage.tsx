@@ -297,11 +297,30 @@ const FACE_CLASSES = ['show-front', 'show-right', 'show-back', 'show-left'] as c
 
 function FeatureCube({ cubeKey }: { cubeKey: string }) {
   const [faceIndex, setFaceIndex] = useState(0);
+  const hoverTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const data = CUBE_DATA[cubeKey];
   if (!data) return null;
 
+  const startAutoRotate = () => {
+    if (hoverTimerRef.current) return;
+    hoverTimerRef.current = setInterval(() => {
+      setFaceIndex(prev => (prev + 1) % 4);
+    }, 1800);
+  };
+
+  const stopAutoRotate = () => {
+    if (hoverTimerRef.current) {
+      clearInterval(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div
+      className="flex flex-col items-center gap-4"
+      onMouseEnter={startAutoRotate}
+      onMouseLeave={() => { stopAutoRotate(); setFaceIndex(0); }}
+    >
       <div className="cube-scene">
         <div className={`cube ${FACE_CLASSES[faceIndex]}`}>
           {data.faces.map((face, i) => {
@@ -323,12 +342,12 @@ function FeatureCube({ cubeKey }: { cubeKey: string }) {
           })}
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="cube-nav flex gap-2.5">
         {data.faces.map((_, i) => (
           <button
             key={i}
             className={`cube-nav-dot ${faceIndex === i ? 'active' : ''}`}
-            onClick={() => setFaceIndex(i)}
+            onClick={() => { stopAutoRotate(); setFaceIndex(i); }}
             aria-label={`Face ${i + 1}`}
           />
         ))}

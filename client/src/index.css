@@ -547,17 +547,34 @@
   transform: rotateY(90deg);
 }
 
+.cube-scene {
+  position: relative;
+  z-index: 1;
+}
+
+.cube-nav {
+  position: relative;
+  z-index: 10;
+}
+
 .cube-nav-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(99, 102, 241, 0.25);
+  border: 1.5px solid rgba(99, 102, 241, 0.3);
   cursor: pointer;
   transition: all 0.3s;
 }
 
+.cube-nav-dot:hover {
+  background: rgba(99, 102, 241, 0.5);
+  transform: scale(1.2);
+}
+
 .cube-nav-dot.active {
-  background: white;
+  background: rgba(59, 130, 246, 0.8);
+  border-color: rgba(59, 130, 246, 0.9);
   transform: scale(1.3);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
 }
