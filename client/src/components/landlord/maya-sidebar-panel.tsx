@@ -82,7 +82,7 @@ export function MayaSidebarPanel({
       <div className="hidden lg:flex flex-col w-64 border-r p-4 overflow-y-auto">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-white" />
+            <Sparkles className="h-4 w-4 text-white" style={{ animation: "spin 8s linear infinite" }} />
           </div>
           <div>
             <p className="text-sm font-semibold">Maya AI Advisor</p>

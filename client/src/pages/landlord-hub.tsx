@@ -1339,6 +1339,7 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                         className={`h-4 w-4 transition-colors ${
                           mayaHovered ? "text-violet-400" : "text-violet-500"
                         }`}
+                        style={{ animation: "spin 8s linear infinite" }}
                       />
                       <span
                         className={`text-sm font-medium transition-colors ${
