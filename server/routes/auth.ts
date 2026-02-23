@@ -108,9 +108,11 @@ router.post('/signup-contractor/email', async (req, res) => {
       email: z.string().email(),
       firstName: z.string().min(1),
       lastName: z.string().min(1),
+      phone: z.string().min(10).optional(),
+      smsOptIn: z.boolean().optional(),
     });
     
-    const { email, firstName, lastName } = schema.parse(req.body);
+    const { email, firstName, lastName, phone, smsOptIn } = schema.parse(req.body);
     
     // Check if user exists
     let user = await db.query.users.findFirst({
@@ -123,20 +125,30 @@ router.post('/signup-contractor/email', async (req, res) => {
         email,
         firstName,
         lastName,
+        phone: phone || null,
         primaryRole: 'contractor',
         emailVerified: false,
         phoneVerified: false,
       }).returning();
       user = newUser;
+    } else {
+      // Update existing user with new info
+      await db.update(users)
+        .set({ firstName, lastName, phone: phone || user.phone })
+        .where(eq(users.id, user.id));
     }
     
-    // Send magic link
-    const result = await sendMagicLink(email);
+    // Try to send magic link but don't block signup if it fails
+    try {
+      await sendMagicLink(email);
+    } catch (emailError) {
+      console.log('Email service unavailable, skipping email verification:', (emailError as Error).message);
+    }
     
     res.json({ 
       success: true, 
       userId: user.id,
-      message: 'Verification email sent' 
+      message: 'Account created successfully' 
     });
   } catch (error) {
     console.error('Contractor email signup error:', error);

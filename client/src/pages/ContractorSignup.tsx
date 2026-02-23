@@ -21,11 +21,11 @@ const TIER_NAMES: Record<string, string> = {
   tier6: 'Tier 6: Specialty Services',
 };
 
-type SignupStep = 'email' | 'phone' | 'verify-phone' | 'specialties' | 'complete';
+type SignupStep = 'email' | 'verify-phone' | 'specialties' | 'complete';
 
 const STEPS = [
   { key: 'email', label: 'Info', icon: User },
-  { key: 'phone', label: 'Verify', icon: Phone },
+  { key: 'verify-phone', label: 'Verify', icon: Phone },
   { key: 'specialties', label: 'Skills', icon: Wrench },
 ] as const;
 
@@ -35,14 +35,12 @@ const VALUE_PROPS = [
   { icon: Wrench, text: "AI sends you prepared with full diagnostics" },
 ];
 
-const emailSchema = z.object({
+const infoSchema = z.object({
   email: z.string().email('Invalid email address'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-});
-
-const phoneSchema = z.object({
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  smsOptIn: z.boolean().default(false),
 });
 
 const verifyPhoneSchema = z.object({
@@ -56,14 +54,14 @@ const specialtiesSchema = z.object({
 
 function getStepIndex(step: SignupStep): number {
   if (step === 'email') return 0;
-  if (step === 'phone' || step === 'verify-phone') return 1;
+  if (step === 'verify-phone') return 1;
   return 2;
 }
 
 export default function ContractorSignup() {
   const [step, setStep] = useState<SignupStep>('email');
-  const [userId, setUserId] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
+  const [userId, setUserId] = useState('');
+  const [phone, setPhone] = useState('');
   const [selectedSpecialties, setSelectedSpecialties] = useState<Set<string>>(new Set());
   const [expandedTiers, setExpandedTiers] = useState<Set<string>>(new Set(['tier1']));
   const [fadeIn, setFadeIn] = useState(true);
@@ -93,8 +91,8 @@ export default function ContractorSignup() {
     return acc;
   }, {} as Record<string, any[]>) || {};
 
-  const emailMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof emailSchema>) => {
+  const infoMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof infoSchema>) => {
       const res = await apiRequest('/api/auth/signup-contractor/email', {
         method: 'POST',
         body: data,
@@ -103,19 +101,21 @@ export default function ContractorSignup() {
     },
     onSuccess: (data) => {
       setUserId(data.userId);
-      toast({ title: 'Email sent!', description: 'Check your email for a verification link.' });
-      transitionTo('phone');
+      const phoneValue = infoForm.getValues('phone');
+      setPhone(phoneValue);
+      toast({ title: 'Account created!', description: 'Now let\'s verify your phone number.' });
+      phoneMutation.mutate({ userId: data.userId, phone: phoneValue });
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to send verification email. Please try again.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to create account. Please try again.', variant: 'destructive' });
     },
   });
 
   const phoneMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof phoneSchema>) => {
+    mutationFn: async (data: { userId: string; phone: string }) => {
       const res = await apiRequest('/api/auth/signup-contractor/phone', {
         method: 'POST',
-        body: { userId, phone: data.phone },
+        body: data,
       });
       return res;
     },
@@ -164,14 +164,9 @@ export default function ContractorSignup() {
     },
   });
 
-  const emailForm = useForm({
-    resolver: zodResolver(emailSchema),
-    defaultValues: { email: '', firstName: '', lastName: '' },
-  });
-
-  const phoneForm = useForm({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: '' },
+  const infoForm = useForm({
+    resolver: zodResolver(infoSchema),
+    defaultValues: { email: '', firstName: '', lastName: '', phone: '', smsOptIn: false },
   });
 
   const verifyPhoneForm = useForm({
@@ -280,11 +275,11 @@ export default function ContractorSignup() {
             className={`transition-all duration-200 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
           >
             {step === 'email' && (
-              <Form {...emailForm}>
-                <form onSubmit={emailForm.handleSubmit((data) => emailMutation.mutate(data))} className="space-y-4">
+              <Form {...infoForm}>
+                <form onSubmit={infoForm.handleSubmit((data) => infoMutation.mutate(data))} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <FormField
-                      control={emailForm.control}
+                      control={infoForm.control}
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
@@ -300,7 +295,7 @@ export default function ContractorSignup() {
                       )}
                     />
                     <FormField
-                      control={emailForm.control}
+                      control={infoForm.control}
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
@@ -317,7 +312,7 @@ export default function ContractorSignup() {
                     />
                   </div>
                   <FormField
-                    control={emailForm.control}
+                    control={infoForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -332,31 +327,12 @@ export default function ContractorSignup() {
                       </FormItem>
                     )}
                   />
-                  <Button
-                    type="submit"
-                    className="w-full h-12 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02]"
-                    disabled={emailMutation.isPending}
-                    data-testid="button-submit-email"
-                  >
-                    {emailMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Continue
-                  </Button>
-                </form>
-              </Form>
-            )}
-
-            {step === 'phone' && (
-              <Form {...phoneForm}>
-                <form onSubmit={phoneForm.handleSubmit((data) => { setPhone(data.phone); phoneMutation.mutate(data); })} className="space-y-4">
-                  <div className="text-center mb-2">
-                    <p className="text-sm text-gray-500">We'll send a verification code to your phone</p>
-                  </div>
                   <FormField
-                    control={phoneForm.control}
+                    control={infoForm.control}
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 text-sm font-medium">Phone Number</FormLabel>
+                        <FormLabel className="text-gray-700 text-sm font-medium">Cell Phone</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -367,14 +343,38 @@ export default function ContractorSignup() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={infoForm.control}
+                    name="smsOptIn"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-start space-x-3 rounded-xl bg-blue-50/60 p-3 border border-blue-100">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              className="mt-0.5 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                              data-testid="checkbox-sms-optin"
+                            />
+                          </FormControl>
+                          <div className="space-y-0.5">
+                            <span className="text-sm font-medium text-gray-700">Receive SMS notifications</span>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                              Get job alerts, scheduling updates, and client messages via text. You can opt out anytime.
+                            </p>
+                          </div>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
                   <Button
                     type="submit"
                     className="w-full h-12 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02]"
-                    disabled={phoneMutation.isPending}
-                    data-testid="button-submit-phone"
+                    disabled={infoMutation.isPending || phoneMutation.isPending}
+                    data-testid="button-submit-email"
                   >
-                    {phoneMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Verification Code
+                    {(infoMutation.isPending || phoneMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Continue
                   </Button>
                 </form>
               </Form>
