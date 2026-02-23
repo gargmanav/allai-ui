@@ -192,6 +192,69 @@ function TypewriterText({ text, onComplete }: { text: string; onComplete?: () =>
   );
 }
 
+function CtaInsightBubble() {
+  const [phase, setPhase] = useState<'hidden' | 'empathy' | 'fading' | 'cta'>('hidden');
+
+  useEffect(() => {
+    const handler = () => {
+      setPhase('empathy');
+      setTimeout(() => setPhase('fading'), 3500);
+      setTimeout(() => setPhase('cta'), 4200);
+    };
+    window.addEventListener('typewriter-done', handler);
+    return () => window.removeEventListener('typewriter-done', handler);
+  }, []);
+
+  const bubbleStyle = {
+    background: 'linear-gradient(135deg, rgba(238,242,255,0.95), rgba(224,231,255,0.9))',
+    boxShadow: '0 4px 20px rgba(99,102,241,0.12), 0 0 0 1px rgba(165,180,252,0.3)',
+  };
+  const tailStyle = {
+    background: 'linear-gradient(135deg, rgba(224,231,255,0.9), rgba(224,231,255,0.9))',
+    boxShadow: '2px 2px 4px rgba(99,102,241,0.08)',
+  };
+
+  if (phase === 'hidden') return <div className="mb-10 h-14" />;
+
+  return (
+    <div className="flex justify-center mb-10">
+      <div className="relative inline-block">
+        <div
+          className="relative px-5 py-3 rounded-2xl text-sm md:text-base font-medium text-indigo-700 dark:text-indigo-300 transition-all duration-700"
+          style={bubbleStyle}
+        >
+          {(phase === 'empathy' || phase === 'fading') && (
+            <span
+              className="transition-opacity duration-500"
+              style={{ opacity: phase === 'fading' ? 0 : 1 }}
+            >
+              <span className="mr-1">💬</span>
+              We get it — managing repairs is exhausting. We're here to make it effortless. 😊
+            </span>
+          )}
+          {phase === 'cta' && (
+            <span className="flex items-center gap-2 animate-in fade-in duration-500">
+              <span className="mr-1">🚀</span>
+              <span>Ready to simplify everything?</span>
+              <a
+                href="/login"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-sky-400 to-blue-500 text-white text-sm font-semibold hover:from-sky-500 hover:to-blue-600 transition-all duration-300 hover:scale-105 shadow-md"
+              >
+                Join AllAI
+                <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            </span>
+          )}
+        </div>
+        <div
+          className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 rotate-45"
+          style={tailStyle}
+        />
+      </div>
+    </div>
+  );
+}
+
 const roles = [
   {
     title: "Home Owner",
@@ -680,37 +743,11 @@ export default function LandingPage() {
                 <TypewriterText
                   text="No phone tag, no back-and-forth."
                   onComplete={() => {
-                    const el = document.getElementById('cta-insight');
-                    if (el) el.style.opacity = '1';
-                    if (el) el.style.transform = 'translateY(0)';
+                    window.dispatchEvent(new Event('typewriter-done'));
                   }}
                 />
               </p>
-              <div
-                id="cta-insight"
-                className="flex justify-center mb-10 transition-all duration-700"
-                style={{ opacity: 0, transform: 'translateY(12px)' }}
-              >
-                <div className="relative inline-block">
-                  <div
-                    className="relative px-5 py-3 rounded-2xl text-sm md:text-base font-medium text-indigo-700 dark:text-indigo-300"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(238,242,255,0.95), rgba(224,231,255,0.9))',
-                      boxShadow: '0 4px 20px rgba(99,102,241,0.12), 0 0 0 1px rgba(165,180,252,0.3)',
-                    }}
-                  >
-                    <span className="mr-1">💬</span>
-                    We get it — managing repairs is exhausting. We're here to make it effortless. 😊
-                  </div>
-                  <div
-                    className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 rotate-45"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(224,231,255,0.9), rgba(224,231,255,0.9))',
-                      boxShadow: '2px 2px 4px rgba(99,102,241,0.08)',
-                    }}
-                  />
-                </div>
-              </div>
+              <CtaInsightBubble />
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <Button
                   className="rounded-full px-8 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300 hover:scale-105"
