@@ -140,26 +140,84 @@ export default function LandingPage() {
           </Link>
         </header>
 
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
+                Reimagining Property Maintenance with Fully Integrated, Agentic AI.
+              </h2>
+              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
+                From diagnosis to resolution—Allai handles every step of real estate maintenance management.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button
+                  className="rounded-full px-6 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/25"
+                  onClick={() => window.open("https://allai.chat", "_blank")}
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Chat with Allai
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-6 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold"
+                  onClick={() => window.open("tel:+1234567890")}
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Now
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div className="w-64 h-64 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
+                <span className="text-5xl mb-3">🏠</span>
+                <span className="text-white font-bold text-lg text-center px-4">Smart Property<br />Management</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {[
+              { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
+              { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
+              { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
+            ].map((item, index) => (
+              <div
+                key={item.title}
+                className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40`}
+                style={FROSTED_CARD_STYLE}
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
+                  <span className="text-2xl">{item.emoji}</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="text-center mb-20">
-          <div className="landing-fade-in landing-fade-in-delay-1">
+          <div className="landing-fade-in landing-fade-in-delay-3">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100/80 dark:bg-violet-900/30 border border-violet-200/60 dark:border-violet-800/40 mb-6">
               <Sparkles className="h-4 w-4 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
               <span className="text-sm font-medium text-violet-700 dark:text-violet-300">AI-Powered Property Management</span>
             </div>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 landing-fade-in landing-fade-in-delay-2">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 landing-fade-in landing-fade-in-delay-3">
             <span className="text-gray-900 dark:text-gray-100">Your Home,</span>
             <br />
             <span className="landing-gradient-text">Simplified</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 landing-fade-in landing-fade-in-delay-3">
+          <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 landing-fade-in landing-fade-in-delay-4">
             The all-in-one platform for homeowners, landlords, renters, and contractors.
             Track everything. Automate the rest.
           </p>
 
-          <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-3">
+          <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-4">
             <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
             <span className="text-sm text-gray-500">Featured: Home Owner Tools</span>
             <Sparkles className="h-4 w-4 text-blue-500" style={{ animation: "spin 8s linear infinite" }} />
@@ -172,7 +230,7 @@ export default function LandingPage() {
             return (
               <div
                 key={role.title}
-                className={`landing-card group relative rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:-translate-y-2 landing-fade-in landing-fade-in-delay-${index + 3}`}
+                className={`landing-card group relative rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:-translate-y-2 landing-fade-in landing-fade-in-delay-${index + 4}`}
                 style={FROSTED_CARD_STYLE}
               >
                 <div
@@ -252,95 +310,6 @@ export default function LandingPage() {
           })}
         </section>
 
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-7">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-              How it works
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400">Get started in 3 simple steps</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 max-w-4xl mx-auto relative">
-            {steps.map((step, index) => (
-              <div key={step.num} className="relative text-center px-6">
-                {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[calc(50%+2.5rem)] right-[calc(-50%+2.5rem)] h-[3px] rounded-full overflow-hidden bg-blue-100/50 dark:bg-blue-900/20">
-                    <div className={`h-full step-line-${index + 1} rounded-full`} />
-                  </div>
-                )}
-
-                <div
-                  className={`step-circle-${index + 1} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white`}
-                >
-                  {step.num}
-                </div>
-                <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                  {step.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-            <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
-                Reimagining Property Maintenance with Fully Integrated, Agentic AI.
-              </h2>
-              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
-                From diagnosis to resolution—Allai handles every step of real estate maintenance management.
-              </p>
-              <div className="flex items-center gap-4 flex-wrap">
-                <Button
-                  className="rounded-full px-6 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/25"
-                  onClick={() => window.open("https://allai.chat", "_blank")}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Chat with Allai
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full px-6 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold"
-                  onClick={() => window.open("tel:+1234567890")}
-                >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Call Now
-                </Button>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="w-64 h-64 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
-                <span className="text-5xl mb-3">🏠</span>
-                <span className="text-white font-bold text-lg text-center px-4">Smart Property<br />Management</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {[
-              { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
-              { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
-              { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
-            ].map((item, index) => (
-              <div
-                key={item.title}
-                className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40`}
-                style={FROSTED_CARD_STYLE}
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
-                  <span className="text-2xl">{item.emoji}</span>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 dark:text-gray-100 mb-16">
             How It Works
@@ -387,6 +356,37 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+              How it works
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400">Get started in 3 simple steps</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 max-w-4xl mx-auto relative">
+            {steps.map((step, index) => (
+              <div key={step.num} className="relative text-center px-6">
+                {index < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+2.5rem)] right-[calc(-50%+2.5rem)] h-[3px] rounded-full overflow-hidden bg-blue-100/50 dark:bg-blue-900/20">
+                    <div className={`h-full step-line-${index + 1} rounded-full`} />
+                  </div>
+                )}
+
+                <div
+                  className={`step-circle-${index + 1} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white`}
+                >
+                  {step.num}
+                </div>
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {step.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
