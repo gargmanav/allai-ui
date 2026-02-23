@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile, Lightbulb } from 'lucide-react';
@@ -37,26 +37,7 @@ const FEATURE_INSIGHTS = {
   ],
 };
 
-function RotatingInsightBubble({ messages, visible }: { messages: string[]; visible: boolean }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [show, setShow] = useState(true);
-
-  useEffect(() => {
-    if (!visible) {
-      setCurrentIndex(0);
-      setShow(true);
-      return;
-    }
-    const interval = setInterval(() => {
-      setShow(false);
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % messages.length);
-        setShow(true);
-      }, 200);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [visible, messages.length]);
-
+function InsightBubble({ messages, visible }: { messages: string[]; visible: boolean }) {
   if (!visible) return null;
 
   return (
@@ -68,7 +49,7 @@ function RotatingInsightBubble({ messages, visible }: { messages: string[]; visi
         }}
       >
         <div
-          className="relative px-4 py-3 min-w-[200px] max-w-[280px]"
+          className="relative px-4 py-3 min-w-[220px] max-w-[300px]"
           style={{
             background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 50%, rgba(243,244,255,0.92) 100%)',
             borderRadius: '20px',
@@ -99,32 +80,18 @@ function RotatingInsightBubble({ messages, visible }: { messages: string[]; visi
                 }}
               />
             </div>
-            <span className="text-xs font-semibold text-gray-700 tracking-tight">Quick Insight</span>
+            <span className="text-xs font-semibold text-gray-700 tracking-tight">Quick Insights</span>
           </div>
-          <div className="relative text-sm text-gray-600">
-            <p
-              className="transition-all duration-200"
-              style={{
-                opacity: show ? 1 : 0,
-                transform: show ? 'translateY(0)' : 'translateY(-4px)',
-              }}
-            >
-              {messages[currentIndex]}
-            </p>
-          </div>
-
-          <div className="flex justify-center gap-1 mt-2 pt-1.5 border-t border-indigo-100/30">
-            {messages.map((_, i) => (
+          <div className="relative text-sm space-y-1.5">
+            {messages.map((msg, i) => (
               <div
                 key={i}
-                className="w-1.5 h-1.5 rounded-full transition-all duration-300"
-                style={{
-                  background: i === currentIndex
-                    ? 'linear-gradient(135deg, #818cf8, #6366f1)'
-                    : 'rgba(199, 210, 254, 0.5)',
-                  transform: i === currentIndex ? 'scale(1.3)' : 'scale(1)',
-                }}
-              />
+                className="flex items-start gap-2 animate-in fade-in-0 slide-in-from-bottom-1"
+                style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
+              >
+                <Sparkles className="w-3 h-3 text-indigo-400 mt-0.5 shrink-0" />
+                <span className="text-gray-600 text-xs leading-relaxed">{msg}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -457,7 +424,7 @@ export default function LandingPage() {
                 onMouseEnter={() => setHoveredFeature(item.title)}
                 onMouseLeave={() => setHoveredFeature(null)}
               >
-                <RotatingInsightBubble
+                <InsightBubble
                   messages={FEATURE_INSIGHTS[item.title]}
                   visible={hoveredFeature === item.title}
                 />
