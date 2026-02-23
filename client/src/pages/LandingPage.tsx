@@ -135,10 +135,29 @@ function InsightBubble({ messages, visible }: { messages: string[]; visible: boo
 
 function TypewriterText({ text, onComplete }: { text: string; onComplete?: () => void }) {
   const [displayed, setDisplayed] = useState("");
-  const [showCursor, setShowCursor] = useState(true);
+  const [showCursor, setShowCursor] = useState(false);
+  const [started, setStarted] = useState(false);
   const completedRef = useRef(false);
+  const containerRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started) {
+          setStarted(true);
+          setShowCursor(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
     let i = 0;
     completedRef.current = false;
     setDisplayed("");
@@ -158,10 +177,10 @@ function TypewriterText({ text, onComplete }: { text: string; onComplete?: () =>
       }
     }, 45);
     return () => clearInterval(interval);
-  }, [text]);
+  }, [started, text]);
 
   return (
-    <span>
+    <span ref={containerRef}>
       {displayed}
       {showCursor && (
         <span
@@ -667,13 +686,31 @@ export default function LandingPage() {
                   }}
                 />
               </p>
-              <p
+              <div
                 id="cta-insight"
-                className="text-sm md:text-base text-indigo-500 dark:text-indigo-400 mb-10 transition-all duration-700"
-                style={{ opacity: 0, transform: 'translateY(8px)' }}
+                className="flex justify-center mb-10 transition-all duration-700"
+                style={{ opacity: 0, transform: 'translateY(12px)' }}
               >
-                We get it — managing repairs is exhausting. We're here to make it effortless. 😊
-              </p>
+                <div className="relative inline-block">
+                  <div
+                    className="relative px-5 py-3 rounded-2xl text-sm md:text-base font-medium text-indigo-700 dark:text-indigo-300"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(238,242,255,0.95), rgba(224,231,255,0.9))',
+                      boxShadow: '0 4px 20px rgba(99,102,241,0.12), 0 0 0 1px rgba(165,180,252,0.3)',
+                    }}
+                  >
+                    <span className="mr-1">💬</span>
+                    We get it — managing repairs is exhausting. We're here to make it effortless. 😊
+                  </div>
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 rotate-45"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(224,231,255,0.9), rgba(224,231,255,0.9))',
+                      boxShadow: '2px 2px 4px rgba(99,102,241,0.08)',
+                    }}
+                  />
+                </div>
+              </div>
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <Button
                   className="rounded-full px-8 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300 hover:scale-105"
