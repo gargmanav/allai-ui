@@ -1,170 +1,356 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Wrench, Home, Star, Sparkles } from 'lucide-react';
+import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap } from 'lucide-react';
+
+const FROSTED_CARD_STYLE = {
+  background:
+    "radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)",
+  backdropFilter: "blur(60px) saturate(220%) brightness(1.04)",
+  WebkitBackdropFilter: "blur(60px) saturate(220%) brightness(1.04)",
+  border: "2px solid rgba(255, 255, 255, 0.85)",
+  boxShadow:
+    "inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)",
+};
+
+const roles = [
+  {
+    title: "Property Owner",
+    description: "Maintain your home without the hassle",
+    icon: Home,
+    badge: "Popular",
+    signupLink: "/property-owner-signup",
+    loginLink: "/login",
+    features: ["Track maintenance & repairs", "Find trusted contractors", "Manage multiple properties"],
+    accentFrom: "from-violet-500",
+    accentTo: "to-purple-600",
+    glowColor: "rgba(139, 92, 246, 0.35)",
+    hoverGlow: "rgba(139, 92, 246, 0.25)",
+    lightBarColors: "rgba(139, 92, 246, 0.3), rgba(168, 85, 247, 0.5), rgba(139, 92, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-violet-500 to-purple-600",
+    badgeBg: "bg-violet-100 text-violet-700",
+    btnClass: "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white shadow-lg shadow-violet-500/25",
+    checkColor: "text-violet-500",
+    testIdSignup: "button-property-owner-signup",
+    testIdLogin: "button-property-owner-login",
+  },
+  {
+    title: "Landlord",
+    description: "Manage properties, tenants, and maintenance",
+    icon: Building2,
+    signupLink: "/login",
+    loginLink: "/login",
+    features: ["Manage properties & tenants", "Track maintenance cases", "Invite tenants automatically"],
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
+    testIdSignup: "button-landlord-login",
+    testIdLogin: "button-landlord-login-existing",
+  },
+  {
+    title: "Tenant",
+    description: "View your unit and submit requests",
+    icon: Users,
+    signupLink: "/login",
+    loginLink: "/login",
+    features: ["Submit maintenance requests", "Track case status", "Approve appointments"],
+    accentFrom: "from-emerald-500",
+    accentTo: "to-teal-500",
+    glowColor: "rgba(16, 185, 129, 0.35)",
+    hoverGlow: "rgba(16, 185, 129, 0.25)",
+    lightBarColors: "rgba(16, 185, 129, 0.3), rgba(20, 184, 166, 0.5), rgba(16, 185, 129, 0.3)",
+    iconBg: "bg-gradient-to-br from-emerald-500 to-teal-500",
+    btnClass: "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/25",
+    checkColor: "text-emerald-500",
+    testIdSignup: "button-tenant-login",
+    testIdLogin: "button-tenant-login-existing",
+  },
+  {
+    title: "Contractor",
+    description: "Open marketplace \u2013 thousands of real-time jobs",
+    icon: Wrench,
+    signupLink: "/contractor-signup",
+    loginLink: "/login",
+    features: ["Access job marketplace", "No cold leads - real needs", "Direct client connections"],
+    accentFrom: "from-amber-500",
+    accentTo: "to-orange-500",
+    glowColor: "rgba(245, 158, 11, 0.35)",
+    hoverGlow: "rgba(245, 158, 11, 0.25)",
+    lightBarColors: "rgba(245, 158, 11, 0.3), rgba(249, 115, 22, 0.5), rgba(245, 158, 11, 0.3)",
+    iconBg: "bg-gradient-to-br from-amber-500 to-orange-500",
+    btnClass: "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25",
+    checkColor: "text-amber-500",
+    testIdSignup: "button-contractor-signup",
+    testIdLogin: "button-contractor-login",
+  },
+];
+
+const steps = [
+  {
+    num: "1",
+    title: "Sign Up Free",
+    desc: "Create your account in under 2 minutes. Add your home details and you're ready to go.",
+    gradient: "from-violet-500 to-purple-600",
+  },
+  {
+    num: "2",
+    title: "Find Trusted Help",
+    desc: "Browse verified contractors by specialty. Save your favorites for quick access when you need help.",
+    gradient: "from-blue-500 to-cyan-500",
+  },
+  {
+    num: "3",
+    title: "Stay Organized",
+    desc: "Track all maintenance and repairs in one place. AI helps you stay on top of your home's needs.",
+    gradient: "from-emerald-500 to-teal-500",
+  },
+];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <div className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-full mb-4 font-semibold">
-            100% FREE - No Hidden Costs
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-violet-200/30 dark:bg-violet-900/10 blur-3xl" style={{ animation: "pulseGlow 4s ease-in-out infinite" }} />
+        <div className="absolute top-60 -left-40 w-80 h-80 rounded-full bg-blue-200/30 dark:bg-blue-900/10 blur-3xl" style={{ animation: "pulseGlow 5s ease-in-out infinite 1s" }} />
+        <div className="absolute bottom-40 right-20 w-72 h-72 rounded-full bg-emerald-200/20 dark:bg-emerald-900/10 blur-3xl" style={{ animation: "pulseGlow 6s ease-in-out infinite 2s" }} />
+      </div>
+
+      <div className="relative container mx-auto px-4 py-8">
+        <header className="flex items-center justify-between mb-16 landing-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent">
+              AllAI Property
+            </span>
           </div>
-          <h1 className="text-5xl font-bold mb-4">Your Home, Simplified</h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Free property management for homeowners, landlords, renters, and contractors
-          </p>
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-            <p className="text-lg font-semibold">Featured: Property Owner Tools</p>
-            <Sparkles className="h-5 w-5 text-blue-500" />
+          <Link href="/login">
+            <Button variant="outline" className="rounded-full px-6 border-violet-200 hover:border-violet-400 hover:bg-violet-50 dark:border-violet-800 dark:hover:border-violet-600 transition-all duration-300">
+              Sign In
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
+        </header>
+
+        <section className="text-center mb-20">
+          <div className="landing-fade-in landing-fade-in-delay-1">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100/80 dark:bg-violet-900/30 border border-violet-200/60 dark:border-violet-800/40 mb-6">
+              <Sparkles className="h-4 w-4 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
+              <span className="text-sm font-medium text-violet-700 dark:text-violet-300">AI-Powered Property Management</span>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-            Finally, property management tools designed for homeowners who live in their own homes. 
-            Track maintenance, hire trusted contractors, and keep your home in perfect condition.
+
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 landing-fade-in landing-fade-in-delay-2">
+            <span className="text-gray-900 dark:text-gray-100">Your Home,</span>
+            <br />
+            <span className="landing-gradient-text">Simplified</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 landing-fade-in landing-fade-in-delay-3">
+            The all-in-one platform for homeowners, landlords, renters, and contractors.
+            Track everything. Automate the rest.
           </p>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <Home className="h-12 w-12 text-primary mb-2" />
-                <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">Popular</span>
+          <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-3">
+            <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+            <span className="text-sm text-gray-500">Featured: Property Owner Tools</span>
+            <Sparkles className="h-4 w-4 text-blue-500" style={{ animation: "spin 8s linear infinite" }} />
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-24">
+          {roles.map((role, index) => {
+            const Icon = role.icon;
+            return (
+              <div
+                key={role.title}
+                className={`landing-card group relative rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:-translate-y-2 landing-fade-in landing-fade-in-delay-${index + 3}`}
+                style={FROSTED_CARD_STYLE}
+              >
+                <div
+                  className="landing-card-glow"
+                  style={{ boxShadow: `0 20px 60px ${role.glowColor}, 0 8px 24px ${role.hoverGlow}` }}
+                />
+
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"
+                  style={{
+                    background: `linear-gradient(135deg, ${role.glowColor.replace('0.35', '0.06')} 0%, transparent 60%)`,
+                  }}
+                />
+
+                <div
+                  className="h-1 transition-all duration-300"
+                  style={{
+                    background: `linear-gradient(90deg, ${role.lightBarColors})`,
+                    backgroundSize: "200% 100%",
+                    animation: "runningLight 40s linear infinite",
+                  }}
+                />
+
+                <div className="relative p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-14 h-14 rounded-xl ${role.iconBg} flex items-center justify-center shadow-lg landing-float-icon`}
+                      style={{ animationDelay: `${index * 0.5}s` }}
+                    >
+                      <Icon className="h-7 w-7 text-white" />
+                    </div>
+                    {role.badge && (
+                      <span className={`${role.badgeBg} text-[11px] font-semibold px-2.5 py-1 rounded-full`}>
+                        {role.badge}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">{role.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">{role.description}</p>
+
+                  <div className="space-y-2 mb-5">
+                    <Link href={role.signupLink}>
+                      <Button
+                        className={`w-full rounded-xl h-11 font-semibold transition-all duration-300 ${role.btnClass}`}
+                        data-testid={role.testIdSignup}
+                      >
+                        Get Started Free
+                        <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    </Link>
+                    <Link href={role.loginLink}>
+                      <Button
+                        variant="ghost"
+                        className="w-full rounded-xl h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        data-testid={role.testIdLogin}
+                      >
+                        Login
+                      </Button>
+                    </Link>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100/80 dark:border-gray-800/50 space-y-2">
+                    {role.features.map((feature, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${role.iconBg} shrink-0`}>
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <CardTitle>Property Owner</CardTitle>
-              <CardDescription>Maintain your home without the hassle</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Link href="/property-owner-signup">
-                  <Button className="w-full" size="lg" data-testid="button-property-owner-signup">
-                    Get Started Free
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button variant="outline" className="w-full" data-testid="button-property-owner-login">
-                    Login
-                  </Button>
-                </Link>
-              </div>
-              <ul className="text-xs text-muted-foreground mt-4 space-y-1">
-                <li>✓ Track maintenance & repairs</li>
-                <li>✓ Find trusted contractors</li>
-                <li>✓ Manage multiple properties</li>
-              </ul>
-            </CardContent>
-          </Card>
+            );
+          })}
+        </section>
 
-          <Card>
-            <CardHeader>
-              <Building2 className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>Landlord</CardTitle>
-              <CardDescription>Manage properties, tenants, and maintenance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/login">
-                <Button className="w-full" size="lg" data-testid="button-landlord-login">
-                  Get Started Free
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="outline" className="w-full mt-2" data-testid="button-landlord-login-existing">
-                  Login
-                </Button>
-              </Link>
-              <ul className="text-xs text-muted-foreground mt-4 space-y-1">
-                <li>✓ Manage properties & tenants</li>
-                <li>✓ Track maintenance cases</li>
-                <li>✓ Invite tenants automatically</li>
-              </ul>
-            </CardContent>
-          </Card>
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-7">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+              How it works
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400">Get started in 3 simple steps</p>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <Home className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>Tenant</CardTitle>
-              <CardDescription>View your unit and submit requests</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/login">
-                <Button className="w-full" size="lg" data-testid="button-tenant-login">Get Started Free</Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="outline" className="w-full mt-2" data-testid="button-tenant-login-existing">
-                  Login
-                </Button>
-              </Link>
-              <ul className="text-xs text-muted-foreground mt-4 space-y-1">
-                <li>✓ Submit maintenance requests</li>
-                <li>✓ Track case status</li>
-                <li>✓ Approve appointments</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Wrench className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>Contractor</CardTitle>
-              <CardDescription>Open marketplace – thousands of real-time jobs</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Link href="/contractor-signup">
-                  <Button className="w-full" size="lg" data-testid="button-contractor-signup">Get Started Free</Button>
-                </Link>
-                <Link href="/login">
-                  <Button variant="outline" className="w-full" data-testid="button-contractor-login">Login</Button>
-                </Link>
-              </div>
-              <ul className="text-xs text-muted-foreground mt-4 space-y-1">
-                <li>✓ Access job marketplace</li>
-                <li>✓ No cold leads - real needs</li>
-                <li>✓ Direct client connections</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">How it works for homeowners</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div>
-              <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
-                1
+            {steps.map((step, index) => (
+              <div key={step.num} className="relative text-center group">
+                {index < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+2rem)] right-[calc(-50%+2rem)] h-[2px]">
+                    <div className="h-full bg-gradient-to-r from-violet-300/50 to-blue-300/30 dark:from-violet-700/30 dark:to-blue-700/20" />
+                  </div>
+                )}
+
+                <div
+                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl`}
+                  style={{
+                    boxShadow: `0 8px 24px ${step.gradient.includes('violet') ? 'rgba(139,92,246,0.3)' : step.gradient.includes('blue') ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)'}`,
+                  }}
+                >
+                  {step.num}
+                </div>
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {step.desc}
+                </p>
               </div>
-              <h3 className="font-semibold mb-2">Sign Up Free</h3>
-              <p className="text-sm text-muted-foreground">
-                Create your account in under 2 minutes. Add your home details and you're ready to go.
-              </p>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
+          <div
+            className="relative rounded-3xl overflow-hidden p-10 md:p-16 text-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.08) 50%, rgba(16, 185, 129, 0.06) 100%)",
+              border: "1px solid rgba(139, 92, 246, 0.15)",
+            }}
+          >
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-violet-300/10 blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-blue-300/10 blur-3xl" />
             </div>
-            <div>
-              <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
-                2
+
+            <div className="relative">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Sparkles className="h-6 w-6 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
+                <Zap className="h-5 w-5 text-amber-500" />
+                <Shield className="h-5 w-5 text-emerald-500" />
               </div>
-              <h3 className="font-semibold mb-2">Find Trusted Help</h3>
-              <p className="text-sm text-muted-foreground">
-                Browse verified contractors by specialty. Save your favorites for quick access when you need help.
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                Ready to simplify your
+                <span className="landing-gradient-text"> property management</span>?
+              </h2>
+              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8 max-w-xl mx-auto">
+                Join thousands of homeowners, landlords, and contractors who trust AllAI Property.
               </p>
-            </div>
-            <div>
-              <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
-                3
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <Link href="/property-owner-signup">
+                  <Button
+                    size="lg"
+                    className="rounded-full px-8 bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600 text-white shadow-lg shadow-violet-500/25 text-base h-12"
+                  >
+                    Get Started Free
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full px-8 border-violet-200 hover:border-violet-400 hover:bg-violet-50/50 h-12 text-base"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
               </div>
-              <h3 className="font-semibold mb-2">Stay Organized</h3>
-              <p className="text-sm text-muted-foreground">
-                Track all maintenance and repairs in one place. AI helps you stay on top of your home's needs.
-              </p>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="mt-16 text-center text-sm text-muted-foreground">
-          <p>Also available: <Link href="/login" className="underline">Landlord portal</Link> · <Link href="/contractor-signup" className="underline">Contractor marketplace</Link></p>
-        </div>
+        <footer className="border-t border-gray-100 dark:border-gray-800 py-8 text-center">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+              <Building2 className="h-3 w-3 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">AllAI Property</span>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+            &copy; {new Date().getFullYear()} AllAI Property. All rights reserved.
+          </p>
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-500">
+            <Link href="/login" className="hover:text-violet-500 transition-colors">Landlord Portal</Link>
+            <span>&middot;</span>
+            <Link href="/contractor-signup" className="hover:text-violet-500 transition-colors">Contractor Marketplace</Link>
+            <span>&middot;</span>
+            <Link href="/property-owner-signup" className="hover:text-violet-500 transition-colors">Homeowner Tools</Link>
+          </div>
+        </footer>
       </div>
     </div>
   );
