@@ -583,6 +583,42 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
     },
   });
 
+  const { data: caseQuotesData, isLoading: quotesLoading } = useQuery<{
+    caseId: string;
+    quotes: {
+      id: string;
+      contractor: { id: string; firstName: string; lastName: string; email?: string; phone?: string };
+      title: string;
+      status: string;
+      total: number;
+      subtotal: number;
+      taxAmount: number;
+      depositRequired: number;
+      availableStartDate?: string;
+      availableEndDate?: string;
+      estimatedDays?: number;
+      scopeOfWork?: string;
+      clientMessage?: string;
+      lineItems: { id: string; name: string; description?: string; quantity: number; unitPrice: number; total: number }[];
+      hasCounterProposal: boolean;
+      counterProposalCount: number;
+      latestCounterProposal?: any;
+      createdAt: string;
+      expiresAt?: string;
+    }[];
+  }>({
+    queryKey: ["/api/landlord/cases", selectedCaseId, "quotes"],
+    enabled: !!selectedCaseId && !!user,
+    queryFn: async () => {
+      const headers: Record<string, string> = {};
+      const refreshToken = sessionStorage.getItem('refreshToken');
+      if (refreshToken) headers["Authorization"] = `Bearer ${refreshToken}`;
+      const res = await fetch(`/api/landlord/cases/${selectedCaseId}/quotes`, { headers, credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch quotes");
+      return res.json();
+    },
+  });
+
   const { data: caseEvents = [] } = useQuery<{ id: string; caseId: string; type: string; description: string; metadata: any; createdAt: string }[]>({
     queryKey: ["/api/landlord/cases", selectedCaseId, "events"],
     enabled: !!selectedCaseId && !!user,
@@ -2252,6 +2288,152 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                               </Card>
                             )}
 
+
+                            <Card className="border border-emerald-200/60 dark:border-emerald-700/40">
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Receipt className="h-4 w-4 text-emerald-500" />
+                                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quotes & Payments</span>
+                                  {caseQuotesData?.quotes && caseQuotesData.quotes.length > 0 && (
+                                    <Badge variant="outline" className="text-[10px] ml-auto">{caseQuotesData.quotes.length}</Badge>
+                                  )}
+                                </div>
+
+                                {quotesLoading ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="h-4 w-4 animate-spin text-emerald-400 mr-2" />
+                                    <span className="text-xs text-muted-foreground">Loading quotes...</span>
+                                  </div>
+                                ) : !caseQuotesData?.quotes || caseQuotesData.quotes.length === 0 ? (
+                                  <div className="text-center py-4">
+                                    <DollarSign className="h-6 w-6 text-muted-foreground/40 mx-auto mb-2" />
+                                    <p className="text-xs text-muted-foreground">
+                                      {selectedCase.priceTbd
+                                        ? "Pricing will be determined after the diagnostic visit"
+                                        : selectedCase.assignedContractorName
+                                          ? "Waiting for contractor to submit a quote"
+                                          : "Assign a contractor to receive quotes"}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {caseQuotesData.quotes.map((quote) => {
+                                      const statusColors: Record<string, string> = {
+                                        draft: "bg-slate-100 text-slate-600",
+                                        sent: "bg-blue-100 text-blue-700",
+                                        awaiting_response: "bg-amber-100 text-amber-700",
+                                        approved: "bg-emerald-100 text-emerald-700",
+                                        declined: "bg-red-100 text-red-700",
+                                        expired: "bg-slate-100 text-slate-500",
+                                        cancelled: "bg-slate-100 text-slate-400",
+                                      };
+                                      const statusLabels: Record<string, string> = {
+                                        draft: "Draft",
+                                        sent: "Sent",
+                                        awaiting_response: "Awaiting Response",
+                                        approved: "Approved",
+                                        declined: "Declined",
+                                        expired: "Expired",
+                                        cancelled: "Cancelled",
+                                      };
+                                      return (
+                                        <div
+                                          key={quote.id}
+                                          className="rounded-xl p-3 border border-slate-200/80 dark:border-slate-700/60 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/50 space-y-2"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm font-semibold">{quote.contractor ? `${quote.contractor.firstName || ''} ${quote.contractor.lastName || ''}`.trim() || "Unknown Contractor" : "Unknown Contractor"}</span>
+                                              <Badge className={`text-[10px] ${statusColors[quote.status] || "bg-slate-100 text-slate-600"}`}>
+                                                {statusLabels[quote.status] || quote.status}
+                                              </Badge>
+                                            </div>
+                                            <span className="text-lg font-bold text-emerald-600">${quote.total.toLocaleString()}</span>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">{quote.title}</p>
+
+                                          {quote.lineItems.length > 0 && (
+                                            <div className="space-y-1 pt-1">
+                                              {quote.lineItems.map((item) => (
+                                                <div key={item.id} className="flex items-center justify-between text-xs">
+                                                  <span className="text-slate-600 dark:text-slate-400 truncate mr-2">
+                                                    {item.name} {item.quantity > 1 ? `x${item.quantity}` : ""}
+                                                  </span>
+                                                  <span className="text-slate-700 dark:text-slate-300 font-medium shrink-0">${item.total.toLocaleString()}</span>
+                                                </div>
+                                              ))}
+                                              {quote.taxAmount > 0 && (
+                                                <div className="flex items-center justify-between text-xs border-t border-dashed pt-1 mt-1">
+                                                  <span className="text-slate-500">Tax</span>
+                                                  <span className="text-slate-600 font-medium">${quote.taxAmount.toLocaleString()}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {quote.scopeOfWork && (
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">{quote.scopeOfWork}</p>
+                                          )}
+
+                                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1">
+                                            {quote.availableStartDate && (
+                                              <span className="flex items-center gap-1">
+                                                <Calendar className="h-3 w-3" />
+                                                {format(new Date(quote.availableStartDate), "MMM d")}
+                                                {quote.availableEndDate && ` - ${format(new Date(quote.availableEndDate), "MMM d")}`}
+                                              </span>
+                                            )}
+                                            {quote.estimatedDays && (
+                                              <span className="flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />{quote.estimatedDays}d
+                                              </span>
+                                            )}
+                                            {quote.depositRequired > 0 && (
+                                              <span className="flex items-center gap-1 text-amber-600">
+                                                <DollarSign className="h-3 w-3" />Deposit: ${quote.depositRequired.toLocaleString()}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {quote.hasCounterProposal && (
+                                            <div className="flex items-center gap-1 text-[10px] text-violet-600 bg-violet-50 dark:bg-violet-900/20 rounded-md px-2 py-1">
+                                              <MessageCircle className="h-3 w-3" />
+                                              {quote.counterProposalCount} counter-proposal{quote.counterProposalCount > 1 ? "s" : ""}
+                                            </div>
+                                          )}
+
+                                          {quote.expiresAt && new Date(quote.expiresAt) > new Date() && quote.status !== "approved" && quote.status !== "declined" && (
+                                            <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                                              <AlertTriangle className="h-3 w-3" />
+                                              Expires {formatDistanceToNow(new Date(quote.expiresAt), { addSuffix: true })}
+                                            </p>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+
+                                    {caseQuotesData.quotes.length > 1 && (
+                                      <div className="rounded-lg p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60">
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="text-slate-500">Quote range</span>
+                                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                                            ${Math.min(...caseQuotesData.quotes.map(q => q.total)).toLocaleString()} – ${Math.max(...caseQuotesData.quotes.map(q => q.total)).toLocaleString()}
+                                          </span>
+                                        </div>
+                                        {caseQuotesData.quotes.some(q => q.status === "approved") && (
+                                          <div className="flex items-center justify-between text-xs mt-1">
+                                            <span className="text-emerald-600 font-medium">Approved total</span>
+                                            <span className="font-bold text-emerald-700">
+                                              ${caseQuotesData.quotes.filter(q => q.status === "approved").reduce((s, q) => s + q.total, 0).toLocaleString()}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
 
                             <Card>
                               <CardContent className="p-4">
