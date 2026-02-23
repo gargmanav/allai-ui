@@ -1,27 +1,16 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Building2, Wrench, Home, Users, ArrowRight, MessageCircle, Phone, Search, CalendarDays, SmilePlus, MessageSquare, Settings, CheckCircle2, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap } from 'lucide-react';
 
-function FounderPhoto({ photo, initials, name }: { photo: string; initials: string; name: string }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <div className="w-36 h-36 rounded-full mx-auto mb-5 overflow-hidden border-4 border-gray-100 shadow-md bg-gradient-to-br from-[#4A9FE5] to-[#2563EB]">
-      {!failed ? (
-        <img
-          src={photo}
-          alt={name}
-          className="w-full h-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-white text-3xl font-bold">
-          {initials}
-        </div>
-      )}
-    </div>
-  );
-}
+const FROSTED_CARD_STYLE = {
+  background:
+    "radial-gradient(ellipse at 25% 15%, rgba(255,255,255,0.99) 0%, rgba(252,252,254,0.96) 15%, rgba(248,249,251,0.92) 30%, rgba(244,245,248,0.85) 50%, rgba(240,241,245,0.78) 70%, rgba(236,237,242,0.70) 100%)",
+  backdropFilter: "blur(60px) saturate(220%) brightness(1.04)",
+  WebkitBackdropFilter: "blur(60px) saturate(220%) brightness(1.04)",
+  border: "2px solid rgba(255, 255, 255, 0.85)",
+  boxShadow:
+    "inset 0 6px 20px rgba(255,255,255,0.95), inset 0 -4px 12px rgba(180,195,220,0.12), inset 2px 0 8px rgba(255,255,255,0.5), inset -2px 0 8px rgba(200,215,240,0.15), 0 10px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255,255,255,0.5)",
+};
 
 const roles = [
   {
@@ -32,9 +21,15 @@ const roles = [
     signupLink: "/property-owner-signup",
     loginLink: "/login",
     features: ["Track maintenance & repairs", "Find trusted contractors", "Manage multiple properties"],
-    iconBg: "bg-gradient-to-br from-[#4A9FE5] to-[#2563EB]",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
     badgeBg: "bg-blue-100 text-blue-700",
-    btnClass: "bg-gradient-to-r from-[#4A9FE5] to-[#2563EB] hover:from-[#3B8FD5] hover:to-[#1D4FCC] text-white shadow-lg shadow-blue-500/25",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-property-owner-signup",
     testIdLogin: "button-property-owner-login",
   },
@@ -45,8 +40,14 @@ const roles = [
     signupLink: "/login",
     loginLink: "/login",
     features: ["Manage properties & tenants", "Track maintenance cases", "Invite tenants automatically"],
-    iconBg: "bg-gradient-to-br from-[#4A9FE5] to-[#2563EB]",
-    btnClass: "bg-gradient-to-r from-[#4A9FE5] to-[#2563EB] hover:from-[#3B8FD5] hover:to-[#1D4FCC] text-white shadow-lg shadow-blue-500/25",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-landlord-login",
     testIdLogin: "button-landlord-login-existing",
   },
@@ -57,8 +58,14 @@ const roles = [
     signupLink: "/login",
     loginLink: "/login",
     features: ["Submit maintenance requests", "Track case status", "Approve appointments"],
-    iconBg: "bg-gradient-to-br from-[#4A9FE5] to-[#2563EB]",
-    btnClass: "bg-gradient-to-r from-[#4A9FE5] to-[#2563EB] hover:from-[#3B8FD5] hover:to-[#1D4FCC] text-white shadow-lg shadow-blue-500/25",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-tenant-login",
     testIdLogin: "button-tenant-login-existing",
   },
@@ -69,253 +76,128 @@ const roles = [
     signupLink: "/contractor-signup",
     loginLink: "/login",
     features: ["Access job marketplace", "No cold leads - real needs", "Direct client connections"],
-    iconBg: "bg-gradient-to-br from-[#4A9FE5] to-[#2563EB]",
-    btnClass: "bg-gradient-to-r from-[#4A9FE5] to-[#2563EB] hover:from-[#3B8FD5] hover:to-[#1D4FCC] text-white shadow-lg shadow-blue-500/25",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-contractor-signup",
     testIdLogin: "button-contractor-login",
   },
 ];
 
-const howItWorksSteps = [
+const steps = [
   {
-    title: "AI Chat Interface",
-    icon: MessageSquare,
-    textSide: "left" as const,
-    heading: "The tenant identifies an issue.",
-    paragraphs: [
-      "Instead of contacting you, they interact with our AI-powered agent.",
-      "The agent gathers information, troubleshoots, and escalates if necessary.",
-    ],
+    num: "1",
+    title: "Sign Up Free",
+    desc: "Create your account in under 2 minutes. Add your home details and you're ready to go.",
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
-    title: "AI Troubleshoots",
-    icon: Settings,
-    textSide: "right" as const,
-    heading: "You're in control.",
-    paragraphs: [
-      "Decide if an escalation comes to your team, or contacts the technician directly to communicate and schedule the on-site visit.",
-      "The agent automatically follows up to be sure the work was done right.",
-    ],
+    num: "2",
+    title: "Find Trusted Help",
+    desc: "Browse verified contractors by specialty. Save your favorites for quick access when you need help.",
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
-    title: "Auto Follow-up",
-    icon: CheckCircle2,
-    textSide: "left" as const,
-    heading: "Our AI-powered agent is a trained problem solver,",
-    paragraphs: [
-      "fixing what's wrong and delivering confidence to your tenants and staff.",
-      "Easily recall unit, technician, and tenant histories without sorting through tickets.",
-    ],
+    num: "3",
+    title: "Stay Organized",
+    desc: "Track all maintenance and repairs in one place. AI helps you stay on top of your home's needs.",
+    gradient: "from-blue-500 to-cyan-500",
   },
 ];
-
-const founders = [
-  {
-    name: "Ghassan Ghorayeb",
-    role: "Co-Founder",
-    initials: "GG",
-    photo: "https://allai-v3-frontend.onrender.com/_next/image?url=%2Fghassan-profile.jpg&w=384&q=75",
-    bullets: [
-      "Retinal Surgeon & Chief of Division",
-      "Co-Founder of RBC, a multimillion-dollar commercial and medical real estate portfolio, driving development of advanced healthcare facilities",
-      "MIT MBA; Published innovator applying AI to healthcare and property technology solutions",
-    ],
-  },
-  {
-    name: "Nihal Bhujle",
-    role: "Co-Founder",
-    initials: "NB",
-    photo: "https://allai-v3-frontend.onrender.com/_next/image?url=%2Fnihal-profile.jpg&w=384&q=75",
-    bullets: [
-      "Led Digital Product Innovation at UBS and Gartner's CxO global advisory practice",
-      "Co-founder of RBC, a multi-million dollar commercial and residential real estate portfolio, delivering an annualized return of 16% over the last decade to investors",
-      "MIT MBA, BS Finance Wharton School, deep background in corporate finance advisory",
-    ],
-  },
-  {
-    name: "Omar Jacques Omran",
-    role: "Co-Founder",
-    initials: "OO",
-    photo: "https://allai-v3-frontend.onrender.com/_next/image?url=%2Fomar-profile.jpg&w=384&q=75",
-    bullets: [
-      "Led Technology for 3 large public companies (Six Flags, Welbilt, Middleby, : $3B\u201310B) generating $500M in net profit increase",
-      "Named 2024 Top Global Innovator",
-      "MIT MBA; 1st prize winner largest global hackathon",
-    ],
-  },
-];
-
-function AllaiLogo({ size = "default" }: { size?: "default" | "small" }) {
-  const textClass = size === "small" ? "text-lg" : "text-2xl";
-  const iconSize = size === "small" ? 24 : 32;
-  return (
-    <div className="flex items-center gap-2">
-      <svg width={iconSize} height={iconSize} viewBox="0 0 40 40" fill="none">
-        <circle cx="20" cy="20" r="18" stroke="#2563EB" strokeWidth="2.5" fill="none" />
-        <circle cx="20" cy="20" r="6" fill="#2563EB" />
-        <path d="M20 2 C20 2 32 10 32 20 C32 30 20 38 20 38" stroke="#4A9FE5" strokeWidth="2" fill="none" strokeLinecap="round" />
-      </svg>
-      <span className={`${textClass} font-bold tracking-tight`}>
-        <span className="text-gray-900">all</span>
-        <span className="text-[#2563EB]">ai</span>
-      </span>
-    </div>
-  );
-}
-
-function BlueGradientCard({ title, icon: Icon, className = "" }: { title: string; icon: React.ComponentType<{ className?: string }>; className?: string }) {
-  return (
-    <div className={`relative w-[280px] h-[220px] rounded-2xl overflow-hidden shadow-xl ${className}`} style={{
-      background: "linear-gradient(135deg, #7DD3FC 0%, #4A9FE5 30%, #2563EB 70%, #3B82F6 100%)",
-    }}>
-      <div className="absolute inset-0" style={{
-        background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 60%)",
-      }} />
-      <div className="flex flex-col items-center justify-center h-full relative">
-        <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-4 shadow-lg">
-          <Icon className="h-8 w-8 text-white" />
-        </div>
-        <span className="text-white font-bold text-lg text-center px-4">{title}</span>
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-white/0 via-white/40 to-white/0" />
-    </div>
-  );
-}
 
 export default function LandingPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <header className="sticky top-0 z-50 bg-[#F8FAFC]/90 backdrop-blur-md border-b border-gray-100">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <AllaiLogo />
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-[#2563EB] transition-colors">How It Works</a>
-            <a href="#platform" className="text-sm font-medium text-gray-600 hover:text-[#2563EB] transition-colors">Platform</a>
-            <a href="#about" className="text-sm font-medium text-gray-600 hover:text-[#2563EB] transition-colors">About Us</a>
-            <Link href="/login">
-              <Button variant="outline" className="rounded-full px-6 border-[#2563EB]/30 text-[#2563EB] hover:bg-[#2563EB]/5 hover:border-[#2563EB]/50">
-                Sign In
-              </Button>
-            </Link>
-          </nav>
-          <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
-          </button>
-        </div>
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-3">
-            <a href="#how-it-works" className="block text-sm font-medium text-gray-600" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
-            <a href="#platform" className="block text-sm font-medium text-gray-600" onClick={() => setMobileMenuOpen(false)}>Platform</a>
-            <a href="#about" className="block text-sm font-medium text-gray-600" onClick={() => setMobileMenuOpen(false)}>About Us</a>
-            <Link href="/login">
-              <Button variant="outline" className="w-full rounded-full border-[#2563EB]/30 text-[#2563EB]">Sign In</Button>
-            </Link>
-          </div>
-        )}
-      </header>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-violet-200/30 dark:bg-violet-900/10 blur-3xl" style={{ animation: "pulseGlow 4s ease-in-out infinite" }} />
+        <div className="absolute top-60 -left-40 w-80 h-80 rounded-full bg-blue-200/30 dark:bg-blue-900/10 blur-3xl" style={{ animation: "pulseGlow 5s ease-in-out infinite 1s" }} />
+        <div className="absolute bottom-40 right-20 w-72 h-72 rounded-full bg-emerald-200/20 dark:bg-emerald-900/10 blur-3xl" style={{ animation: "pulseGlow 6s ease-in-out infinite 2s" }} />
+      </div>
 
-      <section className="container mx-auto px-6 py-16 md:py-24">
-        <div className="flex flex-col md:flex-row items-center gap-12 md:gap-16">
-          <div className="flex-1 max-w-xl">
-            <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-tight text-gray-900 mb-6 tracking-tight">
-              Reimagining Property Maintenance with Fully Integrated, Agentic AI.
-            </h1>
-            <p className="text-lg text-gray-500 mb-8 leading-relaxed">
-              From diagnosis to resolution—Allai handles every step of real estate maintenance management.
-            </p>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Link href="/property-owner-signup">
-                <Button className="rounded-full px-7 h-12 bg-[#1E293B] hover:bg-[#0F172A] text-white text-sm font-medium shadow-md">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Chat with Allai
-                </Button>
-              </Link>
-              <Button variant="outline" className="rounded-full px-7 h-12 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
-                <Phone className="h-4 w-4 mr-2" />
-                Call Now
-              </Button>
+      <div className="relative container mx-auto px-4 py-8">
+        <header className="flex items-center justify-between mb-16 landing-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent">
+              AllAI Property
+            </span>
+          </div>
+          <Link href="/login">
+            <Button variant="outline" className="rounded-full px-6 border-violet-200 hover:border-violet-400 hover:bg-violet-50 dark:border-violet-800 dark:hover:border-violet-600 transition-all duration-300">
+              Sign In
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
+        </header>
+
+        <section className="text-center mb-20">
+          <div className="landing-fade-in landing-fade-in-delay-1">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100/80 dark:bg-violet-900/30 border border-violet-200/60 dark:border-violet-800/40 mb-6">
+              <Sparkles className="h-4 w-4 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
+              <span className="text-sm font-medium text-violet-700 dark:text-violet-300">AI-Powered Property Management</span>
             </div>
           </div>
-          <div className="flex-shrink-0">
-            <BlueGradientCard title="Smart Property Management" icon={Home} />
+
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 landing-fade-in landing-fade-in-delay-2">
+            <span className="text-gray-900 dark:text-gray-100">Your Home,</span>
+            <br />
+            <span className="landing-gradient-text">Simplified</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 landing-fade-in landing-fade-in-delay-3">
+            The all-in-one platform for homeowners, landlords, renters, and contractors.
+            Track everything. Automate the rest.
+          </p>
+
+          <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-3">
+            <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+            <span className="text-sm text-gray-500">Featured: Home Owner Tools</span>
+            <Sparkles className="h-4 w-4 text-blue-500" style={{ animation: "spin 8s linear infinite" }} />
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="container mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {[
-            { icon: Search, title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
-            { icon: CalendarDays, title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
-            { icon: SmilePlus, title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.title} className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
-                <div className="w-14 h-14 rounded-full bg-[#EFF6FF] flex items-center justify-center mx-auto mb-5">
-                  <Icon className="h-6 w-6 text-[#2563EB]" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-3">{item.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section id="how-it-works" className="container mx-auto px-6 py-20">
-        <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-20">How It Works</h2>
-
-        <div className="max-w-5xl mx-auto space-y-24">
-          {howItWorksSteps.map((step, idx) => {
-            const textBlock = (
-              <div className="flex-1 space-y-4">
-                <h3 className="text-xl font-semibold text-gray-900">{step.heading}</h3>
-                {step.paragraphs.map((p, i) => (
-                  <p key={i} className="text-gray-500 leading-relaxed">{p}</p>
-                ))}
-              </div>
-            );
-            const cardBlock = (
-              <div className="flex-shrink-0 flex justify-center">
-                <BlueGradientCard title={step.title} icon={step.icon} />
-              </div>
-            );
-
-            return (
-              <div key={idx} className="flex flex-col md:flex-row items-center gap-12 md:gap-16">
-                {step.textSide === "left" ? (
-                  <>{textBlock}{cardBlock}</>
-                ) : (
-                  <>{cardBlock}{textBlock}</>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section id="platform" className="container mx-auto px-6 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Our Platform</h2>
-          <p className="text-gray-500">Choose your role and get started</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {roles.map((role) => {
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-24">
+          {roles.map((role, index) => {
             const Icon = role.icon;
             return (
               <div
                 key={role.title}
-                className="group relative bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300"
+                className={`landing-card group relative rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:-translate-y-2 landing-fade-in landing-fade-in-delay-${index + 3}`}
+                style={FROSTED_CARD_STYLE}
               >
-                <div className="h-1 bg-gradient-to-r from-[#4A9FE5] to-[#2563EB]" />
+                <div
+                  className="landing-card-glow"
+                  style={{ boxShadow: `0 20px 60px ${role.glowColor}, 0 8px 24px ${role.hoverGlow}` }}
+                />
 
-                <div className="p-6">
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"
+                  style={{
+                    background: `linear-gradient(135deg, ${role.glowColor.replace('0.35', '0.06')} 0%, transparent 60%)`,
+                  }}
+                />
+
+                <div
+                  className="h-1 transition-all duration-300"
+                  style={{
+                    background: `linear-gradient(90deg, ${role.lightBarColors})`,
+                    backgroundSize: "200% 100%",
+                    animation: "runningLight 40s linear infinite",
+                  }}
+                />
+
+                <div className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`w-14 h-14 rounded-xl ${role.iconBg} flex items-center justify-center shadow-lg`}>
+                    <div className={`w-14 h-14 rounded-xl ${role.iconBg} flex items-center justify-center shadow-lg landing-float-icon`}
+                      style={{ animationDelay: `${index * 0.5}s` }}
+                    >
                       <Icon className="h-7 w-7 text-white" />
                     </div>
                     {role.badge && (
@@ -325,8 +207,8 @@ export default function LandingPage() {
                     )}
                   </div>
 
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">{role.title}</h3>
-                  <p className="text-sm text-gray-500 mb-5">{role.description}</p>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">{role.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">{role.description}</p>
 
                   <div className="space-y-2 mb-5">
                     <Link href={role.signupLink}>
@@ -341,7 +223,7 @@ export default function LandingPage() {
                     <Link href={role.loginLink}>
                       <Button
                         variant="ghost"
-                        className="w-full rounded-xl h-10 text-gray-600 hover:text-gray-900 transition-colors"
+                        className="w-full rounded-xl h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                         data-testid={role.testIdLogin}
                       >
                         Login
@@ -349,9 +231,9 @@ export default function LandingPage() {
                     </Link>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 space-y-2">
+                  <div className="pt-4 border-t border-gray-100/80 dark:border-gray-800/50 space-y-2">
                     {role.features.map((feature, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                      <div key={i} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <div className={`w-4 h-4 rounded-full flex items-center justify-center ${role.iconBg} shrink-0`}>
                           <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -365,72 +247,108 @@ export default function LandingPage() {
               </div>
             );
           })}
-        </div>
-      </section>
+        </section>
 
-      <section id="about" className="container mx-auto px-6 py-20">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">About Us</h2>
-          <p className="text-gray-500 max-w-2xl mx-auto">
-            Our team blends innovation and expertise to disrupt property maintenance industry with fully integrated, agentic AI.
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-7">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+              How it works
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400">Get started in 3 simple steps</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 max-w-4xl mx-auto relative">
+            {steps.map((step, index) => (
+              <div key={step.num} className="relative text-center px-6">
+                {index < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+2.5rem)] right-[calc(-50%+2.5rem)] h-[3px] rounded-full overflow-hidden bg-blue-100/50 dark:bg-blue-900/20">
+                    <div className={`h-full step-line-${index + 1} rounded-full`} />
+                  </div>
+                )}
+
+                <div
+                  className={`step-circle-${index + 1} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white`}
+                >
+                  {step.num}
+                </div>
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {step.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
+          <div
+            className="relative rounded-3xl overflow-hidden p-10 md:p-16 text-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.08) 50%, rgba(16, 185, 129, 0.06) 100%)",
+              border: "1px solid rgba(139, 92, 246, 0.15)",
+            }}
+          >
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-violet-300/10 blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-blue-300/10 blur-3xl" />
+            </div>
+
+            <div className="relative">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Sparkles className="h-6 w-6 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
+                <Zap className="h-5 w-5 text-amber-500" />
+                <Shield className="h-5 w-5 text-emerald-500" />
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                Ready to simplify your
+                <span className="landing-gradient-text"> property management</span>?
+              </h2>
+              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8 max-w-xl mx-auto">
+                Join thousands of homeowners, landlords, and contractors who trust AllAI Property.
+              </p>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <Link href="/property-owner-signup">
+                  <Button
+                    size="lg"
+                    className="rounded-full px-8 bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600 text-white shadow-lg shadow-violet-500/25 text-base h-12"
+                  >
+                    Get Started Free
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full px-8 border-violet-200 hover:border-violet-400 hover:bg-violet-50/50 h-12 text-base"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer className="border-t border-gray-100 dark:border-gray-800 py-8 text-center">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+              <Building2 className="h-3 w-3 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">AllAI Property</span>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+            &copy; {new Date().getFullYear()} AllAI Property. All rights reserved.
           </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto">
-          {founders.map((founder) => (
-            <div key={founder.name} className="text-center">
-              <FounderPhoto photo={founder.photo} initials={founder.initials} name={founder.name} />
-              <h3 className="text-lg font-bold text-gray-900">{founder.name}</h3>
-              <p className="text-[#2563EB] font-medium text-sm mb-4">{founder.role}</p>
-              <ul className="text-left text-sm text-gray-500 space-y-2">
-                {founder.bullets.map((bullet, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#2563EB] shrink-0" />
-                    <span className="leading-relaxed">{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="container mx-auto px-6 py-20">
-        <div className="text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Stop Reacting to Problems.</h2>
-          <h3 className="text-xl md:text-2xl font-semibold text-gray-700 mb-10">Stay Ahead of Them Instead.</h3>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/property-owner-signup">
-              <Button className="rounded-full px-7 h-12 bg-[#1E293B] hover:bg-[#0F172A] text-white text-sm font-medium shadow-md">
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Chat with Allai
-              </Button>
-            </Link>
-            <Button variant="outline" className="rounded-full px-7 h-12 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
-              <Phone className="h-4 w-4 mr-2" />
-              Call Now
-            </Button>
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-500">
+            <Link href="/login" className="hover:text-violet-500 transition-colors">Landlord Portal</Link>
+            <span>&middot;</span>
+            <Link href="/contractor-signup" className="hover:text-violet-500 transition-colors">Contractor Marketplace</Link>
+            <span>&middot;</span>
+            <Link href="/property-owner-signup" className="hover:text-violet-500 transition-colors">Homeowner Tools</Link>
           </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-gray-100 py-10">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <AllaiLogo size="small" />
-            <p className="text-xs text-gray-400">
-              &copy; {new Date().getFullYear()} AllAI Property. All rights reserved.
-            </p>
-            <div className="flex items-center gap-4 text-xs text-gray-400">
-              <Link href="/login" className="hover:text-[#2563EB] transition-colors">Landlord Portal</Link>
-              <span>&middot;</span>
-              <Link href="/contractor-signup" className="hover:text-[#2563EB] transition-colors">Contractor Marketplace</Link>
-              <span>&middot;</span>
-              <Link href="/property-owner-signup" className="hover:text-[#2563EB] transition-colors">Homeowner Tools</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }
