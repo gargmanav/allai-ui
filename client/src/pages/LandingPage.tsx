@@ -166,64 +166,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
-                Reimagining Property Maintenance with Fully Integrated, Agentic AI.
-              </h2>
-              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
-                From diagnosis to resolution—Allai handles every step of real estate maintenance management.
-              </p>
-              <div className="flex items-center gap-4 flex-wrap">
-                <Button
-                  className="rounded-full px-6 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/25"
-                  onClick={() => window.open("https://allai.chat", "_blank")}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Chat with Allai
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full px-6 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold"
-                  onClick={() => window.open("tel:+1234567890")}
-                >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Call Now
-                </Button>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="w-64 h-64 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
-                <span className="text-5xl mb-3">🏠</span>
-                <span className="text-white font-bold text-lg text-center px-4">Smart Property<br />Management</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {[
-              { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
-              { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
-              { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
-            ].map((item, index) => (
-              <div
-                key={item.title}
-                className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40`}
-                style={FROSTED_CARD_STYLE}
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
-                  <span className="text-2xl">{item.emoji}</span>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-24">
           {roles.map((role, index) => {
             const Icon = role.icon;
@@ -308,6 +250,64 @@ export default function LandingPage() {
               </div>
             );
           })}
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
+                Reimagining Property Maintenance with Fully Integrated, Agentic AI.
+              </h2>
+              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
+                From diagnosis to resolution—Allai handles every step of real estate maintenance management.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button
+                  className="rounded-full px-6 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/25"
+                  onClick={() => window.open("https://allai.chat", "_blank")}
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Chat with Allai
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-6 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold"
+                  onClick={() => window.open("tel:+1234567890")}
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Now
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div className="w-64 h-64 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
+                <span className="text-5xl mb-3">🏠</span>
+                <span className="text-white font-bold text-lg text-center px-4">Smart Property<br />Management</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {[
+              { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
+              { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
+              { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
+            ].map((item, index) => (
+              <div
+                key={item.title}
+                className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40`}
+                style={FROSTED_CARD_STYLE}
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
+                  <span className="text-2xl">{item.emoji}</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
