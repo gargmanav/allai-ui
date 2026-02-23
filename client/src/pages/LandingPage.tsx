@@ -325,8 +325,12 @@ export default function LandingPage() {
               { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
               { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
               { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
-            ].map((item) => (
-              <div key={item.title} className="bg-white dark:bg-gray-900 rounded-2xl px-8 py-10 text-center shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow">
+            ].map((item, index) => (
+              <div
+                key={item.title}
+                className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40`}
+                style={FROSTED_CARD_STYLE}
+              >
                 <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
                   <span className="text-2xl">{item.emoji}</span>
                 </div>

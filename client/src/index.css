@@ -460,3 +460,28 @@
   animation: lineHighlight 6s ease-in-out infinite;
   animation-delay: 2.6s;
 }
+
+@keyframes featureCardGlow {
+  0%, 5% {
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.25), 0 8px 30px rgba(139, 92, 246, 0.15), inset 0 0 20px rgba(139, 92, 246, 0.05);
+  }
+  20%, 100% {
+    border-color: rgba(200, 210, 230, 0.4);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.feature-card-1 {
+  animation: featureCardGlow 6s ease-in-out infinite;
+}
+
+.feature-card-2 {
+  animation: featureCardGlow 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.feature-card-3 {
+  animation: featureCardGlow 6s ease-in-out infinite;
+  animation-delay: 4s;
+}
