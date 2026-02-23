@@ -37,52 +37,25 @@ const FEATURE_INSIGHTS = {
   ],
 };
 
-function useActiveFeatureCard() {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    const CYCLE = 10000;
-    const GLOW_DURATION = 1500;
-    const OFFSETS = [0, 2000, 4000];
-
-    const startTime = Date.now();
-
-    const check = () => {
-      const elapsed = (Date.now() - startTime) % CYCLE;
-      let found: number | null = null;
-      for (let i = 0; i < OFFSETS.length; i++) {
-        const cardStart = OFFSETS[i];
-        if (elapsed >= cardStart && elapsed < cardStart + GLOW_DURATION) {
-          found = i;
-          break;
-        }
-      }
-      setActiveIndex(found);
-    };
-
-    check();
-    const interval = setInterval(check, 100);
-    return () => clearInterval(interval);
-  }, []);
-
-  return activeIndex;
-}
-
 function RotatingInsightBubble({ messages, visible }: { messages: string[]; visible: boolean }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [show, setShow] = useState(true);
-  const [cycleCount, setCycleCount] = useState(0);
 
   useEffect(() => {
-    if (visible) {
-      setCycleCount((prev) => prev + 1);
+    if (!visible) {
+      setCurrentIndex(0);
       setShow(true);
+      return;
     }
-  }, [visible]);
-
-  useEffect(() => {
-    setCurrentIndex((cycleCount) % messages.length);
-  }, [cycleCount, messages.length]);
+    const interval = setInterval(() => {
+      setShow(false);
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % messages.length);
+        setShow(true);
+      }, 200);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [visible, messages.length]);
 
   if (!visible) return null;
 
@@ -295,7 +268,7 @@ const steps = [
 ];
 
 export default function LandingPage() {
-  const activeFeatureIndex = useActiveFeatureCard();
+  const [hoveredFeature, setHoveredFeature] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden">
@@ -477,36 +450,29 @@ export default function LandingPage() {
               { emoji: "🔍", title: "Triage" as const, desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
               { emoji: "📅", title: "Schedule" as const, desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
               { emoji: "😌", title: "Relax" as const, desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
-            ].map((item, index) => {
-              const isActive = activeFeatureIndex === index;
-              return (
+            ].map((item, index) => (
+              <div
+                key={item.title}
+                className="relative"
+                onMouseEnter={() => setHoveredFeature(item.title)}
+                onMouseLeave={() => setHoveredFeature(null)}
+              >
+                <RotatingInsightBubble
+                  messages={FEATURE_INSIGHTS[item.title]}
+                  visible={hoveredFeature === item.title}
+                />
                 <div
-                  key={item.title}
-                  className="relative"
+                  className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40 transition-all duration-300 cursor-default ${hoveredFeature === item.title ? 'scale-[1.05] -translate-y-2 shadow-[0_20px_50px_rgba(99,102,241,0.2)]' : ''}`}
+                  style={FROSTED_CARD_STYLE}
                 >
-                  <RotatingInsightBubble
-                    messages={FEATURE_INSIGHTS[item.title]}
-                    visible={isActive}
-                  />
-                  <div
-                    className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40 transition-all duration-500 cursor-default ${isActive ? 'scale-[1.05] -translate-y-2 shadow-[0_20px_50px_rgba(99,102,241,0.2)]' : ''}`}
-                    style={isActive ? {
-                      background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 50%, rgba(243,244,255,0.92) 100%)',
-                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
-                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
-                      border: '2px solid rgba(99, 102, 241, 0.3)',
-                      boxShadow: 'inset 0 2px 8px rgba(255, 255, 255, 0.8), inset 0 -2px 8px rgba(99, 102, 241, 0.08), 0 20px 50px rgba(99,102,241,0.2)',
-                    } : FROSTED_CARD_STYLE}
-                  >
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
-                      <span className="text-2xl">{item.emoji}</span>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
+                    <span className="text-2xl">{item.emoji}</span>
                   </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </section>
 
