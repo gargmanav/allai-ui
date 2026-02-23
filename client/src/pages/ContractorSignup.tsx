@@ -336,7 +336,24 @@ export default function ContractorSignup() {
                         <FormControl>
                           <div className="relative">
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input {...field} type="tel" placeholder="+1 (555) 123-4567" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" data-testid="input-phone" />
+                            <Input
+                              {...field}
+                              type="tel"
+                              placeholder="(555) 123-4567"
+                              maxLength={14}
+                              className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
+                              data-testid="input-phone"
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                let formatted = '';
+                                if (digits.length > 0) formatted = '(' + digits.slice(0, 3);
+                                if (digits.length >= 3) formatted += ') ';
+                                if (digits.length > 3) formatted += digits.slice(3, 6);
+                                if (digits.length >= 6) formatted += '-';
+                                if (digits.length > 6) formatted += digits.slice(6, 10);
+                                field.onChange(formatted);
+                              }}
+                            />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -360,7 +377,7 @@ export default function ContractorSignup() {
                           <div className="space-y-0.5">
                             <span className="text-sm font-medium text-gray-700">Receive SMS notifications</span>
                             <p className="text-xs text-gray-500 leading-relaxed">
-                              Get job alerts, scheduling updates, and client messages via text. You can opt out anytime.
+                              Get job alerts, scheduling updates, and client messages via text. You can opt out anytime. Reply STOP to opt out.
                             </p>
                           </div>
                         </div>
