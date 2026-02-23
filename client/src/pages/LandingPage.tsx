@@ -257,20 +257,17 @@ export default function LandingPage() {
             <p className="text-gray-500 dark:text-gray-400">Get started in 3 simple steps</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 max-w-4xl mx-auto relative">
             {steps.map((step, index) => (
-              <div key={step.num} className="relative text-center group">
+              <div key={step.num} className="relative text-center px-6">
                 {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[calc(50%+2rem)] right-[calc(-50%+2rem)] h-[2px]">
-                    <div className="h-full bg-gradient-to-r from-violet-300/50 to-blue-300/30 dark:from-violet-700/30 dark:to-blue-700/20" />
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+2.5rem)] right-[calc(-50%+2.5rem)] h-[3px] rounded-full overflow-hidden bg-blue-100/50 dark:bg-blue-900/20">
+                    <div className={`h-full step-line-${index + 1} rounded-full`} />
                   </div>
                 )}
 
                 <div
-                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl`}
-                  style={{
-                    boxShadow: "0 8px 24px rgba(59,130,246,0.3)",
-                  }}
+                  className={`step-circle-${index + 1} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white`}
                 >
                   {step.num}
                 </div>
