@@ -625,10 +625,10 @@ export default function LandingPage() {
         <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
           <div className="border-t border-gray-200 dark:border-gray-800 pt-16 pb-8 text-center max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-              Stop Reacting to Problems.
+              Home Repairs. Handled.
             </h2>
             <p className="text-xl md:text-2xl font-semibold text-gray-600 dark:text-gray-300 mb-10">
-              Stay Ahead of Them Instead.
+              From diagnosis to contractor scheduling — no phone tag, no back-and-forth.
             </p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               <Button
