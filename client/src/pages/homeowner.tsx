@@ -46,7 +46,7 @@ import {
   Trophy
 } from "lucide-react";
 
-type ViewState = "landing" | "triage" | "contractors" | "chat" | "pastRequests" | "requestDetail";
+type ViewState = "landing" | "triage" | "contractors" | "chat" | "pastRequests" | "requestDetail" | "invoices";
 
 interface TriageResult {
   urgency: string;
@@ -368,7 +368,7 @@ export default function Homeowner() {
   const handleBack = () => {
     if (view === "contractors") {
       setView("triage");
-    } else if (view === "triage" || view === "chat" || view === "pastRequests") {
+    } else if (view === "triage" || view === "chat" || view === "pastRequests" || view === "invoices") {
       setView("landing");
       setTriageResult(null);
       setProblemDescription("");
@@ -577,6 +577,25 @@ export default function Homeowner() {
             >
               <Home className="h-4 w-4" />
               Home
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={() => setView("invoices")}
+            >
+              <DollarSign className="h-4 w-4" />
+              Invoices & Payments
+              {(() => {
+                const pendingCount = pastRequests.filter((r: any) =>
+                  ["Completed", "Resolved", "Closed"].includes(r.status) &&
+                  (!r.actualCost || parseFloat(String(r.actualCost || 0)) === 0)
+                ).length;
+                return pendingCount > 0 ? (
+                  <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">
+                    {pendingCount}
+                  </Badge>
+                ) : null;
+              })()}
             </Button>
             <Button 
               variant="ghost" 
@@ -1061,6 +1080,163 @@ export default function Homeowner() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invoices & Payments View */}
+        {view === "invoices" && (
+          <div className="flex-1 flex flex-col pt-8">
+            <div className="max-w-xl mx-auto w-full">
+              <h2 className="text-2xl font-semibold mb-2">Invoices & Payments</h2>
+              <p className="text-sm text-muted-foreground mb-6">Track payments for your completed maintenance work</p>
+
+              {(() => {
+                const completedRequests = pastRequests.filter((r: any) =>
+                  ["Completed", "Resolved", "Closed"].includes(r.status)
+                );
+                const pendingPayment = completedRequests.filter((r: any) =>
+                  !r.actualCost || parseFloat(String(r.actualCost || 0)) === 0
+                );
+                const paidRequests = completedRequests.filter((r: any) =>
+                  r.actualCost && parseFloat(String(r.actualCost || 0)) > 0
+                );
+                const totalPaid = paidRequests.reduce((sum: number, r: any) =>
+                  sum + (parseFloat(String(r.actualCost || 0)) || 0), 0
+                );
+                const totalQuoted = completedRequests.reduce((sum: number, r: any) =>
+                  sum + (parseFloat(String(r.quotedPrice || r.estimatedCost || 0)) || 0), 0
+                );
+
+                if (completedRequests.length === 0) {
+                  return (
+                    <div className="text-center py-16">
+                      <div className="p-4 rounded-full bg-muted inline-block mb-4">
+                        <DollarSign className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="font-medium mb-2">No invoices yet</h3>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Invoices will appear here once your maintenance work is completed
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      <Card>
+                        <CardContent className="p-3 text-center">
+                          <p className="text-xs text-muted-foreground">Total Quoted</p>
+                          <p className="text-lg font-bold">${totalQuoted.toLocaleString()}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-3 text-center">
+                          <p className="text-xs text-muted-foreground">Paid</p>
+                          <p className="text-lg font-bold text-emerald-600">${totalPaid.toLocaleString()}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-3 text-center">
+                          <p className="text-xs text-muted-foreground">Pending</p>
+                          <p className="text-lg font-bold text-amber-600">{pendingPayment.length}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {pendingPayment.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Awaiting Payment ({pendingPayment.length})
+                        </h3>
+                        <div className="space-y-2">
+                          {pendingPayment.map((request: any) => (
+                            <Card
+                              key={request.id}
+                              className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow border-amber-200/60"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setSelectedContractorId(null);
+                                setView("requestDetail");
+                              }}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{request.title}</h4>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {request.property?.name || "Your Property"}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-bold">
+                                      {request.quotedPrice
+                                        ? `$${Number(request.quotedPrice).toLocaleString()}`
+                                        : request.estimatedCost
+                                          ? `~$${Number(request.estimatedCost).toLocaleString()}`
+                                          : "TBD"}
+                                    </p>
+                                    <Badge className="bg-amber-100 text-amber-700 text-[10px]">Pending</Badge>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                  <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+                                  {request.category && <span className="capitalize">{request.category}</span>}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {paidRequests.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-emerald-700 mb-2 flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4" />
+                          Paid ({paidRequests.length})
+                        </h3>
+                        <div className="space-y-2">
+                          {paidRequests.map((request: any) => (
+                            <Card
+                              key={request.id}
+                              className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setSelectedContractorId(null);
+                                setView("requestDetail");
+                              }}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{request.title}</h4>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {request.property?.name || "Your Property"}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-bold text-emerald-600">
+                                      ${Number(request.actualCost).toLocaleString()}
+                                    </p>
+                                    <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Paid</Badge>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                  <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+                                  {request.category && <span className="capitalize">{request.category}</span>}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}

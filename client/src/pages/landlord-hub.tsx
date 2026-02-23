@@ -225,6 +225,14 @@ const MAINTENANCE_LIFECYCLE: LifecycleGroup[] = [
       { id: "completed", label: "Completed", icon: CheckCircle },
     ],
   },
+  {
+    id: "invoices",
+    label: "INVOICES",
+    stages: [
+      { id: "pending_invoice", label: "Pending", icon: FileText },
+      { id: "paid", label: "Paid", icon: DollarSign },
+    ],
+  },
 ];
 
 function getLifecycleGroupId(stageId: string): string | null {
@@ -743,6 +751,15 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
     [cases]
   );
 
+  const pendingInvoiceCases = useMemo(
+    () => completedCases.filter((c) => !c.actualCost || parseFloat(String(c.actualCost)) === 0),
+    [completedCases]
+  );
+  const paidCases = useMemo(
+    () => completedCases.filter((c) => c.actualCost && parseFloat(String(c.actualCost)) > 0),
+    [completedCases]
+  );
+
   const lifecycleCounts = useMemo(
     () => ({
       new: newCases.length,
@@ -751,8 +768,10 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
       scheduled: scheduledCases.length,
       in_progress: inProgressCases.length,
       completed: completedCases.length,
+      pending_invoice: pendingInvoiceCases.length,
+      paid: paidCases.length,
     }),
-    [newCases, assignedCases, quotedCases, scheduledCases, inProgressCases, completedCases]
+    [newCases, assignedCases, quotedCases, scheduledCases, inProgressCases, completedCases, pendingInvoiceCases, paidCases]
   );
 
   const lifecycleStatusMessage = useMemo(() => {
@@ -763,9 +782,11 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
       scheduled: `${scheduledCases.length} case${scheduledCases.length !== 1 ? "s" : ""} scheduled`,
       in_progress: `${inProgressCases.length} case${inProgressCases.length !== 1 ? "s" : ""} in progress`,
       completed: `${completedCases.length} case${completedCases.length !== 1 ? "s" : ""} completed`,
+      pending_invoice: `${pendingInvoiceCases.length} case${pendingInvoiceCases.length !== 1 ? "s" : ""} awaiting payment`,
+      paid: `${paidCases.length} case${paidCases.length !== 1 ? "s" : ""} paid`,
     };
     return messages[maintenanceFilter] || "";
-  }, [maintenanceFilter, newCases, assignedCases, quotedCases, scheduledCases, inProgressCases, completedCases]);
+  }, [maintenanceFilter, newCases, assignedCases, quotedCases, scheduledCases, inProgressCases, completedCases, pendingInvoiceCases, paidCases]);
 
   const filteredCases = useMemo(() => {
     let result = [...cases];
@@ -779,7 +800,17 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
       completed: ["Completed", "Resolved", "Closed"],
     };
 
-    if (filterMap[maintenanceFilter]) {
+    if (maintenanceFilter === "pending_invoice") {
+      result = result.filter((c) =>
+        ["Completed", "Resolved", "Closed"].includes(c.status) &&
+        (!c.actualCost || parseFloat(String(c.actualCost)) === 0)
+      );
+    } else if (maintenanceFilter === "paid") {
+      result = result.filter((c) =>
+        ["Completed", "Resolved", "Closed"].includes(c.status) &&
+        c.actualCost && parseFloat(String(c.actualCost)) > 0
+      );
+    } else if (filterMap[maintenanceFilter]) {
       result = result.filter((c) =>
         filterMap[maintenanceFilter].includes(c.status)
       );
@@ -1011,6 +1042,50 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
               {completedCases.length > 0 && (
                 <Badge className="ml-auto h-5 px-1.5 text-xs bg-slate-100 text-slate-700 hover:bg-slate-100">
                   {completedCases.length}
+                </Badge>
+              )}
+            </Button>
+
+            <div className="my-3 mx-3 h-[1px] bg-gradient-to-r from-emerald-400/40 via-blue-400/40 to-transparent" />
+
+            <div className="px-3 py-2">
+              <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">
+                Invoices
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              className={SIDEBAR_BTN_CLASS}
+              onClick={() => {
+                setMaintenanceFilter("pending_invoice");
+                setView("maintenance");
+              }}
+            >
+              <FileText className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 transition-colors" />
+              <span className="font-medium group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
+                Pending
+              </span>
+              {pendingInvoiceCases.length > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">
+                  {pendingInvoiceCases.length}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              className={SIDEBAR_BTN_CLASS}
+              onClick={() => {
+                setMaintenanceFilter("paid");
+                setView("maintenance");
+              }}
+            >
+              <DollarSign className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 transition-colors" />
+              <span className="font-medium group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
+                Paid
+              </span>
+              {paidCases.length > 0 && (
+                <Badge className="ml-auto h-5 px-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                  {paidCases.length}
                 </Badge>
               )}
             </Button>
