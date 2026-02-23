@@ -1252,7 +1252,7 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                             return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
                           })()}`
                         : "Work has been scheduled";
-                      if (step === 3) return `${selectedRequest.assignedContractorName || "Your contractor"} is on the way!`;
+                      if (step === 3) return "Work is in progress";
                       return "Work complete";
                     })()}
                   </p>
@@ -1276,11 +1276,7 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                   </div>
                   <div>
                     <p className="text-sm font-medium">{selectedRequest.assignedContractorName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedRequest.status === "In Progress"
-                        ? "On the way — please make sure the area is accessible"
-                        : "Assigned contractor"}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Assigned contractor</p>
                   </div>
                 </div>
               </div>
@@ -1547,11 +1543,7 @@ function TenantHubInner({ user, logout }: { user: any; logout: () => void }) {
                           </div>
                           <div className="flex-1">
                             <h4 className="font-semibold text-foreground">{selectedRequest.assignedContractorName}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {selectedRequest.status === "In Progress"
-                                ? "On the way — please make sure the area is accessible"
-                                : "Your assigned contractor"}
-                            </p>
+                            <p className="text-sm text-muted-foreground">Your assigned contractor</p>
                           </div>
                         </div>
                       </div>
