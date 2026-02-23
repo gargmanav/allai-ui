@@ -140,10 +140,36 @@ export default function LandingPage() {
           </Link>
         </header>
 
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-1">
+        <section className="text-center mb-20">
+          <div className="landing-fade-in landing-fade-in-delay-1">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100/80 dark:bg-violet-900/30 border border-violet-200/60 dark:border-violet-800/40 mb-6">
+              <Sparkles className="h-4 w-4 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
+              <span className="text-sm font-medium text-violet-700 dark:text-violet-300">AI-Powered Property Management</span>
+            </div>
+          </div>
+
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 landing-fade-in landing-fade-in-delay-1">
+            <span className="text-gray-900 dark:text-gray-100">Your Home,</span>
+            <br />
+            <span className="landing-gradient-text">Simplified</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 landing-fade-in landing-fade-in-delay-2">
+            The all-in-one platform for homeowners, landlords, renters, and contractors.
+            Track everything. Automate the rest.
+          </p>
+
+          <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-2">
+            <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+            <span className="text-sm text-gray-500">Featured: Home Owner Tools</span>
+            <Sparkles className="h-4 w-4 text-blue-500" style={{ animation: "spin 8s linear infinite" }} />
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
             <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
                 Reimagining Property Maintenance with Fully Integrated, Agentic AI.
               </h2>
               <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
@@ -176,7 +202,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mb-24 landing-fade-in landing-fade-in-delay-2">
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
               { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
@@ -195,32 +221,6 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
-          </div>
-        </section>
-
-        <section className="text-center mb-20">
-          <div className="landing-fade-in landing-fade-in-delay-3">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100/80 dark:bg-violet-900/30 border border-violet-200/60 dark:border-violet-800/40 mb-6">
-              <Sparkles className="h-4 w-4 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
-              <span className="text-sm font-medium text-violet-700 dark:text-violet-300">AI-Powered Property Management</span>
-            </div>
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 landing-fade-in landing-fade-in-delay-3">
-            <span className="text-gray-900 dark:text-gray-100">Your Home,</span>
-            <br />
-            <span className="landing-gradient-text">Simplified</span>
-          </h1>
-
-          <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 landing-fade-in landing-fade-in-delay-4">
-            The all-in-one platform for homeowners, landlords, renters, and contractors.
-            Track everything. Automate the rest.
-          </p>
-
-          <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-4">
-            <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-            <span className="text-sm text-gray-500">Featured: Home Owner Tools</span>
-            <Sparkles className="h-4 w-4 text-blue-500" style={{ animation: "spin 8s linear infinite" }} />
           </div>
         </section>
 
