@@ -294,7 +294,7 @@ export default function LandingPage() {
               </p>
               <div className="flex items-center gap-4 flex-wrap">
                 <Button
-                  className="rounded-full px-6 h-12 bg-gray-900 hover:bg-gray-800 text-white font-semibold"
+                  className="rounded-full px-6 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/25"
                   onClick={() => window.open("https://allai.chat", "_blank")}
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
@@ -302,7 +302,7 @@ export default function LandingPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-full px-6 h-12 border-gray-300 hover:border-gray-400 font-semibold"
+                  className="rounded-full px-6 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold"
                   onClick={() => window.open("tel:+1234567890")}
                 >
                   <Phone className="h-4 w-4 mr-2" />
@@ -447,29 +447,48 @@ export default function LandingPage() {
         </section>
 
         <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
-          <div className="text-center py-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-              Stop Reacting to Problems.
-            </h2>
-            <p className="text-xl md:text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-10">
-              Stay Ahead of Them Instead.
-            </p>
-            <div className="flex items-center justify-center gap-4 flex-wrap">
-              <Button
-                className="rounded-full px-8 h-12 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-base"
-                onClick={() => window.open("https://allai.chat", "_blank")}
-              >
-                <MessageCircle className="h-5 w-5 mr-2" />
-                Chat with Allai
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-full px-8 h-12 border-gray-300 hover:border-gray-400 font-semibold text-base"
-                onClick={() => window.open("tel:+1234567890")}
-              >
-                <Phone className="h-5 w-5 mr-2" />
-                Call Now
-              </Button>
+          <div
+            className="relative rounded-3xl overflow-hidden p-10 md:p-16 text-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(59, 130, 246, 0.10) 50%, rgba(14, 165, 233, 0.06) 100%)",
+              border: "1px solid rgba(59, 130, 246, 0.15)",
+            }}
+          >
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-sky-300/15 blur-3xl" style={{ animation: "pulseGlow 4s ease-in-out infinite" }} />
+              <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-blue-300/15 blur-3xl" style={{ animation: "pulseGlow 5s ease-in-out infinite 1.5s" }} />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-cyan-200/10 blur-3xl" style={{ animation: "pulseGlow 6s ease-in-out infinite 3s" }} />
+            </div>
+
+            <div className="relative">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Sparkles className="h-6 w-6 text-sky-500" style={{ animation: "spin 8s linear infinite" }} />
+                <Zap className="h-5 w-5 text-blue-500" />
+                <Shield className="h-5 w-5 text-cyan-500" />
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                Stop Reacting to Problems.
+              </h2>
+              <p className="text-xl md:text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-10">
+                Stay Ahead of Them Instead.
+              </p>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <Button
+                  className="rounded-full px-8 h-12 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300"
+                  onClick={() => window.open("https://allai.chat", "_blank")}
+                >
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  Chat with Allai
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-8 h-12 border-blue-300 hover:border-blue-400 hover:bg-blue-50/50 font-semibold text-base transition-all duration-300"
+                  onClick={() => window.open("tel:+1234567890")}
+                >
+                  <Phone className="h-5 w-5 mr-2" />
+                  Call Now
+                </Button>
+              </div>
             </div>
           </div>
         </section>
