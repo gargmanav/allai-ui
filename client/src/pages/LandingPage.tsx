@@ -18,21 +18,18 @@ const FROSTED_CARD_STYLE = {
 
 const FEATURE_INSIGHTS = {
   Triage: [
-    "AI resolved 73% of issues without a site visit",
+    "AI resolves 73% of issues without a site visit",
+    "Contractors arrive prepared with full diagnostics",
     "Average diagnosis time: under 3 minutes",
-    "Tenants get instant troubleshooting guidance",
-    "Smart escalation catches urgent issues fast",
   ],
   Schedule: [
-    "Average scheduling time: under 2 minutes",
-    "Automatic contractor-tenant coordination",
-    "Smart matching based on specialty & availability",
-    "Zero phone tag — all handled by AI",
+    "Seamless calendar sync with contractors",
+    "Smart matching by specialty & availability",
+    "Zero phone tag — all coordinated by AI",
   ],
   Relax: [
-    "Tenants report 4.8/5 satisfaction rating",
+    "Contact multiple contractors instantly for urgent issues",
     "Call volume reduced by 60% on average",
-    "Faster resolutions = happier tenants",
     "Automated follow-ups ensure quality work",
   ],
 };
