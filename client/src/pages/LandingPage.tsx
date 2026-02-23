@@ -1,6 +1,9 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap } from 'lucide-react';
+import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile } from 'lucide-react';
+import ghassan from "@assets/IMG_9883_1762612867473.jpeg";
+import nihal from "@assets/IMG_9884_1762612867472.jpeg";
+import omar from "@assets/image_1771811659808.png";
 
 const FROSTED_CARD_STYLE = {
   background:
@@ -280,52 +283,193 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
-          <div
-            className="relative rounded-3xl overflow-hidden p-10 md:p-16 text-center"
-            style={{
-              background: "linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.08) 50%, rgba(16, 185, 129, 0.06) 100%)",
-              border: "1px solid rgba(139, 92, 246, 0.15)",
-            }}
-          >
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-violet-300/10 blur-3xl" />
-              <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-blue-300/10 blur-3xl" />
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-6">
+                Reimagining Property Maintenance with Fully Integrated, Agentic AI.
+              </h2>
+              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
+                From diagnosis to resolution—Allai handles every step of real estate maintenance management.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button
+                  className="rounded-full px-6 h-12 bg-gray-900 hover:bg-gray-800 text-white font-semibold"
+                  onClick={() => window.open("https://allai.chat", "_blank")}
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Chat with Allai
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-6 h-12 border-gray-300 hover:border-gray-400 font-semibold"
+                  onClick={() => window.open("tel:+1234567890")}
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Now
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div className="w-64 h-64 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
+                <span className="text-5xl mb-3">🏠</span>
+                <span className="text-white font-bold text-lg text-center px-4">Smart Property<br />Management</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              { icon: <Search className="h-8 w-8 text-white" />, title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own.", bg: "from-sky-400 to-blue-500" },
+              { icon: <Calendar className="h-8 w-8 text-white" />, title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs.", bg: "from-sky-400 to-blue-500" },
+              { icon: <Smile className="h-8 w-8 text-white" />, title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants.", bg: "from-sky-400 to-blue-500" },
+            ].map((item) => (
+              <div key={item.title} className="bg-white dark:bg-gray-900 rounded-2xl p-8 text-center shadow-lg border border-gray-100 dark:border-gray-800 hover:shadow-xl transition-shadow">
+                <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${item.bg} flex items-center justify-center mx-auto mb-5 shadow-lg`}>
+                  {item.icon}
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 dark:text-gray-100 mb-16">
+            How It Works
+          </h2>
+
+          <div className="max-w-5xl mx-auto space-y-20">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">The tenant identifies an issue.</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Instead of contacting you, they interact with our AI-powered agent.</p>
+                <p className="text-gray-600 dark:text-gray-400">The agent gathers information, troubleshoots, and escalates if necessary.</p>
+              </div>
+              <div className="flex justify-center">
+                <div className="w-56 h-56 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
+                  <span className="text-5xl mb-3">💬</span>
+                  <span className="text-white font-bold text-center px-4">AI Chat Interface</span>
+                </div>
+              </div>
             </div>
 
-            <div className="relative">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <Sparkles className="h-6 w-6 text-violet-500" style={{ animation: "spin 8s linear infinite" }} />
-                <Zap className="h-5 w-5 text-amber-500" />
-                <Shield className="h-5 w-5 text-emerald-500" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <div className="flex justify-center md:order-first">
+                <div className="w-56 h-56 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
+                  <span className="text-5xl mb-3">⚙️</span>
+                  <span className="text-white font-bold text-center px-4">AI Troubleshoots</span>
+                </div>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Ready to simplify your
-                <span className="landing-gradient-text"> property management</span>?
-              </h2>
-              <p className="text-lg text-gray-500 dark:text-gray-400 mb-8 max-w-xl mx-auto">
-                Join thousands of homeowners, landlords, and contractors who trust AllAI Property.
-              </p>
-              <div className="flex items-center justify-center gap-4 flex-wrap">
-                <Link href="/property-owner-signup">
-                  <Button
-                    size="lg"
-                    className="rounded-full px-8 bg-gradient-to-r from-violet-500 to-blue-500 hover:from-violet-600 hover:to-blue-600 text-white shadow-lg shadow-violet-500/25 text-base h-12"
-                  >
-                    Get Started Free
-                    <ArrowRight className="h-5 w-5 ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="rounded-full px-8 border-violet-200 hover:border-violet-400 hover:bg-violet-50/50 h-12 text-base"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">You're in control.</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Decide if an escalation comes to your team, or contacts the technician directly to communicate and schedule the on-site visit.</p>
+                <p className="text-gray-600 dark:text-gray-400">The agent automatically follow-ups to be sure the work was done right.</p>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Our AI-powered agent is a trained problem solver, fixing what's wrong and delivering confidence to your tenants and staff.</p>
+                <p className="text-gray-600 dark:text-gray-400">Easily recall unit, technician, and tenant histories without sorting through tickets.</p>
+              </div>
+              <div className="flex justify-center">
+                <div className="w-56 h-56 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
+                  <span className="text-5xl mb-3">✅</span>
+                  <span className="text-white font-bold text-center px-4">Auto Follow-up</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">About Us</h2>
+            <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+              Our team blends innovation and expertise to disrupt property maintenance industry with fully integrated, agentic AI.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto">
+            {[
+              {
+                name: "Ghassan Ghorayeb",
+                role: "Co-Founder",
+                photo: ghassan,
+                bullets: [
+                  "Retinal Surgeon & Chief of Division",
+                  "Co-Founder of RBC, a multimillion-dollar commercial and medical real estate portfolio, driving development of advanced healthcare facilities",
+                  "MIT MBA; Published innovator applying AI to healthcare and property technology solutions",
+                ],
+              },
+              {
+                name: "Nihal Bhujle",
+                role: "Co-Founder",
+                photo: nihal,
+                bullets: [
+                  "Led Digital Product Innovation at UBS and Gartner's CxO global advisory practice",
+                  "Co-founder of RBC, a multi-million dollar commercial and residential real estate portfolio, delivering an annualized return of 16% over the last decade to investors",
+                  "MIT MBA, BS Finance Wharton School, deep background in corporate finance advisory",
+                ],
+              },
+              {
+                name: "Omar Jacques Omran",
+                role: "Co-Founder",
+                photo: omar,
+                bullets: [
+                  "Led Technology for 3 large public companies (Six Flags, Welbilt, Middleby, : $3B–10B) generating $500M in net profit increase",
+                  "Named 2024 Top Global Innovator",
+                  "MIT MBA; 1st prize winner largest global hackathon",
+                ],
+              },
+            ].map((person) => (
+              <div key={person.name} className="text-center">
+                <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-gray-100 dark:border-gray-800 shadow-lg">
+                  <img src={person.photo} alt={person.name} className="w-full h-full object-cover" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{person.name}</h3>
+                <p className="text-sm text-blue-500 font-medium mb-4">{person.role}</p>
+                <ul className="text-left text-xs text-gray-500 dark:text-gray-400 space-y-2">
+                  {person.bullets.map((b, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="shrink-0 mt-1">•</span>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-20 landing-fade-in landing-fade-in-delay-8">
+          <div className="text-center py-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+              Stop Reacting to Problems.
+            </h2>
+            <p className="text-xl md:text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-10">
+              Stay Ahead of Them Instead.
+            </p>
+            <div className="flex items-center justify-center gap-4 flex-wrap">
+              <Button
+                className="rounded-full px-8 h-12 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-base"
+                onClick={() => window.open("https://allai.chat", "_blank")}
+              >
+                <MessageCircle className="h-5 w-5 mr-2" />
+                Chat with Allai
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full px-8 h-12 border-gray-300 hover:border-gray-400 font-semibold text-base"
+                onClick={() => window.open("tel:+1234567890")}
+              >
+                <Phone className="h-5 w-5 mr-2" />
+                Call Now
+              </Button>
             </div>
           </div>
         </section>
