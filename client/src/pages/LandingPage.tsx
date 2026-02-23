@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile, Lightbulb } from 'lucide-react';
+import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile, Lightbulb, Camera, ClipboardCheck, Bell, DollarSign, Smartphone } from 'lucide-react';
 import ghassan from "@assets/IMG_9883_1762612867473.jpeg";
 import nihal from "@assets/IMG_9884_1762612867472.jpeg";
 import omar from "@assets/image_1771811659808.png";
@@ -250,6 +250,88 @@ function CtaInsightBubble() {
           className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 rotate-45"
           style={tailStyle}
         />
+      </div>
+    </div>
+  );
+}
+
+type CubeFace = {
+  emoji?: string;
+  icon?: any;
+  title: string;
+  subtitle?: string;
+};
+
+type CubeData = {
+  faces: [CubeFace, CubeFace, CubeFace, CubeFace];
+};
+
+const CUBE_DATA: Record<string, CubeData> = {
+  chat: {
+    faces: [
+      { emoji: "💬", title: "AI Chat Interface" },
+      { icon: Smartphone, title: "SMS, web, or call", subtitle: "You choose" },
+      { icon: Shield, title: "AI captures key details", subtitle: "For disputes & conflicts" },
+      { icon: Lightbulb, title: "Ask for advice", subtitle: "Property insights anytime" },
+    ],
+  },
+  troubleshoot: {
+    faces: [
+      { emoji: "⚙️", title: "AI Troubleshoots" },
+      { icon: Camera, title: "Image overlay diagnosis", subtitle: "Visual issue detection" },
+      { icon: DollarSign, title: "AI repair estimate", subtitle: "Editable by contractors" },
+      { icon: Search, title: "Photo & video analysis", subtitle: "Built right in" },
+    ],
+  },
+  followup: {
+    faces: [
+      { emoji: "✅", title: "Auto Follow-up" },
+      { icon: Bell, title: "Smart reminders", subtitle: "For tenants, owners & contractors" },
+      { icon: ClipboardCheck, title: "Flags incomplete work", subtitle: "Automatically" },
+      { icon: Smile, title: "Satisfaction check", subtitle: "After every repair" },
+    ],
+  },
+};
+
+const FACE_CLASSES = ['show-front', 'show-right', 'show-back', 'show-left'] as const;
+
+function FeatureCube({ cubeKey }: { cubeKey: string }) {
+  const [faceIndex, setFaceIndex] = useState(0);
+  const data = CUBE_DATA[cubeKey];
+  if (!data) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="cube-scene">
+        <div className={`cube ${FACE_CLASSES[faceIndex]}`}>
+          {data.faces.map((face, i) => {
+            const faceClass = ['cube-face-front', 'cube-face-right', 'cube-face-back', 'cube-face-left'][i];
+            const Icon = face.icon;
+            return (
+              <div key={i} className={`cube-face ${faceClass}`}>
+                {face.emoji ? (
+                  <span className="text-5xl mb-3">{face.emoji}</span>
+                ) : Icon ? (
+                  <Icon className="h-10 w-10 text-white mb-3" />
+                ) : null}
+                <span className="text-white font-bold text-center px-2 text-base leading-tight">{face.title}</span>
+                {face.subtitle && (
+                  <span className="text-white/80 text-sm text-center mt-1">{face.subtitle}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {data.faces.map((_, i) => (
+          <button
+            key={i}
+            className={`cube-nav-dot ${faceIndex === i ? 'active' : ''}`}
+            onClick={() => setFaceIndex(i)}
+            aria-label={`Face ${i + 1}`}
+          />
+        ))}
       </div>
     </div>
   );
@@ -581,19 +663,13 @@ export default function LandingPage() {
                 <p className="text-gray-600 dark:text-gray-400">The agent gathers information, troubleshoots, and escalates if necessary.</p>
               </div>
               <div className="flex justify-center">
-                <div className="w-56 h-56 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
-                  <span className="text-5xl mb-3">💬</span>
-                  <span className="text-white font-bold text-center px-4">AI Chat Interface</span>
-                </div>
+                <FeatureCube cubeKey="chat" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
               <div className="flex justify-center md:order-first">
-                <div className="w-56 h-56 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
-                  <span className="text-5xl mb-3">⚙️</span>
-                  <span className="text-white font-bold text-center px-4">AI Troubleshoots</span>
-                </div>
+                <FeatureCube cubeKey="troubleshoot" />
               </div>
               <div>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">You're in control.</p>
@@ -608,10 +684,7 @@ export default function LandingPage() {
                 <p className="text-gray-600 dark:text-gray-400">Easily recall unit, technician, and tenant histories without sorting through tickets.</p>
               </div>
               <div className="flex justify-center">
-                <div className="w-56 h-56 rounded-3xl bg-gradient-to-br from-sky-400 to-blue-500 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/30">
-                  <span className="text-5xl mb-3">✅</span>
-                  <span className="text-white font-bold text-center px-4">Auto Follow-up</span>
-                </div>
+                <FeatureCube cubeKey="followup" />
               </div>
             </div>
           </div>
