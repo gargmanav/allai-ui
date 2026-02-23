@@ -320,15 +320,15 @@ export default function LandingPage() {
         </section>
 
         <section className="mb-24 landing-fade-in landing-fade-in-delay-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              { icon: <Search className="h-8 w-8 text-white" />, title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own.", bg: "from-sky-400 to-blue-500" },
-              { icon: <Calendar className="h-8 w-8 text-white" />, title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs.", bg: "from-sky-400 to-blue-500" },
-              { icon: <Smile className="h-8 w-8 text-white" />, title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants.", bg: "from-sky-400 to-blue-500" },
+              { emoji: "🔍", title: "Triage", desc: "Prevent small issues from ballooning into disasters. Help tenants solve basic problems on their own." },
+              { emoji: "📅", title: "Schedule", desc: "Eliminate the tedious back-and-forth coordinating on-site repairs." },
+              { emoji: "😌", title: "Relax", desc: "Reduced call volumes and faster resolutions lower your costs and retain satisfied tenants." },
             ].map((item) => (
-              <div key={item.title} className="bg-white dark:bg-gray-900 rounded-2xl p-8 text-center shadow-lg border border-gray-100 dark:border-gray-800 hover:shadow-xl transition-shadow">
-                <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${item.bg} flex items-center justify-center mx-auto mb-5 shadow-lg`}>
-                  {item.icon}
+              <div key={item.title} className="bg-white dark:bg-gray-900 rounded-2xl px-8 py-10 text-center shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
+                  <span className="text-2xl">{item.emoji}</span>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{item.desc}</p>
