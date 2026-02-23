@@ -14,22 +14,22 @@ const FROSTED_CARD_STYLE = {
 
 const roles = [
   {
-    title: "Property Owner",
+    title: "Home Owner",
     description: "Maintain your home without the hassle",
     icon: Home,
     badge: "Popular",
     signupLink: "/property-owner-signup",
     loginLink: "/login",
     features: ["Track maintenance & repairs", "Find trusted contractors", "Manage multiple properties"],
-    accentFrom: "from-violet-500",
-    accentTo: "to-purple-600",
-    glowColor: "rgba(139, 92, 246, 0.35)",
-    hoverGlow: "rgba(139, 92, 246, 0.25)",
-    lightBarColors: "rgba(139, 92, 246, 0.3), rgba(168, 85, 247, 0.5), rgba(139, 92, 246, 0.3)",
-    iconBg: "bg-gradient-to-br from-violet-500 to-purple-600",
-    badgeBg: "bg-violet-100 text-violet-700",
-    btnClass: "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white shadow-lg shadow-violet-500/25",
-    checkColor: "text-violet-500",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    badgeBg: "bg-blue-100 text-blue-700",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-property-owner-signup",
     testIdLogin: "button-property-owner-login",
   },
@@ -58,14 +58,14 @@ const roles = [
     signupLink: "/login",
     loginLink: "/login",
     features: ["Submit maintenance requests", "Track case status", "Approve appointments"],
-    accentFrom: "from-emerald-500",
-    accentTo: "to-teal-500",
-    glowColor: "rgba(16, 185, 129, 0.35)",
-    hoverGlow: "rgba(16, 185, 129, 0.25)",
-    lightBarColors: "rgba(16, 185, 129, 0.3), rgba(20, 184, 166, 0.5), rgba(16, 185, 129, 0.3)",
-    iconBg: "bg-gradient-to-br from-emerald-500 to-teal-500",
-    btnClass: "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/25",
-    checkColor: "text-emerald-500",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-tenant-login",
     testIdLogin: "button-tenant-login-existing",
   },
@@ -76,14 +76,14 @@ const roles = [
     signupLink: "/contractor-signup",
     loginLink: "/login",
     features: ["Access job marketplace", "No cold leads - real needs", "Direct client connections"],
-    accentFrom: "from-amber-500",
-    accentTo: "to-orange-500",
-    glowColor: "rgba(245, 158, 11, 0.35)",
-    hoverGlow: "rgba(245, 158, 11, 0.25)",
-    lightBarColors: "rgba(245, 158, 11, 0.3), rgba(249, 115, 22, 0.5), rgba(245, 158, 11, 0.3)",
-    iconBg: "bg-gradient-to-br from-amber-500 to-orange-500",
-    btnClass: "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25",
-    checkColor: "text-amber-500",
+    accentFrom: "from-blue-500",
+    accentTo: "to-cyan-500",
+    glowColor: "rgba(59, 130, 246, 0.35)",
+    hoverGlow: "rgba(59, 130, 246, 0.25)",
+    lightBarColors: "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.5), rgba(59, 130, 246, 0.3)",
+    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    btnClass: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+    checkColor: "text-blue-500",
     testIdSignup: "button-contractor-signup",
     testIdLogin: "button-contractor-login",
   },
@@ -94,7 +94,7 @@ const steps = [
     num: "1",
     title: "Sign Up Free",
     desc: "Create your account in under 2 minutes. Add your home details and you're ready to go.",
-    gradient: "from-violet-500 to-purple-600",
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
     num: "2",
@@ -106,7 +106,7 @@ const steps = [
     num: "3",
     title: "Stay Organized",
     desc: "Track all maintenance and repairs in one place. AI helps you stay on top of your home's needs.",
-    gradient: "from-emerald-500 to-teal-500",
+    gradient: "from-blue-500 to-cyan-500",
   },
 ];
 
@@ -158,7 +158,7 @@ export default function LandingPage() {
 
           <div className="flex items-center justify-center gap-2 landing-fade-in landing-fade-in-delay-3">
             <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-            <span className="text-sm text-gray-500">Featured: Property Owner Tools</span>
+            <span className="text-sm text-gray-500">Featured: Home Owner Tools</span>
             <Sparkles className="h-4 w-4 text-blue-500" style={{ animation: "spin 8s linear infinite" }} />
           </div>
         </section>
@@ -269,7 +269,7 @@ export default function LandingPage() {
                 <div
                   className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl`}
                   style={{
-                    boxShadow: `0 8px 24px ${step.gradient.includes('violet') ? 'rgba(139,92,246,0.3)' : step.gradient.includes('blue') ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)'}`,
+                    boxShadow: "0 8px 24px rgba(59,130,246,0.3)",
                   }}
                 >
                   {step.num}
