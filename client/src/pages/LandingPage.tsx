@@ -490,11 +490,15 @@ export default function LandingPage() {
                   />
                   <div
                     className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40 transition-all duration-500 cursor-default ${isActive ? 'scale-[1.05] -translate-y-2 shadow-[0_20px_50px_rgba(99,102,241,0.2)]' : ''}`}
-                    style={FROSTED_CARD_STYLE}
+                    style={isActive ? {
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 50%, rgba(243,244,255,0.92) 100%)',
+                      backdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      WebkitBackdropFilter: 'blur(60px) saturate(220%) brightness(1.04)',
+                      border: '2px solid rgba(99, 102, 241, 0.3)',
+                      boxShadow: 'inset 0 2px 8px rgba(255, 255, 255, 0.8), inset 0 -2px 8px rgba(99, 102, 241, 0.08), 0 20px 50px rgba(99,102,241,0.2)',
+                    } : FROSTED_CARD_STYLE}
                   >
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center mx-auto mb-5 transition-shadow duration-500"
-                      style={isActive ? { boxShadow: '0 0 20px rgba(99, 102, 241, 0.4), 0 4px 12px rgba(139, 92, 246, 0.3)' } : {}}
-                    >
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
                       <span className="text-2xl">{item.emoji}</span>
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">{item.title}</h3>
