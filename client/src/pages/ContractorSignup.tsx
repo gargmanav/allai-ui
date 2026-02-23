@@ -93,15 +93,18 @@ export default function ContractorSignup() {
 
   const infoMutation = useMutation({
     mutationFn: async (data: z.infer<typeof infoSchema>) => {
-      const res = await apiRequest('/api/auth/signup-contractor/email', {
-        method: 'POST',
-        body: data,
+      const res = await apiRequest('POST', '/api/auth/signup-contractor/email', {
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone.replace(/\D/g, ''),
+        smsOptIn: data.smsOptIn,
       });
-      return res;
+      return await res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setUserId(data.userId);
-      const phoneValue = infoForm.getValues('phone');
+      const phoneValue = infoForm.getValues('phone').replace(/\D/g, '');
       setPhone(phoneValue);
       toast({ title: 'Account created!', description: 'Now let\'s verify your phone number.' });
       phoneMutation.mutate({ userId: data.userId, phone: phoneValue });
@@ -113,11 +116,8 @@ export default function ContractorSignup() {
 
   const phoneMutation = useMutation({
     mutationFn: async (data: { userId: string; phone: string }) => {
-      const res = await apiRequest('/api/auth/signup-contractor/phone', {
-        method: 'POST',
-        body: data,
-      });
-      return res;
+      const res = await apiRequest('POST', '/api/auth/signup-contractor/phone', data);
+      return await res.json();
     },
     onSuccess: () => {
       toast({ title: 'Code sent!', description: 'Check your phone for a verification code.' });
@@ -130,11 +130,8 @@ export default function ContractorSignup() {
 
   const verifyPhoneMutation = useMutation({
     mutationFn: async (data: z.infer<typeof verifyPhoneSchema>) => {
-      const res = await apiRequest('/api/auth/signup-contractor/verify-phone', {
-        method: 'POST',
-        body: { phone, code: data.code },
-      });
-      return res;
+      const res = await apiRequest('POST', '/api/auth/signup-contractor/verify-phone', { phone, code: data.code });
+      return await res.json();
     },
     onSuccess: () => {
       toast({ title: 'Phone verified!', description: 'Now select your specialties.' });
@@ -147,15 +144,12 @@ export default function ContractorSignup() {
 
   const completeMutation = useMutation({
     mutationFn: async (data: z.infer<typeof specialtiesSchema>) => {
-      const res = await apiRequest('/api/auth/signup-contractor/complete', {
-        method: 'POST',
-        body: { userId, specialtyIds: data.specialtyIds, bio: data.bio },
-      });
-      return res;
+      const res = await apiRequest('POST', '/api/auth/signup-contractor/complete', { userId, specialtyIds: data.specialtyIds, bio: data.bio });
+      return await res.json();
     },
-    onSuccess: (data) => {
-      sessionStorage.setItem('refreshToken', data.session.refreshToken);
-      sessionStorage.setItem('sessionId', data.session.sessionId);
+    onSuccess: (data: any) => {
+      sessionStorage.setItem('refreshToken', data.session?.refreshToken);
+      sessionStorage.setItem('sessionId', data.session?.sessionId);
       toast({ title: 'Welcome!', description: 'Your contractor account is ready.' });
       setLocation('/contractor-dashboard');
     },
