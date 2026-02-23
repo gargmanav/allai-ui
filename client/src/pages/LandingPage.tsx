@@ -453,7 +453,7 @@ export default function LandingPage() {
             ].map((item, index) => (
               <div
                 key={item.title}
-                className="relative"
+                className="relative h-full"
                 onMouseEnter={() => setHoveredFeature(item.title)}
                 onMouseLeave={() => setHoveredFeature(null)}
               >
@@ -462,8 +462,14 @@ export default function LandingPage() {
                   visible={hoveredFeature === item.title}
                 />
                 <div
-                  className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 border-gray-200/40 transition-all duration-300 cursor-default ${hoveredFeature === item.title ? 'scale-[1.05] -translate-y-2 shadow-[0_20px_50px_rgba(99,102,241,0.2)]' : ''}`}
-                  style={FROSTED_CARD_STYLE}
+                  className={`feature-card-${index + 1} rounded-2xl px-8 py-10 text-center border-2 transition-all duration-300 cursor-default h-full ${hoveredFeature === item.title ? 'scale-[1.05] -translate-y-2 shadow-[0_20px_50px_rgba(99,102,241,0.2)]' : ''}`}
+                  style={{
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.95) 50%, rgba(243,244,255,0.92) 100%)',
+                    borderColor: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: 'inset 0 2px 8px rgba(255, 255, 255, 0.8), inset 0 -2px 8px rgba(99, 102, 241, 0.08), 0 10px 40px rgba(0, 0, 0, 0.06)',
+                    backdropFilter: 'blur(60px) saturate(220%)',
+                    WebkitBackdropFilter: 'blur(60px) saturate(220%)',
+                  }}
                 >
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-5">
                     <span className="text-2xl">{item.emoji}</span>
