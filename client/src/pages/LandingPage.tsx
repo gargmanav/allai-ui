@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Building2, Wrench, Home, Sparkles, Shield, Users, ChevronRight, ArrowRight, Star, Zap, MessageCircle, Phone, Search, Calendar, Smile, Lightbulb } from 'lucide-react';
@@ -130,6 +130,46 @@ function InsightBubble({ messages, visible }: { messages: string[]; visible: boo
         </div>
       </div>
     </div>
+  );
+}
+
+function TypewriterText({ text, onComplete }: { text: string; onComplete?: () => void }) {
+  const [displayed, setDisplayed] = useState("");
+  const [showCursor, setShowCursor] = useState(true);
+  const completedRef = useRef(false);
+
+  useEffect(() => {
+    let i = 0;
+    completedRef.current = false;
+    setDisplayed("");
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        setDisplayed(text.slice(0, i + 1));
+        i++;
+      } else {
+        clearInterval(interval);
+        if (!completedRef.current) {
+          completedRef.current = true;
+          setTimeout(() => {
+            setShowCursor(false);
+            onComplete?.();
+          }, 400);
+        }
+      }
+    }, 45);
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return (
+    <span>
+      {displayed}
+      {showCursor && (
+        <span
+          className="inline-block w-0.5 h-5 ml-0.5 bg-indigo-400 align-middle"
+          style={{ animation: 'pulse 1s step-end infinite' }}
+        />
+      )}
+    </span>
   );
 }
 
@@ -617,8 +657,22 @@ export default function LandingPage() {
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-2">
                 From diagnosis to contractor scheduling —
               </p>
-              <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 mb-10">
-                No phone tag, no back-and-forth.
+              <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 mb-4">
+                <TypewriterText
+                  text="No phone tag, no back-and-forth."
+                  onComplete={() => {
+                    const el = document.getElementById('cta-insight');
+                    if (el) el.style.opacity = '1';
+                    if (el) el.style.transform = 'translateY(0)';
+                  }}
+                />
+              </p>
+              <p
+                id="cta-insight"
+                className="text-sm md:text-base text-indigo-500 dark:text-indigo-400 mb-10 transition-all duration-700"
+                style={{ opacity: 0, transform: 'translateY(8px)' }}
+              >
+                We get it — managing repairs is exhausting. We're here to make it effortless. 😊
               </p>
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <Button
