@@ -161,6 +161,14 @@ router.post('/signup-property-owner/complete', async (req, res) => {
       rememberMe: true,
     });
 
+    if (req.session) {
+      req.session.userId = user.id;
+      req.session.sessionId = session.sessionId;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err: any) => { if (err) reject(err); else resolve(); });
+      });
+    }
+
     res.json({
       success: true,
       user: {

@@ -244,10 +244,6 @@ router.post('/signup-contractor/complete', async (req, res) => {
       bio: bio || null,
     });
     
-    // Add specialties - Need to create junction table entries
-    // This will be handled in storage layer
-    
-    // Create session
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
     });
@@ -262,6 +258,14 @@ router.post('/signup-contractor/complete', async (req, res) => {
       ipAddress: req.ip,
       rememberMe: true,
     });
+
+    if (req.session) {
+      req.session.userId = user.id;
+      req.session.sessionId = session.sessionId;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err: any) => { if (err) reject(err); else resolve(); });
+      });
+    }
     
     res.json({
       success: true,
@@ -433,6 +437,14 @@ router.post('/signup-landlord/complete', async (req, res) => {
       rememberMe: true,
     });
 
+    if (req.session) {
+      req.session.userId = user.id;
+      req.session.sessionId = session.sessionId;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err: any) => { if (err) reject(err); else resolve(); });
+      });
+    }
+
     res.json({
       success: true,
       user: {
@@ -582,6 +594,14 @@ router.post('/signup-tenant/complete', async (req, res) => {
       ipAddress: req.ip,
       rememberMe: true,
     });
+
+    if (req.session) {
+      req.session.userId = user.id;
+      req.session.sessionId = session.sessionId;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err: any) => { if (err) reject(err); else resolve(); });
+      });
+    }
 
     res.json({
       success: true,

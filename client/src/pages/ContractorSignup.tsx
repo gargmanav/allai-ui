@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation, Link } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -147,10 +147,12 @@ export default function ContractorSignup() {
       const res = await apiRequest('POST', '/api/auth/signup-contractor/complete', { userId, specialtyIds: data.specialtyIds, bio: data.bio });
       return await res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       sessionStorage.setItem('refreshToken', data.session?.refreshToken);
       sessionStorage.setItem('sessionId', data.session?.sessionId);
       toast({ title: 'Welcome!', description: 'Your contractor account is ready.' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
       setLocation('/contractor-dashboard');
     },
     onError: () => {
