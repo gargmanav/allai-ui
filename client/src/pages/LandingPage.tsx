@@ -198,8 +198,8 @@ function CtaInsightBubble() {
   useEffect(() => {
     const handler = () => {
       setPhase('empathy');
-      setTimeout(() => setPhase('fading'), 5000);
-      setTimeout(() => setPhase('cta'), 5700);
+      setTimeout(() => setPhase('fading'), 3500);
+      setTimeout(() => setPhase('cta'), 4200);
     };
     window.addEventListener('typewriter-done', handler);
     return () => window.removeEventListener('typewriter-done', handler);
