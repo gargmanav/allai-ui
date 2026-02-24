@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, Loader2, Check, User, Mail, Phone, Shield, Home, ArrowLeft } from 'lucide-react';
+import { Building2, Loader2, Check, User, Mail, Phone, Shield, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type SignupStep = 'info' | 'verify-phone' | 'complete';
@@ -20,9 +20,9 @@ const STEPS = [
 ] as const;
 
 const VALUE_PROPS = [
-  { icon: Home, text: "Track maintenance & repairs in one place" },
-  { icon: Shield, text: "Find trusted, vetted contractors" },
-  { icon: Phone, text: "AI-powered maintenance assistant" },
+  { icon: Building2, text: "Manage properties & tenants in one place" },
+  { icon: Shield, text: "Automated maintenance case tracking" },
+  { icon: Phone, text: "Instant contractor coordination" },
 ];
 
 const infoSchema = z.object({
@@ -39,11 +39,10 @@ const verifyPhoneSchema = z.object({
 
 function getStepIndex(step: SignupStep): number {
   if (step === 'info') return 0;
-  if (step === 'verify-phone') return 1;
   return 1;
 }
 
-export default function PropertyOwnerSignup() {
+export default function LandlordSignup() {
   const [step, setStep] = useState<SignupStep>('info');
   const [userId, setUserId] = useState('');
   const [phone, setPhone] = useState('');
@@ -63,7 +62,7 @@ export default function PropertyOwnerSignup() {
 
   const infoMutation = useMutation({
     mutationFn: async (data: z.infer<typeof infoSchema>) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/email', {
+      const res = await apiRequest('POST', '/api/auth/signup-landlord/email', {
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
@@ -86,7 +85,7 @@ export default function PropertyOwnerSignup() {
 
   const phoneMutation = useMutation({
     mutationFn: async (data: { userId: string; phone: string }) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/phone', data);
+      const res = await apiRequest('POST', '/api/auth/signup-landlord/phone', data);
       return await res.json();
     },
     onSuccess: () => {
@@ -100,10 +99,10 @@ export default function PropertyOwnerSignup() {
 
   const verifyPhoneMutation = useMutation({
     mutationFn: async (data: z.infer<typeof verifyPhoneSchema>) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/verify-phone', { phone, code: data.code });
+      const res = await apiRequest('POST', '/api/auth/signup-landlord/verify-phone', { phone, code: data.code });
       return await res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: () => {
       completeMutation.mutate({});
     },
     onError: () => {
@@ -113,14 +112,14 @@ export default function PropertyOwnerSignup() {
 
   const completeMutation = useMutation({
     mutationFn: async (_data: {}) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/complete', { userId });
+      const res = await apiRequest('POST', '/api/auth/signup-landlord/complete', { userId });
       return await res.json();
     },
     onSuccess: (data: any) => {
       sessionStorage.setItem('refreshToken', data.session?.refreshToken);
       sessionStorage.setItem('sessionId', data.session?.sessionId);
-      toast({ title: 'Welcome!', description: 'Your account is ready.' });
-      setLocation('/homeowner');
+      toast({ title: 'Welcome!', description: 'Your landlord account is ready.' });
+      setLocation('/landlord');
     },
     onError: () => {
       toast({ title: 'Error', description: 'Failed to complete signup. Please try again.', variant: 'destructive' });
@@ -161,8 +160,8 @@ export default function PropertyOwnerSignup() {
             </div>
             <span className="text-xl font-bold text-gray-800">AllAI Property</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Homeowner Signup</h1>
-          <p className="text-gray-500 text-sm">Manage your home maintenance in under 2 minutes</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Landlord Signup</h1>
+          <p className="text-gray-500 text-sm">Manage your properties and tenants effortlessly</p>
         </div>
 
         <div
@@ -312,7 +311,7 @@ export default function PropertyOwnerSignup() {
                           <div className="space-y-0.5">
                             <span className="text-sm font-medium text-gray-700">Receive SMS notifications</span>
                             <p className="text-xs text-gray-500 leading-relaxed">
-                              Get maintenance updates, contractor arrivals, and scheduling alerts via text. You can opt out anytime. Reply STOP to opt out.
+                              Get tenant requests, maintenance alerts, and contractor updates via text. You can opt out anytime. Reply STOP to opt out.
                             </p>
                           </div>
                         </div>

@@ -11,6 +11,8 @@ import Login from "@/pages/Login";
 import VerifyEmail from "@/pages/VerifyEmail";
 import ContractorSignup from "@/pages/ContractorSignup";
 import PropertyOwnerSignup from "@/pages/PropertyOwnerSignup";
+import LandlordSignup from "@/pages/LandlordSignup";
+import TenantSignup from "@/pages/TenantSignup";
 import ContractorMarketplaceDashboard from "@/pages/ContractorMarketplaceDashboard";
 import Dashboard from "@/pages/dashboard";
 import Properties from "@/pages/properties";
@@ -90,6 +92,8 @@ function Router() {
       <Route path="/landing" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/property-owner-signup" component={PropertyOwnerSignup} />
+      <Route path="/landlord-signup" component={LandlordSignup} />
+      <Route path="/tenant-signup" component={TenantSignup} />
       <Route path="/contractor-signup" component={ContractorSignup} />
       <Route path="/auth/verify-email" component={VerifyEmail} />
       <Route path="/quote-approval/:id/:token" component={QuoteApproval} />

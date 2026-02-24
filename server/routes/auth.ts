@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
-import { users, contractorProfiles } from '@shared/schema';
+import { users, contractorProfiles, organizations, organizationMembers } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { sendMagicLink, verifyEmailToken, sendTenantInvite } from '../services/emailService';
 import { sendVerificationCode, verifySMSCode, optOutSMS } from '../services/smsService';
@@ -279,6 +279,326 @@ router.post('/signup-contractor/complete', async (req, res) => {
     });
   } catch (error) {
     console.error('Contractor profile completion error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+// ========== LANDLORD SIGNUP ROUTES ==========
+
+router.post('/signup-landlord/email', async (req, res) => {
+  try {
+    const schema = z.object({
+      email: z.string().email(),
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+      phone: z.string().min(10),
+      smsOptIn: z.boolean().optional(),
+    });
+
+    const { email, firstName, lastName, phone, smsOptIn } = schema.parse(req.body);
+
+    let user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (!user) {
+      const [newUser] = await db.insert(users).values({
+        email,
+        firstName,
+        lastName,
+        phone,
+        primaryRole: 'org_admin',
+        emailVerified: false,
+        phoneVerified: false,
+      }).returning();
+      user = newUser;
+    } else {
+      await db.update(users)
+        .set({ firstName, lastName, phone: phone || user.phone })
+        .where(eq(users.id, user.id));
+    }
+
+    try {
+      await sendMagicLink(email);
+    } catch (emailError) {
+      console.log('Email service unavailable, skipping email verification:', (emailError as Error).message);
+    }
+
+    res.json({ success: true, userId: user.id, message: 'Account created successfully' });
+  } catch (error) {
+    console.error('Landlord email signup error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+router.post('/signup-landlord/phone', async (req, res) => {
+  try {
+    const schema = z.object({
+      userId: z.string(),
+      phone: z.string().min(10),
+    });
+
+    const { userId, phone } = schema.parse(req.body);
+
+    await db.update(users)
+      .set({ phone })
+      .where(eq(users.id, userId));
+
+    try {
+      await sendVerificationCode(phone, userId);
+    } catch (smsError) {
+      console.log('SMS service unavailable, skipping phone verification send:', (smsError as Error).message);
+    }
+
+    res.json({ success: true, message: 'Verification code sent to your phone' });
+  } catch (error) {
+    console.error('Phone verification error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+router.post('/signup-landlord/verify-phone', async (req, res) => {
+  try {
+    const schema = z.object({
+      phone: z.string(),
+      code: z.string().length(6),
+    });
+
+    const { phone, code } = schema.parse(req.body);
+
+    const twilioConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+    let result;
+    if (!twilioConfigured) {
+      console.log('Twilio not configured — auto-approving phone verification for', phone);
+      const user = await db.query.users.findFirst({ where: eq(users.phone, phone) });
+      if (user) {
+        await db.update(users).set({ phoneVerified: true }).where(eq(users.id, user.id));
+      }
+      result = { success: true, userId: user?.id };
+    } else {
+      result = await verifySMSCode(phone, code);
+    }
+
+    if (!result.success || !result.userId) {
+      return res.status(400).json({ success: false, error: 'Verification failed' });
+    }
+
+    res.json({ success: true, userId: result.userId, message: 'Phone verified successfully' });
+  } catch (error) {
+    console.error('SMS code verification error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+router.post('/signup-landlord/complete', async (req, res) => {
+  try {
+    const schema = z.object({
+      userId: z.string(),
+    });
+
+    const { userId } = schema.parse(req.body);
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const existingOrg = await db.query.organizationMembers.findFirst({
+      where: eq(organizationMembers.userId, userId),
+    });
+
+    if (!existingOrg) {
+      const [org] = await db.insert(organizations).values({
+        name: `${user.firstName || user.email}'s Properties`,
+        ownerId: user.id,
+        ownerType: 'landlord',
+      }).returning();
+
+      await db.insert(organizationMembers).values({
+        orgId: org.id,
+        userId: user.id,
+        orgRole: 'admin',
+        membershipStatus: 'active',
+        joinedAt: new Date(),
+      });
+    }
+
+    const session = await createSession({
+      userId: user.id,
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip,
+      rememberMe: true,
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: 'org_admin',
+      },
+      session: {
+        sessionId: session.sessionId,
+        refreshToken: session.refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Landlord completion error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+// ========== TENANT SIGNUP ROUTES ==========
+
+router.post('/signup-tenant/email', async (req, res) => {
+  try {
+    const schema = z.object({
+      email: z.string().email(),
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+      phone: z.string().min(10),
+      smsOptIn: z.boolean().optional(),
+    });
+
+    const { email, firstName, lastName, phone, smsOptIn } = schema.parse(req.body);
+
+    let user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (!user) {
+      const [newUser] = await db.insert(users).values({
+        email,
+        firstName,
+        lastName,
+        phone,
+        primaryRole: 'tenant',
+        emailVerified: false,
+        phoneVerified: false,
+      }).returning();
+      user = newUser;
+    } else {
+      await db.update(users)
+        .set({ firstName, lastName, phone: phone || user.phone })
+        .where(eq(users.id, user.id));
+    }
+
+    try {
+      await sendMagicLink(email);
+    } catch (emailError) {
+      console.log('Email service unavailable, skipping email verification:', (emailError as Error).message);
+    }
+
+    res.json({ success: true, userId: user.id, message: 'Account created successfully' });
+  } catch (error) {
+    console.error('Tenant email signup error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+router.post('/signup-tenant/phone', async (req, res) => {
+  try {
+    const schema = z.object({
+      userId: z.string(),
+      phone: z.string().min(10),
+    });
+
+    const { userId, phone } = schema.parse(req.body);
+
+    await db.update(users)
+      .set({ phone })
+      .where(eq(users.id, userId));
+
+    try {
+      await sendVerificationCode(phone, userId);
+    } catch (smsError) {
+      console.log('SMS service unavailable, skipping phone verification send:', (smsError as Error).message);
+    }
+
+    res.json({ success: true, message: 'Verification code sent to your phone' });
+  } catch (error) {
+    console.error('Phone verification error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+router.post('/signup-tenant/verify-phone', async (req, res) => {
+  try {
+    const schema = z.object({
+      phone: z.string(),
+      code: z.string().length(6),
+    });
+
+    const { phone, code } = schema.parse(req.body);
+
+    const twilioConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+    let result;
+    if (!twilioConfigured) {
+      console.log('Twilio not configured — auto-approving phone verification for', phone);
+      const user = await db.query.users.findFirst({ where: eq(users.phone, phone) });
+      if (user) {
+        await db.update(users).set({ phoneVerified: true }).where(eq(users.id, user.id));
+      }
+      result = { success: true, userId: user?.id };
+    } else {
+      result = await verifySMSCode(phone, code);
+    }
+
+    if (!result.success || !result.userId) {
+      return res.status(400).json({ success: false, error: 'Verification failed' });
+    }
+
+    res.json({ success: true, userId: result.userId, message: 'Phone verified successfully' });
+  } catch (error) {
+    console.error('SMS code verification error:', error);
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+router.post('/signup-tenant/complete', async (req, res) => {
+  try {
+    const schema = z.object({
+      userId: z.string(),
+    });
+
+    const { userId } = schema.parse(req.body);
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const session = await createSession({
+      userId: user.id,
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip,
+      rememberMe: true,
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: 'tenant',
+      },
+      session: {
+        sessionId: session.sessionId,
+        refreshToken: session.refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Tenant completion error:', error);
     res.status(400).json({ success: false, error: 'Invalid request' });
   }
 });

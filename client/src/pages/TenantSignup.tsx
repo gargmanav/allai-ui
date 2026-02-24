@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, Loader2, Check, User, Mail, Phone, Shield, Home, ArrowLeft } from 'lucide-react';
+import { Building2, Loader2, Check, User, Mail, Phone, Shield, Users, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type SignupStep = 'info' | 'verify-phone' | 'complete';
@@ -20,9 +20,9 @@ const STEPS = [
 ] as const;
 
 const VALUE_PROPS = [
-  { icon: Home, text: "Track maintenance & repairs in one place" },
-  { icon: Shield, text: "Find trusted, vetted contractors" },
-  { icon: Phone, text: "AI-powered maintenance assistant" },
+  { icon: Users, text: "Submit maintenance requests easily" },
+  { icon: Shield, text: "Track repair progress in real time" },
+  { icon: Phone, text: "Get notified when help is on the way" },
 ];
 
 const infoSchema = z.object({
@@ -39,11 +39,10 @@ const verifyPhoneSchema = z.object({
 
 function getStepIndex(step: SignupStep): number {
   if (step === 'info') return 0;
-  if (step === 'verify-phone') return 1;
   return 1;
 }
 
-export default function PropertyOwnerSignup() {
+export default function TenantSignup() {
   const [step, setStep] = useState<SignupStep>('info');
   const [userId, setUserId] = useState('');
   const [phone, setPhone] = useState('');
@@ -63,7 +62,7 @@ export default function PropertyOwnerSignup() {
 
   const infoMutation = useMutation({
     mutationFn: async (data: z.infer<typeof infoSchema>) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/email', {
+      const res = await apiRequest('POST', '/api/auth/signup-tenant/email', {
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
@@ -86,7 +85,7 @@ export default function PropertyOwnerSignup() {
 
   const phoneMutation = useMutation({
     mutationFn: async (data: { userId: string; phone: string }) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/phone', data);
+      const res = await apiRequest('POST', '/api/auth/signup-tenant/phone', data);
       return await res.json();
     },
     onSuccess: () => {
@@ -100,10 +99,10 @@ export default function PropertyOwnerSignup() {
 
   const verifyPhoneMutation = useMutation({
     mutationFn: async (data: z.infer<typeof verifyPhoneSchema>) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/verify-phone', { phone, code: data.code });
+      const res = await apiRequest('POST', '/api/auth/signup-tenant/verify-phone', { phone, code: data.code });
       return await res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: () => {
       completeMutation.mutate({});
     },
     onError: () => {
@@ -113,14 +112,14 @@ export default function PropertyOwnerSignup() {
 
   const completeMutation = useMutation({
     mutationFn: async (_data: {}) => {
-      const res = await apiRequest('POST', '/api/auth/signup-property-owner/complete', { userId });
+      const res = await apiRequest('POST', '/api/auth/signup-tenant/complete', { userId });
       return await res.json();
     },
     onSuccess: (data: any) => {
       sessionStorage.setItem('refreshToken', data.session?.refreshToken);
       sessionStorage.setItem('sessionId', data.session?.sessionId);
-      toast({ title: 'Welcome!', description: 'Your account is ready.' });
-      setLocation('/homeowner');
+      toast({ title: 'Welcome!', description: 'Your tenant account is ready.' });
+      setLocation('/tenant-hub');
     },
     onError: () => {
       toast({ title: 'Error', description: 'Failed to complete signup. Please try again.', variant: 'destructive' });
@@ -161,8 +160,8 @@ export default function PropertyOwnerSignup() {
             </div>
             <span className="text-xl font-bold text-gray-800">AllAI Property</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Homeowner Signup</h1>
-          <p className="text-gray-500 text-sm">Manage your home maintenance in under 2 minutes</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Tenant Signup</h1>
+          <p className="text-gray-500 text-sm">Submit requests and track repairs — all in one place</p>
         </div>
 
         <div
@@ -224,7 +223,7 @@ export default function PropertyOwnerSignup() {
                           <FormControl>
                             <div className="relative">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                              <Input {...field} placeholder="John" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" />
+                              <Input {...field} placeholder="Jane" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" />
                             </div>
                           </FormControl>
                           <FormMessage />
@@ -240,7 +239,7 @@ export default function PropertyOwnerSignup() {
                           <FormControl>
                             <div className="relative">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                              <Input {...field} placeholder="Smith" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" />
+                              <Input {...field} placeholder="Doe" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" />
                             </div>
                           </FormControl>
                           <FormMessage />
@@ -257,7 +256,7 @@ export default function PropertyOwnerSignup() {
                         <FormControl>
                           <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input {...field} type="email" placeholder="john@example.com" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" />
+                            <Input {...field} type="email" placeholder="jane@example.com" className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -312,7 +311,7 @@ export default function PropertyOwnerSignup() {
                           <div className="space-y-0.5">
                             <span className="text-sm font-medium text-gray-700">Receive SMS notifications</span>
                             <p className="text-xs text-gray-500 leading-relaxed">
-                              Get maintenance updates, contractor arrivals, and scheduling alerts via text. You can opt out anytime. Reply STOP to opt out.
+                              Get repair updates, contractor arrival alerts, and scheduling notifications via text. You can opt out anytime. Reply STOP to opt out.
                             </p>
                           </div>
                         </div>
