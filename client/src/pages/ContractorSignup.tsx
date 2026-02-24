@@ -434,6 +434,36 @@ export default function ContractorSignup() {
             {step === 'specialties' && (
               <Form {...specialtiesForm}>
                 <form onSubmit={specialtiesForm.handleSubmit((data) => completeMutation.mutate(data))} className="space-y-4">
+                  {selectedSpecialties.size > 0 && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold" style={{ color: 'hsl(210, 60%, 55%)' }}>
+                          {selectedSpecialties.size} {selectedSpecialties.size === 1 ? 'skill' : 'skills'} selected
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedSpecialties(new Set()); specialtiesForm.setValue('specialtyIds', []); }}
+                          className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {specialties?.filter((s: any) => selectedSpecialties.has(s.id)).map((s: any) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => toggleSpecialty(s.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white text-blue-600 border border-blue-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors"
+                          >
+                            {s.name}
+                            <span className="text-[10px] leading-none">&times;</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-center mb-1">
                     <p className="text-sm text-gray-500">Tap any and all services you provide</p>
                   </div>
@@ -522,36 +552,6 @@ export default function ContractorSignup() {
                           No skills match "{skillSearch}"
                         </p>
                       )}
-                    </div>
-                  )}
-
-                  {selectedSpecialties.size > 0 && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold" style={{ color: 'hsl(210, 60%, 55%)' }}>
-                          {selectedSpecialties.size} {selectedSpecialties.size === 1 ? 'skill' : 'skills'} selected
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedSpecialties(new Set()); specialtiesForm.setValue('specialtyIds', []); }}
-                          className="text-xs text-gray-400 hover:text-red-400 transition-colors"
-                        >
-                          Clear all
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {specialties?.filter((s: any) => selectedSpecialties.has(s.id)).map((s: any) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => toggleSpecialty(s.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white text-blue-600 border border-blue-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors"
-                          >
-                            {s.name}
-                            <span className="text-[10px] leading-none">&times;</span>
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   )}
 
