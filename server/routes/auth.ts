@@ -424,7 +424,7 @@ router.post('/signup-landlord/complete', async (req, res) => {
       await db.insert(organizationMembers).values({
         orgId: org.id,
         userId: user.id,
-        orgRole: 'admin',
+        orgRole: 'org_admin',
         membershipStatus: 'active',
         joinedAt: new Date(),
       });
