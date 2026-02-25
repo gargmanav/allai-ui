@@ -1,8 +1,29 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
-import { users, contractorProfiles, organizations, organizationMembers } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { users, contractorProfiles, organizations, organizationMembers, tenants } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
+
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+async function generateUniqueInviteCode(): Promise<string> {
+  let code = generateInviteCode();
+  let attempts = 0;
+  while (attempts < 10) {
+    const existing = await db.query.organizations.findFirst({ where: eq(organizations.inviteCode, code) });
+    if (!existing) return code;
+    code = generateInviteCode();
+    attempts++;
+  }
+  return code;
+}
 import { sendMagicLink, verifyEmailToken, sendTenantInvite } from '../services/emailService';
 import { sendVerificationCode, verifySMSCode, optOutSMS } from '../services/smsService';
 import { createSession, validateSession, revokeSession, revokeAllUserSessions } from '../services/sessionService';
@@ -415,10 +436,12 @@ router.post('/signup-landlord/complete', async (req, res) => {
     });
 
     if (!existingOrg) {
+      const inviteCode = await generateUniqueInviteCode();
       const [org] = await db.insert(organizations).values({
         name: `${user.firstName || user.email}'s Properties`,
         ownerId: user.id,
         ownerType: 'landlord',
+        inviteCode,
       }).returning();
 
       await db.insert(organizationMembers).values({
@@ -428,6 +451,13 @@ router.post('/signup-landlord/complete', async (req, res) => {
         membershipStatus: 'active',
         joinedAt: new Date(),
       });
+    } else {
+      // Ensure existing org has an invite code
+      const org = await db.query.organizations.findFirst({ where: eq(organizations.id, existingOrg.orgId) });
+      if (org && !org.inviteCode) {
+        const inviteCode = await generateUniqueInviteCode();
+        await db.update(organizations).set({ inviteCode }).where(eq(organizations.id, org.id));
+      }
     }
 
     const session = await createSession({
@@ -723,6 +753,56 @@ router.post('/sms-opt-out', async (req, res) => {
       message: 'You have been opted out of SMS notifications (except emergencies)' 
     });
   } catch (error) {
+    res.status(400).json({ success: false, error: 'Invalid request' });
+  }
+});
+
+// Join an org via invite code (called from tenant signup)
+router.post('/join-org', async (req, res) => {
+  try {
+    const schema = z.object({
+      inviteCode: z.string().min(1),
+      userId: z.string(),
+    });
+
+    const { inviteCode, userId } = schema.parse(req.body);
+
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.inviteCode, inviteCode.toUpperCase()),
+    });
+
+    if (!org) {
+      return res.status(404).json({ success: false, error: 'Invalid invite code. Please check with your landlord and try again.' });
+    }
+
+    const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Check if tenant record already exists for this user + org
+    const existingTenant = await db.query.tenants.findFirst({
+      where: and(eq(tenants.orgId, org.id), eq(tenants.userId, userId)),
+    });
+
+    if (!existingTenant) {
+      await db.insert(tenants).values({
+        orgId: org.id,
+        userId: user.id,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        status: 'Active',
+      });
+    }
+
+    res.json({
+      success: true,
+      org: { id: org.id, name: org.name },
+    });
+  } catch (error) {
+    console.error('join-org error:', error);
     res.status(400).json({ success: false, error: 'Invalid request' });
   }
 });

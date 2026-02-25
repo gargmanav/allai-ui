@@ -9,14 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, Loader2, Check, User, Mail, Phone, Shield, Users, ArrowLeft } from 'lucide-react';
+import { Building2, Loader2, Check, User, Mail, Phone, Shield, Users, ArrowLeft, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-type SignupStep = 'info' | 'verify-phone' | 'complete';
+type SignupStep = 'info' | 'verify-phone' | 'link-org';
 
 const STEPS = [
   { key: 'info', label: 'Info', icon: User },
   { key: 'verify-phone', label: 'Verify', icon: Phone },
+  { key: 'link-org', label: 'Link', icon: Key },
 ] as const;
 
 const VALUE_PROPS = [
@@ -37,9 +38,14 @@ const verifyPhoneSchema = z.object({
   code: z.string().length(6, 'Verification code must be 6 digits'),
 });
 
+const linkOrgSchema = z.object({
+  inviteCode: z.string().min(1, 'Please enter a code or skip this step'),
+});
+
 function getStepIndex(step: SignupStep): number {
   if (step === 'info') return 0;
-  return 1;
+  if (step === 'verify-phone') return 1;
+  return 2;
 }
 
 export default function TenantSignup() {
@@ -47,6 +53,7 @@ export default function TenantSignup() {
   const [userId, setUserId] = useState('');
   const [phone, setPhone] = useState('');
   const [fadeIn, setFadeIn] = useState(true);
+  const [linkOrgError, setLinkOrgError] = useState('');
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -119,13 +126,31 @@ export default function TenantSignup() {
     onSuccess: async (data: any) => {
       sessionStorage.setItem('refreshToken', data.session?.refreshToken);
       sessionStorage.setItem('sessionId', data.session?.sessionId);
-      toast({ title: 'Welcome!', description: 'Your tenant account is ready.' });
       await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
       await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
-      setLocation('/tenant-hub');
+      transitionTo('link-org');
     },
     onError: () => {
       toast({ title: 'Error', description: 'Failed to complete signup. Please try again.', variant: 'destructive' });
+    },
+  });
+
+  const joinOrgMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const res = await apiRequest('POST', '/api/auth/join-org', {
+        inviteCode: code.trim().toUpperCase(),
+        userId,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Invalid invite code');
+      return json;
+    },
+    onSuccess: (data: any) => {
+      toast({ title: 'Linked!', description: `You've been connected to ${data.org?.name || 'your landlord'}.` });
+      setLocation('/tenant-hub');
+    },
+    onError: (err: any) => {
+      setLinkOrgError(err.message || 'Invalid invite code. Please check with your landlord and try again.');
     },
   });
 
@@ -137,6 +162,11 @@ export default function TenantSignup() {
   const verifyPhoneForm = useForm({
     resolver: zodResolver(verifyPhoneSchema),
     defaultValues: { code: '' },
+  });
+
+  const linkOrgForm = useForm({
+    resolver: zodResolver(linkOrgSchema),
+    defaultValues: { inviteCode: '' },
   });
 
   return (
@@ -176,6 +206,7 @@ export default function TenantSignup() {
             backdropFilter: 'blur(40px) saturate(200%)',
           }}
         >
+          {/* Step indicators */}
           <div className="flex items-center justify-between mb-8 relative">
             {STEPS.map((s, i) => {
               const Icon = s.icon;
@@ -202,7 +233,7 @@ export default function TenantSignup() {
                 </div>
               );
             })}
-            <div className="absolute top-5 left-[25%] right-[25%] h-0.5 bg-gray-200 z-0">
+            <div className="absolute top-5 left-[16%] right-[16%] h-0.5 bg-gray-200 z-0">
               <div
                 className="h-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-500 rounded-full"
                 style={{ width: `${(currentStepIndex / (STEPS.length - 1)) * 100}%` }}
@@ -210,9 +241,7 @@ export default function TenantSignup() {
             </div>
           </div>
 
-          <div
-            className={`transition-all duration-200 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-          >
+          <div className={`transition-all duration-200 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
             {step === 'info' && (
               <Form {...infoForm}>
                 <form onSubmit={infoForm.handleSubmit((data) => infoMutation.mutate(data))} className="space-y-4">
@@ -314,7 +343,7 @@ export default function TenantSignup() {
                           <div className="space-y-0.5">
                             <span className="text-sm font-medium text-gray-700">Receive SMS notifications</span>
                             <p className="text-xs text-gray-500 leading-relaxed">
-                              Get repair updates, contractor arrival alerts, and scheduling notifications via text. You can opt out anytime. Reply STOP to opt out.
+                              Get repair updates, contractor arrival alerts, and scheduling notifications via text. Reply STOP to opt out.
                             </p>
                           </div>
                         </div>
@@ -361,10 +390,78 @@ export default function TenantSignup() {
                     disabled={verifyPhoneMutation.isPending || completeMutation.isPending}
                   >
                     {(verifyPhoneMutation.isPending || completeMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Verify & Complete
+                    Verify & Continue
                   </Button>
                 </form>
               </Form>
+            )}
+
+            {step === 'link-org' && (
+              <div className="space-y-5">
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center mx-auto mb-3">
+                    <Key className="h-7 w-7 text-blue-500" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-gray-800 mb-1">Link to your landlord</h2>
+                  <p className="text-sm text-gray-500">
+                    Enter the invite code your landlord shared with you. This connects you to their property management account.
+                  </p>
+                </div>
+
+                <Form {...linkOrgForm}>
+                  <form
+                    onSubmit={linkOrgForm.handleSubmit((data) => {
+                      setLinkOrgError('');
+                      joinOrgMutation.mutate(data.inviteCode);
+                    })}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={linkOrgForm.control}
+                      name="inviteCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 text-sm font-medium">Landlord Invite Code</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              <Input
+                                {...field}
+                                placeholder="e.g. X7R4M2"
+                                maxLength={6}
+                                className="pl-9 h-11 bg-white/80 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl text-center text-lg tracking-widest font-mono uppercase"
+                                onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                              />
+                            </div>
+                          </FormControl>
+                          {linkOrgError && (
+                            <p className="text-sm text-red-500 mt-1">{linkOrgError}</p>
+                          )}
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button
+                      type="submit"
+                      className="w-full h-12 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02]"
+                      disabled={joinOrgMutation.isPending}
+                    >
+                      {joinOrgMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Link My Account
+                    </Button>
+                  </form>
+                </Form>
+
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setLocation('/tenant-hub')}
+                    className="text-sm text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
+                  >
+                    Skip for now — I'll link later
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

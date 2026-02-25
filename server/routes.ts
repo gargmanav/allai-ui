@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireAuth, AuthenticatedRequest } from "./middleware/rbac";
 import { ObjectStorageService } from "./objectStorage";
 import { db } from "./db";
-import { users, organizationMembers, vendors, counterProposals, tenants, smartCases, transactions as transactionsTable, caseMedia } from "@shared/schema";
+import { users, organizationMembers, organizations, vendors, counterProposals, tenants, smartCases, transactions as transactionsTable, caseMedia } from "@shared/schema";
 import { z } from "zod";
 import authRouter from "./routes/auth";
 import contractorRouter from "./routes/contractor";
@@ -369,6 +369,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching organization:", error);
       res.status(500).json({ message: "Failed to fetch organization" });
+    }
+  });
+
+  // Landlord invite code endpoints
+  function generateInviteCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
+  async function generateUniqueOrgInviteCode(): Promise<string> {
+    let code = generateInviteCode();
+    for (let i = 0; i < 10; i++) {
+      const existing = await db.query.organizations.findFirst({ where: eq(organizations.inviteCode, code) });
+      if (!existing) return code;
+      code = generateInviteCode();
+    }
+    return code;
+  }
+
+  app.get('/api/landlord/invite-code', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.userId;
+      const member = await db.query.organizationMembers.findFirst({ where: eq(organizationMembers.userId, userId) });
+      if (!member) return res.status(404).json({ message: 'Organization not found' });
+
+      const org = await db.query.organizations.findFirst({ where: eq(organizations.id, member.orgId) });
+      if (!org) return res.status(404).json({ message: 'Organization not found' });
+
+      let inviteCode = org.inviteCode;
+      if (!inviteCode) {
+        inviteCode = await generateUniqueOrgInviteCode();
+        await db.update(organizations).set({ inviteCode }).where(eq(organizations.id, org.id));
+      }
+
+      res.json({ inviteCode, orgName: org.name });
+    } catch (error) {
+      console.error('Error fetching invite code:', error);
+      res.status(500).json({ message: 'Failed to fetch invite code' });
+    }
+  });
+
+  app.post('/api/landlord/invite-code/regenerate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.userId;
+      const member = await db.query.organizationMembers.findFirst({ where: eq(organizationMembers.userId, userId) });
+      if (!member) return res.status(404).json({ message: 'Organization not found' });
+
+      const newCode = await generateUniqueOrgInviteCode();
+      await db.update(organizations).set({ inviteCode: newCode }).where(eq(organizations.id, member.orgId));
+
+      res.json({ inviteCode: newCode });
+    } catch (error) {
+      console.error('Error regenerating invite code:', error);
+      res.status(500).json({ message: 'Failed to regenerate invite code' });
     }
   });
 

@@ -54,6 +54,8 @@ Preferred communication style: Simple, everyday language.
 - Full job lifecycle workflow for contractors, including scheduling, progress tracking, and completion.
 - Vendor management in Portfolio section (Properties / Entities / Vendors toggle) with full CRUD, record payment, and W-9 tracking.
 - 1099-NEC tax reporting with vendor payment tracking, bulk generation, CSV export, and W-9 status management.
+- Tenant invite code system: landlord orgs get a unique 6-char code (visible in Tenants view with Copy/Regenerate); tenants can optionally enter it during signup (step 3 of TenantSignup) to auto-link their account to the landlord's org.
+- Tenant archiving: full archive/unarchive cycle already built — backend routes (`PATCH /api/tenants/:id/archive`, `/unarchive`) and frontend toggle in tenants.tsx.
 
 ## External Dependencies
 

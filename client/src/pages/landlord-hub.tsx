@@ -23,6 +23,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Home,
   Building,
   Users,
@@ -69,6 +79,9 @@ import {
   Bug,
   PaintBucket,
   Hammer,
+  Key,
+  Copy,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -479,6 +492,24 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
   const [mayaHovered, setMayaHovered] = useState(false);
   const [showMayaBubble, setShowMayaBubble] = useState(false);
   const [mayaSuggestionIndex, setMayaSuggestionIndex] = useState(0);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+
+  const { data: inviteCodeData } = useQuery<{ inviteCode: string; orgName: string }>({
+    queryKey: ['/api/landlord/invite-code'],
+    enabled: view === 'tenants',
+  });
+
+  const regenCodeMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/landlord/invite-code/regenerate').then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/landlord/invite-code'] });
+      toast({ title: 'New code generated', description: 'Share the new code with your tenants.' });
+      setShowRegenConfirm(false);
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to regenerate code.', variant: 'destructive' });
+    },
+  });
 
   const mayaSuggestions = [
     "What needs my attention today?",
@@ -2697,9 +2728,81 @@ function LandlordHubInner({ user, isAuthenticated, isLoading, logout }: { user: 
                 "Any tenants with overdue rent?",
               ]}
             >
+              {/* Tenant Invite Code Card */}
+              <div className="px-4 sm:px-6 pt-4 pb-2">
+                <div
+                  className="rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+                  style={{
+                    background: 'linear-gradient(145deg, rgba(240,244,255,0.95), rgba(232,240,255,0.90))',
+                    border: '1px solid rgba(99,102,241,0.12)',
+                    boxShadow: '0 4px 20px rgba(99,102,241,0.08)',
+                  }}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center shrink-0">
+                      <Key className="h-5 w-5 text-violet-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase mb-0.5">Tenant Invite Code</p>
+                      <p className="text-2xl font-bold tracking-[0.18em] text-slate-800 font-mono">
+                        {inviteCodeData?.inviteCode ?? '——————'}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">Share this code with tenants when they sign up</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-3 text-xs rounded-lg border-slate-200 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all"
+                      onClick={() => {
+                        if (inviteCodeData?.inviteCode) {
+                          navigator.clipboard.writeText(inviteCodeData.inviteCode);
+                          toast({ title: 'Copied!', description: 'Invite code copied to clipboard.' });
+                        }
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      Copy
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-3 text-xs rounded-lg border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all"
+                      onClick={() => setShowRegenConfirm(true)}
+                      disabled={regenCodeMutation.isPending}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${regenCodeMutation.isPending ? 'animate-spin' : ''}`} />
+                      Regenerate
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <HubTenantsView />
             </MayaSidebarPanel>
           )}
+
+          {/* Regenerate invite code confirmation dialog */}
+          <AlertDialog open={showRegenConfirm} onOpenChange={setShowRegenConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Regenerate invite code?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your current code will stop working immediately. Tenants who haven't signed up yet will need the new code. Existing linked tenants are not affected.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                  onClick={() => regenCodeMutation.mutate()}
+                >
+                  Yes, generate new code
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {view === "financial" && (
             <Tabs value={financialTab} onValueChange={setFinancialTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">

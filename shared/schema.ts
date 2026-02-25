@@ -76,6 +76,7 @@ export const organizations = pgTable("organizations", {
   timezone: varchar("timezone").default("America/New_York"),
   schedulingMode: schedulingModeEnum("scheduling_mode").default("contractor_first"),
   defaultAccessApprovalHours: integer("default_access_approval_hours").default(24),
+  inviteCode: varchar("invite_code").unique(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
