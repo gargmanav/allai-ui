@@ -39,7 +39,7 @@ const infoSchema = z.object({
   email: z.string().email('Invalid email address'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  phone: z.string().refine(val => val.replace(/\D/g, '').length === 10, 'Please enter a complete 10-digit phone number'),
   smsOptIn: z.boolean().default(false),
 });
 
@@ -133,7 +133,8 @@ export default function ContractorSignup() {
       const res = await apiRequest('POST', '/api/auth/signup-contractor/verify-phone', { phone, code: data.code });
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      if (data.userId) setUserId(data.userId);
       toast({ title: 'Phone verified!', description: 'Now select your specialties.' });
       transitionTo('specialties');
     },

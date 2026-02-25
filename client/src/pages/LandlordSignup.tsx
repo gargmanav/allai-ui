@@ -29,7 +29,7 @@ const infoSchema = z.object({
   email: z.string().email('Invalid email address'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  phone: z.string().refine(val => val.replace(/\D/g, '').length === 10, 'Please enter a complete 10-digit phone number'),
   smsOptIn: z.boolean().default(false),
 });
 
@@ -102,8 +102,9 @@ export default function LandlordSignup() {
       const res = await apiRequest('POST', '/api/auth/signup-landlord/verify-phone', { phone, code: data.code });
       return await res.json();
     },
-    onSuccess: () => {
-      completeMutation.mutate({});
+    onSuccess: (data: any) => {
+      if (data.userId) setUserId(data.userId);
+      completeMutation.mutate({ userId: data.userId });
     },
     onError: () => {
       toast({ title: 'Error', description: 'Invalid or expired code. Please try again.', variant: 'destructive' });
@@ -111,8 +112,8 @@ export default function LandlordSignup() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: async (_data: {}) => {
-      const res = await apiRequest('POST', '/api/auth/signup-landlord/complete', { userId });
+    mutationFn: async (data: { userId?: string }) => {
+      const res = await apiRequest('POST', '/api/auth/signup-landlord/complete', { userId: data.userId || userId });
       return await res.json();
     },
     onSuccess: async (data: any) => {
