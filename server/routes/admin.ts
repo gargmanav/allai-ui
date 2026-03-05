@@ -393,6 +393,73 @@ router.get('/activity', requireAuth, requirePlatformAdmin, async (req: Authentic
   }
 });
 
+// Get all properties across the platform
+router.get('/properties', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const allProps = await db.select({
+      id: properties.id,
+      name: properties.name,
+      type: properties.type,
+      street: properties.street,
+      city: properties.city,
+      state: properties.state,
+      zipCode: properties.zipCode,
+      orgId: properties.orgId,
+      orgName: organizations.name,
+      createdAt: properties.createdAt,
+    })
+    .from(properties)
+    .leftJoin(organizations, eq(properties.orgId, organizations.id))
+    .orderBy(desc(properties.createdAt));
+
+    // Attach open case count per property
+    const withCases = await Promise.all(allProps.map(async (p) => {
+      const [caseCount] = await db.select({ count: count() })
+        .from(smartCases)
+        .where(and(
+          eq(smartCases.propertyId, p.id),
+          ne(smartCases.status, 'Resolved'),
+          ne(smartCases.status, 'Closed'),
+        ));
+      return { ...p, openCases: caseCount.count };
+    }));
+
+    res.json(withCases);
+  } catch (error) {
+    console.error('Error fetching admin properties:', error);
+    res.status(500).json({ error: 'Failed to fetch properties' });
+  }
+});
+
+// Get all active cases across the platform
+router.get('/cases', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const allCases = await db.select({
+      id: smartCases.id,
+      title: smartCases.title,
+      status: smartCases.status,
+      priority: smartCases.priority,
+      category: smartCases.category,
+      orgId: smartCases.orgId,
+      orgName: organizations.name,
+      propertyId: smartCases.propertyId,
+      createdAt: smartCases.createdAt,
+    })
+    .from(smartCases)
+    .leftJoin(organizations, eq(smartCases.orgId, organizations.id))
+    .where(and(
+      ne(smartCases.status, 'Resolved'),
+      ne(smartCases.status, 'Closed'),
+    ))
+    .orderBy(desc(smartCases.createdAt));
+
+    res.json(allCases);
+  } catch (error) {
+    console.error('Error fetching admin cases:', error);
+    res.status(500).json({ error: 'Failed to fetch cases' });
+  }
+});
+
 // Get current impersonation status
 router.get('/impersonation-status', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
   try {
