@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { requireAuth, requirePlatformAdmin, AuthenticatedRequest } from '../middleware/rbac';
 import { db } from '../db';
-import { users, organizations, properties, contractorProfiles, smartCases, tenants, tenantGroups, userContractorSpecialties, contractorSpecialties, favoriteContractors, scheduledJobs, vendors } from '@shared/schema';
-import { eq, count, sql, and, ne, gte, desc, isNull } from 'drizzle-orm';
-import { startOrgImpersonation, stopImpersonation } from '../services/sessionService';
+import { users, organizations, organizationMembers, properties, contractorProfiles, smartCases, tenants, tenantGroups, userContractorSpecialties, contractorSpecialties, favoriteContractors, scheduledJobs, vendors } from '@shared/schema';
+import { eq, count, sql, and, ne, gte, desc, isNull, or } from 'drizzle-orm';
+import { startOrgImpersonation, stopImpersonation, revokeAllUserSessions } from '../services/sessionService';
 
 const router = Router();
 
@@ -289,6 +289,107 @@ router.post('/stop-impersonation', requireAuth, requirePlatformAdmin, async (req
   } catch (error) {
     console.error('Error stopping org impersonation:', error);
     res.status(500).json({ error: 'Failed to stop impersonation' });
+  }
+});
+
+// Change a user's role
+router.patch('/users/:userId/role', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+    const validRoles = ['platform_super_admin', 'org_admin', 'property_owner', 'contractor', 'tenant'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    const [updated] = await db.update(users).set({ primaryRole: role as any }).where(eq(users.id, userId)).returning();
+    if (!updated) return res.status(404).json({ error: 'User not found' });
+    // Update org membership role too
+    await db.update(organizationMembers).set({ orgRole: role as any }).where(eq(organizationMembers.userId, userId));
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    console.error('Error changing user role:', error);
+    res.status(500).json({ error: 'Failed to change role' });
+  }
+});
+
+// Deactivate a user (revoke sessions + mark membership inactive)
+router.patch('/users/:userId/deactivate', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { userId } = req.params;
+    await db.update(organizationMembers).set({ membershipStatus: 'inactive' }).where(eq(organizationMembers.userId, userId));
+    await revokeAllUserSessions(userId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deactivating user:', error);
+    res.status(500).json({ error: 'Failed to deactivate user' });
+  }
+});
+
+// Reactivate a user
+router.patch('/users/:userId/reactivate', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { userId } = req.params;
+    await db.update(organizationMembers).set({ membershipStatus: 'active' }).where(eq(organizationMembers.userId, userId));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error reactivating user:', error);
+    res.status(500).json({ error: 'Failed to reactivate user' });
+  }
+});
+
+// Get recent platform activity feed
+router.get('/activity', requireAuth, requirePlatformAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const recentUsers = await db.select({
+      id: users.id,
+      label: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      email: users.email,
+      role: users.primaryRole,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(desc(users.createdAt)).limit(12);
+
+    const recentOrgs = await db.select({
+      id: organizations.id,
+      name: organizations.name,
+      createdAt: organizations.createdAt,
+    }).from(organizations).orderBy(desc(organizations.createdAt)).limit(8);
+
+    const recentCases = await db.select({
+      id: smartCases.id,
+      title: smartCases.title,
+      status: smartCases.status,
+      priority: smartCases.priority,
+      orgId: smartCases.orgId,
+      createdAt: smartCases.createdAt,
+    }).from(smartCases).orderBy(desc(smartCases.createdAt)).limit(10);
+
+    const events: Array<{ id: string; type: string; title: string; subtitle: string; createdAt: Date; priority?: string }> = [
+      ...recentUsers.map(u => ({
+        id: u.id, type: 'user_signup',
+        title: `New ${u.role?.replace('_', ' ') || 'user'} joined`,
+        subtitle: u.email,
+        createdAt: u.createdAt!,
+      })),
+      ...recentOrgs.map(o => ({
+        id: o.id, type: 'org_created',
+        title: 'New organization created',
+        subtitle: o.name,
+        createdAt: o.createdAt!,
+      })),
+      ...recentCases.map(c => ({
+        id: String(c.id), type: 'case_opened',
+        title: 'Maintenance case opened',
+        subtitle: c.title || 'Untitled case',
+        priority: c.priority || undefined,
+        createdAt: c.createdAt!,
+      })),
+    ];
+
+    events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(events.slice(0, 25));
+  } catch (error) {
+    console.error('Error fetching activity feed:', error);
+    res.status(500).json({ error: 'Failed to fetch activity' });
   }
 });
 
